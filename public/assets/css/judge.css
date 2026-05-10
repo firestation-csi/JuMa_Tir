@@ -225,6 +225,228 @@
 .wt_gap-md  { display: flex; flex-direction: column; gap: 16px; }
 .wt_section { padding: 0 18px 14px; }
 
+/* ---- Typografie-Helfer ---- */
+.wt_h1 {
+    font-size: 28px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+.wt_eyebrow {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--wt-text-subtle);
+}
+.wt_caption {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--wt-text-subtle);
+}
+
+/* ---- Station-Chip & Sync-Pill ---- */
+.wt_station-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 12px 0 10px;
+    border-radius: 999px;
+    background: var(--wt-red);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.18);
+    white-space: nowrap;
+}
+.wt_dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.25);
+    flex-shrink: 0;
+}
+.wt_sync-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--wt-surface);
+    border: 1px solid var(--wt-border);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--wt-text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.wt_pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.wt_pulse--online {
+    background: var(--wt-ok);
+    animation: wtPulse 2.4s ease-in-out infinite;
+}
+.wt_pulse--offline { background: var(--wt-warn); }
+@keyframes wtPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(31,122,77,0); }
+    50%      { box-shadow: 0 0 0 6px rgba(31,122,77,0.25); }
+}
+
+/* ---- Fortschrittsbalken ---- */
+.wt_progress-track {
+    display: flex;
+    gap: 6px;
+    padding: 0 0 4px;
+}
+.wt_progress-step {
+    flex: 1;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--wt-border-strong);
+    transition: background 200ms ease;
+}
+.wt_progress-step--active { background: var(--wt-red); }
+.wt_progress-step--done   { background: var(--wt-text); }
+
+/* ---- Listenzeilen ---- */
+.wt_list-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--wt-border);
+}
+.wt_list-row:last-child { border-bottom: 0; }
+
+.wt_row-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--wt-border);
+}
+.wt_row-line:last-child { border-bottom: 0; }
+.wt_row-label {
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+.wt_row-sub {
+    font-size: 12px;
+    color: var(--wt-text-subtle);
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+/* ---- Gruppe ---- */
+.wt_group-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 10px;
+    border-radius: 12px;
+    background: var(--wt-red-tint);
+    color: var(--wt-red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.wt_group-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--wt-text-subtle);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+    flex-wrap: wrap;
+}
+.wt_sep {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--wt-border-strong);
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* ---- Check-Toggle (OK / Fehler) ---- */
+.wt_check-toggle {
+    display: inline-flex;
+    background: var(--wt-surface-alt);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 0;
+    flex-shrink: 0;
+}
+.wt_check-toggle__ok,
+.wt_check-toggle__fail {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--wt-text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 120ms ease, color 120ms ease;
+}
+.wt_check-toggle__ok--active {
+    background: var(--wt-ok);
+    color: #fff;
+}
+.wt_check-toggle__fail--active {
+    background: var(--wt-red);
+    color: #fff;
+}
+
+/* ---- Total-Pill ---- */
+.wt_total-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--wt-red-tint);
+    color: var(--wt-red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ---- Btn-Dark (Stopp) ---- */
+.wt_btn--dark {
+    background: var(--wt-text);
+    color: var(--wt-bg);
+}
+
+/* ---- Fade-In Animation ---- */
+.wt_fade-in {
+    animation: wtFadeIn 220ms ease-out;
+}
+@keyframes wtFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Desktop */
 @media (min-width: 1024px) {
     .wt_scroll { max-width: 480px; margin: 0 auto; }

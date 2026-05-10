@@ -7,24 +7,24 @@ namespace App\Controller;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
-use App\Model\Station;
 use App\Model\Score;
-use App\Model\Group;
+use App\Model\Station;
+use App\Model\StationTask;
 
 class StationController
 {
     private Station $stationModel;
-    private Score   $scoreModel;
-    private Group   $groupModel;
+    private StationTask $taskModel;
+    private Score $scoreModel;
 
-    public function __construct(private Request $request)
+    public function __construct(Request $request)
     {
         $this->stationModel = new Station();
+        $this->taskModel    = new StationTask();
         $this->scoreModel   = new Score();
-        $this->groupModel   = new Group();
     }
 
-    /** Stationsdaten + bereits bewertete Gruppen (API) */
+    /** Stationsdaten + Aufgaben + bereits bewertete Gruppen (API) */
     public function show(string $id): void
     {
         if (!Auth::isJudge()) {
@@ -38,13 +38,13 @@ class StationController
             Response::error('Station nicht gefunden', 404);
         }
 
-        $scores = $this->scoreModel->findByStation($stationId);
+        $scores         = $this->scoreModel->findByStation($stationId);
         $scoredGroupIds = array_column($scores, 'group_id');
 
         Response::json([
             'station'          => $station,
+            'tasks'            => $this->taskModel->findByStationAsSchema($stationId),
             'scored_group_ids' => $scoredGroupIds,
-            'scores'           => $scores,
         ]);
     }
 }

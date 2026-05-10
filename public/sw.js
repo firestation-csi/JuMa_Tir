@@ -2,7 +2,7 @@
 // Strategie: Network-First für Seiten & API, Cache-First nur für echte Assets
 
 // VERSION ERHÖHEN bei jedem Deploy (CSS/JS-Änderungen werden sonst nicht übernommen)
-const CACHE_NAME = 'juma-v3';
+const CACHE_NAME = 'juma-v4';
 
 // Nur echte statische Assets voraufladen — KEINE PHP-Seiten
 const STATIC_ASSETS = [
@@ -11,6 +11,7 @@ const STATIC_ASSETS = [
     '/assets/js/app.js',
     '/assets/js/qr.js',
     '/assets/js/offline.js',
+    '/assets/js/station.js',
     '/manifest.json',
 ];
 

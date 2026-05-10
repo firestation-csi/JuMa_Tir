@@ -55,17 +55,25 @@ window.addEventListener('wt:save-offline', async (e) => {
     updateQueueCount();
 });
 
+// ---- Queue-Count auf Anfrage liefern ----
+window.addEventListener('wt:request-queue-count', updateQueueCount);
+
 // ---- Sync-Indikator aktualisieren ----
 async function updateQueueCount() {
     const items = await getAllQueued();
+    const count = items.length;
+
+    // Sync-Pill in station.js benachrichtigen
+    window.dispatchEvent(new CustomEvent('wt:queue-count', { detail: count }));
+
+    // Legacy-Indikator (falls vorhanden)
     const indicator = document.getElementById('syncIndicator');
     if (!indicator) return;
-
-    if (items.length === 0) {
+    if (count === 0) {
         indicator.textContent = '';
         indicator.className   = 'wt_sync-indicator';
     } else {
-        indicator.textContent = `${items.length} offline`;
+        indicator.textContent = `${count} offline`;
         indicator.className   = 'wt_sync-indicator wt_sync-indicator--offline';
     }
 }

@@ -10,19 +10,22 @@ use App\Core\Response;
 use App\Model\Judge;
 use App\Model\Score;
 use App\Model\Station;
+use App\Model\StationTask;
 use App\Service\SyncService;
 
 class JudgeController
 {
-    private Judge   $judgeModel;
-    private Score   $scoreModel;
-    private Station $stationModel;
+    private Judge       $judgeModel;
+    private Score       $scoreModel;
+    private Station     $stationModel;
+    private StationTask $taskModel;
 
     public function __construct(private Request $request)
     {
         $this->judgeModel   = new Judge();
         $this->scoreModel   = new Score();
         $this->stationModel = new Station();
+        $this->taskModel    = new StationTask();
     }
 
     /** Einstiegsseite */
@@ -93,24 +96,42 @@ class JudgeController
         $judgeId   = Auth::getJudgeId();
         $stationId = Auth::getStationId();
         $judge     = $this->judgeModel->findById($judgeId);
-        $station   = $this->stationModel->findWithDetails($stationId);
+        $station   = $this->stationModel->findById($stationId);
 
         if (!$station || !$judge) {
             Auth::logout();
             Response::redirect('/judge');
         }
 
-        // Bereits bewertete Gruppen an dieser Station durch diesen Schiedsrichter
-        $scoredGroups = $this->scoreModel->findByStation($stationId);
-        $scoredGroupIds = array_column($scoredGroups, 'group_id');
+        $tasks   = $this->taskModel->findByStationAsSchema($stationId);
+        $scores  = $this->scoreModel->findByStation($stationId);
+
+        // Verlauf (letzte 20 Bewertungen dieser Station durch diesen Schiedsrichter)
+        $history = array_map(fn($s) => [
+            'score_id'    => $s['id'],
+            'group_id'    => $s['group_id'],
+            'group_name'  => $s['group_name'],
+            'group_num'   => $s['group_num'],
+            'kreis'       => $s['kreis'],
+            'total_fp'    => $s['total_fp'],
+            'synced'      => $s['synced_at'] !== null,
+            'timestamp'   => date('H:i', strtotime($s['created_at'])),
+        ], array_slice($scores, 0, 20));
+
+        $initials = implode('', array_map(fn($w) => mb_strtoupper(mb_substr($w, 0, 1)),
+            array_filter(explode(' ', $judge['name']))));
 
         Response::view('pages/judge/station', [
-            'title'          => 'Station ' . $station['code'],
-            'station'        => $station,
-            'judge'          => $judge,
-            'scoredGroupIds' => $scoredGroupIds,
-            'history'        => array_slice($scoredGroups, 0, 10),
-            'csrf'           => Auth::getCsrfToken(),
+            'title'   => 'Station ' . $station['code'],
+            'station' => $station,
+            'tasks'   => $tasks,
+            'judge'   => [
+                'id'       => $judge['id'],
+                'name'     => $judge['name'],
+                'initials' => mb_substr($initials, 0, 2),
+            ],
+            'history' => $history,
+            'csrf'    => Auth::getCsrfToken(),
         ]);
     }
 
@@ -119,17 +140,15 @@ class JudgeController
     {
         if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
 
-        $data = $this->request->json();
+        $data      = $this->request->json();
+        $groupId   = isset($data['group_id'])   ? (int)$data['group_id']   : null;
+        $stationId = isset($data['station_id']) ? (int)$data['station_id'] : null;
+        $taskResults = $data['tasks']       ?? [];
+        $impression  = $data['impression']  ?? 'gut';
+        $timeMs      = isset($data['time_ms']) ? (int)$data['time_ms'] : null;
+        $notes       = $data['notes']       ?? null;
 
-        $groupId    = isset($data['group_id'])    ? (int)$data['group_id']    : null;
-        $stationId  = isset($data['station_id'])  ? (int)$data['station_id']  : null;
-        $checks     = $data['checks']     ?? [];  // [criterionId => 'ok'|'fail']
-        $penalties  = $data['penalties']  ?? [];  // [penaltyId => count]
-        $impression = $data['impression'] ?? 'gut';
-        $timeMs     = isset($data['time_ms']) ? (int)$data['time_ms'] : null;
-        $notes      = $data['notes'] ?? null;
-
-        if ($groupId === null || $stationId === null || empty($checks)) {
+        if ($groupId === null || $stationId === null) {
             Response::error('Pflichtfelder fehlen');
         }
 
@@ -137,17 +156,46 @@ class JudgeController
             Response::error('Nicht autorisiert für diese Station', 403);
         }
 
-        // Fehlerpunkte serverseitig berechnen (nie dem Client vertrauen)
-        $station = $this->stationModel->findWithDetails($stationId);
-        $totalFp = $this->calculateFp($station, $checks, $penalties);
+        // Fehlerpunkte serverseitig berechnen
+        $taskDefs = $this->taskModel->findByStation($stationId);
+        $taskMap  = array_column($taskDefs, null, 'id');
+        $totalFp  = 0;
 
-        $judgeId = Auth::getJudgeId();
-        $id = $this->scoreModel->save(
-            $judgeId, $groupId, $stationId,
-            $checks, $penalties, $impression, $totalFp, $timeMs, $notes
+        foreach ($taskResults as $r) {
+            $taskId = isset($r['task_id']) ? (int)$r['task_id'] : 0;
+            $value  = $r['value'] ?? null;
+            if (!isset($taskMap[$taskId])) continue;
+            $task = $taskMap[$taskId];
+
+            if ($task['type'] === 'boolean' && $value === 'fail') {
+                $totalFp += (int)$task['points'];
+            } elseif ($task['type'] === 'count' && (int)$value > 0) {
+                $totalFp += (int)$value * (int)$task['points'];
+            }
+        }
+
+        // Zeitstrafe berechnen
+        if ($timeMs !== null && $timeMs > 0) {
+            foreach ($taskDefs as $task) {
+                if ($task['sollzeit_sek'] === null || $task['zeitstrafe_fp'] === null || $task['zeiteinheit_sek'] === null) {
+                    continue;
+                }
+                $sek     = intdiv($timeMs, 1000);
+                $sollSek = (int)$task['sollzeit_sek'];
+                if ($sek <= $sollSek) continue;
+
+                $maxSek  = $task['hoechstzeit_sek'] !== null ? (int)$task['hoechstzeit_sek'] : $sek;
+                $overSek = min($sek, $maxSek) - $sollSek;
+                $totalFp += (int)floor($overSek / (int)$task['zeiteinheit_sek']) * (int)$task['zeitstrafe_fp'];
+            }
+        }
+
+        $scoreId = $this->scoreModel->save(
+            Auth::getJudgeId(), $groupId, $stationId,
+            $taskResults, $impression, $totalFp, $timeMs, $notes
         );
 
-        Response::json(['score_id' => $id, 'total_fp' => $totalFp]);
+        Response::json(['score_id' => $scoreId, 'total_fp' => $totalFp]);
     }
 
     /** API: Offline-Queue synchronisieren */
@@ -164,37 +212,12 @@ class JudgeController
 
         $syncService = new SyncService();
         $results     = $syncService->processQueue($entries, Auth::getJudgeId());
-
         $successCount = count(array_filter($results, fn($r) => $r['success']));
+
         Response::json([
             'processed' => count($results),
             'success'   => $successCount,
             'results'   => $results,
         ]);
-    }
-
-    /** Fehlerpunkte serverseitig berechnen */
-    private function calculateFp(array $station, array $checks, array $penalties): int
-    {
-        $fp = 0;
-
-        // Kriterien-Fehler
-        $criteriaMap = array_column($station['criteria'], null, 'id');
-        foreach ($checks as $criterionId => $result) {
-            if ($result === 'fail' && isset($criteriaMap[$criterionId])) {
-                $fp += (int)$criteriaMap[$criterionId]['weight'];
-            }
-        }
-
-        // Strafen
-        $penaltyMap = array_column($station['penalties'], null, 'id');
-        foreach ($penalties as $penaltyId => $count) {
-            if (isset($penaltyMap[$penaltyId]) && $count > 0) {
-                $max = (int)$penaltyMap[$penaltyId]['max_count'];
-                $fp += min((int)$count, $max) * (int)$penaltyMap[$penaltyId]['weight'];
-            }
-        }
-
-        return $fp;
     }
 }

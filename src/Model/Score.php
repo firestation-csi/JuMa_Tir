@@ -85,59 +85,38 @@ class Score
     }
 
     /**
-     * Vollständige Bewertung speichern.
-     * $checks:    ['criterion_id' => 'ok'|'fail', ...]
-     * $penalties: ['penalty_id' => count, ...]
+     * Bewertung speichern (aufgaben-basiert).
+     * $taskResults: [{task_id, type, value}, ...]
      */
     public function save(
         int    $judgeId,
         int    $groupId,
         int    $stationId,
-        array  $checks,
-        array  $penalties,
+        array  $taskResults,
         string $impression,
         int    $totalFp,
-        ?int   $timeMs = null,
-        ?string $notes = null
+        ?int   $timeMs  = null,
+        ?string $notes  = null
     ): int {
+        $taskJson = json_encode($taskResults, JSON_UNESCAPED_UNICODE);
         $existing = $this->findExisting($judgeId, $groupId, $stationId);
 
         if ($existing) {
             $scoreId = (int)$existing['id'];
             $stmt = $this->db->prepare(
-                'UPDATE scores SET impression=?, total_fp=?, time_ms=?, notes=?, synced_at=NOW(), updated_at=NOW()
+                'UPDATE scores
+                 SET impression=?, total_fp=?, time_ms=?, notes=?, task_results=?, synced_at=NOW(), updated_at=NOW()
                  WHERE id=?'
             );
-            $stmt->execute([$impression, $totalFp, $timeMs, $notes, $scoreId]);
-
-            // Alte Einzel-Einträge löschen und neu anlegen
-            $this->db->prepare('DELETE FROM score_criteria  WHERE score_id=?')->execute([$scoreId]);
-            $this->db->prepare('DELETE FROM score_penalties WHERE score_id=?')->execute([$scoreId]);
+            $stmt->execute([$impression, $totalFp, $timeMs, $notes, $taskJson, $scoreId]);
         } else {
             $stmt = $this->db->prepare(
-                'INSERT INTO scores (judge_id, group_id, station_id, impression, total_fp, time_ms, notes, synced_at, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())'
+                'INSERT INTO scores
+                    (judge_id, group_id, station_id, impression, total_fp, time_ms, notes, task_results, synced_at, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())'
             );
-            $stmt->execute([$judgeId, $groupId, $stationId, $impression, $totalFp, $timeMs, $notes]);
+            $stmt->execute([$judgeId, $groupId, $stationId, $impression, $totalFp, $timeMs, $notes, $taskJson]);
             $scoreId = (int)$this->db->lastInsertId();
-        }
-
-        // Kriterien speichern
-        $stmtCrit = $this->db->prepare(
-            'INSERT INTO score_criteria (score_id, criterion_id, result) VALUES (?, ?, ?)'
-        );
-        foreach ($checks as $criterionId => $result) {
-            $stmtCrit->execute([$scoreId, (int)$criterionId, $result]);
-        }
-
-        // Strafen speichern
-        $stmtPen = $this->db->prepare(
-            'INSERT INTO score_penalties (score_id, penalty_id, count) VALUES (?, ?, ?)'
-        );
-        foreach ($penalties as $penaltyId => $count) {
-            if ($count > 0) {
-                $stmtPen->execute([$scoreId, (int)$penaltyId, (int)$count]);
-            }
         }
 
         return $scoreId;
