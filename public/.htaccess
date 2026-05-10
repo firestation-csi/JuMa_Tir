@@ -1,4 +1,4 @@
-Options -Indexes -MultiViews
+Options +FollowSymLinks -Indexes -MultiViews
 
 # Zeichensatz erzwingen
 AddDefaultCharset UTF-8
@@ -7,8 +7,8 @@ AddDefaultCharset UTF-8
 RewriteEngine On
 
 # HTTPS erzwingen (im Produktivbetrieb einkommentieren)
-# RewriteCond %{HTTPS} off
-# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # Direkte Anfragen auf vorhandene Dateien/Verzeichnisse durchlassen
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -58,11 +58,7 @@ RewriteRule ^ index.php [L,QSA]
 </IfModule>
 
 # ---- Zugriff auf sensitive Dateien sperren ----
-<FilesMatch "\.(env|log|sql|json|lock|md|gitignore)$">
-    Require all denied
-</FilesMatch>
-
-# composer.json und ähnliche explizit blockieren
-<FilesMatch "^(composer\.(json|lock)|\.env.*|package\.json)$">
+# .json explizit NICHT blockieren, da manifest.json öffentlich sein muss
+<FilesMatch "\.(env|log|sql|lock|gitignore)$">
     Require all denied
 </FilesMatch>
