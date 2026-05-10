@@ -7,7 +7,13 @@
       "Bash(\"e:\\\\GIT\\\\JuMa_Tir\\\\src\\\\Controller\",)",
       "Bash(\"e:\\\\GIT\\\\JuMa_Tir\\\\src\\\\Model\",)",
       "Bash(Out-Null)",
-      "Bash(Write-Host \"Verzeichnisse erstellt\")"
+      "Bash(Write-Host \"Verzeichnisse erstellt\")",
+      "Bash(Get-ChildItem -Path \"e:\\\\GIT\\\\JuMa_Tir\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(head -30)",
+      "Bash(ls -la \"e:\\\\GIT\\\\JuMa_Tir\\\\\")",
+      "Read(//e/GIT/**)",
+      "Bash(dir /B \"e:\\\\GIT\\\\JuMa_Tir\")"
     ]
   }
 }

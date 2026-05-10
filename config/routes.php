@@ -14,6 +14,9 @@ return [
         '/admin/competitions'            => ['App\Controller\AdminCompetitionController', 'index'],
         '/admin/competitions/new'        => ['App\Controller\AdminCompetitionController', 'create'],
         '/admin/competitions/{id}/edit'  => ['App\Controller\AdminCompetitionController', 'edit'],
+        '/admin/stations'               => ['App\Controller\AdminStationController', 'index'],
+        '/admin/stations/new'           => ['App\Controller\AdminStationController', 'create'],
+        '/admin/stations/{id}/edit'     => ['App\Controller\AdminStationController', 'edit'],
         '/api/station/{id}'              => ['App\Controller\StationController', 'show'],
     ],
     'POST' => [
@@ -26,5 +29,8 @@ return [
         '/admin/competitions'            => ['App\Controller\AdminCompetitionController', 'store'],
         '/admin/competitions/{id}/edit'  => ['App\Controller\AdminCompetitionController', 'update'],
         '/admin/competitions/{id}/delete'=> ['App\Controller\AdminCompetitionController', 'delete'],
+        '/admin/stations'               => ['App\Controller\AdminStationController', 'store'],
+        '/admin/stations/{id}/edit'     => ['App\Controller\AdminStationController', 'update'],
+        '/admin/stations/{id}/delete'   => ['App\Controller\AdminStationController', 'delete'],
     ],
 ];
