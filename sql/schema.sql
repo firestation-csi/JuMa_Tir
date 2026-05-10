@@ -9,12 +9,16 @@ SET foreign_key_checks = 0;
 -- Wettbewerbe
 -- ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS competitions (
-    id         INT          NOT NULL AUTO_INCREMENT,
-    name       VARCHAR(255) NOT NULL,
-    date       DATE         NOT NULL,
+    id         INT           NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(255)  NOT NULL,
+    location   VARCHAR(255),
+    date       DATE          NOT NULL,
     status     ENUM('active','finished','archived') NOT NULL DEFAULT 'active',
-    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    hash       CHAR(32)      UNIQUE,
+    lat        DECIMAL(10,7),
+    lng        DECIMAL(10,7),
+    created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

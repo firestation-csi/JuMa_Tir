@@ -9,23 +9,25 @@
     <link rel="stylesheet" href="/assets/css/admin.css">
 </head>
 <body class="wt_body wt_body--admin">
-    <nav class="wt_nav">
-        <div class="wt_nav__brand">JuMa – Wertungsbüro</div>
-        <ul class="wt_nav__links">
-            <li><a href="/admin" class="wt_nav__link">Dashboard</a></li>
-            <li><a href="/admin/results" class="wt_nav__link">Ergebnisse</a></li>
-            <li><a href="/admin/qrcodes" class="wt_nav__link">QR-Codes</a></li>
+
+    <nav class="adm_nav">
+        <a href="/admin" class="adm_nav__brand">JuMa <span>·</span> Wertungsbüro</a>
+        <ul class="adm_nav__links">
+            <li><a href="/admin" class="adm_nav__link">Dashboard</a></li>
+            <li><a href="/admin/competitions" class="adm_nav__link">Wettbewerbe</a></li>
+            <li><a href="/admin/results" class="adm_nav__link">Ergebnisse</a></li>
+            <li><a href="/admin/qrcodes" class="adm_nav__link">QR-Codes</a></li>
             <li>
                 <form action="/admin/logout" method="POST" style="display:inline">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
-                    <button type="submit" class="wt_btn wt_btn--ghost">Abmelden</button>
+                    <button type="submit" class="adm_nav__logout">Abmelden</button>
                 </form>
             </li>
         </ul>
     </nav>
 
-    <main class="wt_main wt_main--admin">
-        <h1 class="wt_page-title"><?= htmlspecialchars($title ?? '') ?></h1>
+    <main class="adm_main">
+        <h1 class="adm_page-title"><?= htmlspecialchars($title ?? '') ?></h1>
         <?= $content ?? '' ?>
     </main>
 
