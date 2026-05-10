@@ -1,7 +1,7 @@
 {
-    "name": "JuMa Tirol – Schiedsrichter",
-    "short_name": "JuMa Schiri",
-    "description": "Schiedsrichter-App für Wettbewerbe des JuMa Tirol",
+    "name": "JuMa – Schiedsrichter",
+    "short_name": "JuMa",
+    "description": "Schiedsrichter-App für JuMa-Wettbewerbe",
     "start_url": "/judge",
     "display": "standalone",
     "background_color": "#ffffff",

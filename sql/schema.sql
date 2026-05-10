@@ -1,4 +1,4 @@
--- JuMa Tirol Wettbewerbs-Auswertungstool — Datenbankschema
+-- JuMa Wettbewerbs-Auswertungstool — Datenbankschema
 -- Bewertungsmodell: Fehlerpunkte-System (Kriterien + Strafen)
 -- Zeichensatz: utf8mb4_unicode_ci
 

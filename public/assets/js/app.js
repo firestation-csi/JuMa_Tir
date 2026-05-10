@@ -1,4 +1,4 @@
-// Globale App-Logik – JuMa Tirol
+// Globale App-Logik – JuMa
 
 // Service Worker registrieren
 if ('serviceWorker' in navigator) {

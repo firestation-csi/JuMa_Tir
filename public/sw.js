@@ -1,4 +1,4 @@
-// Service Worker – JuMa Tirol Schiedsrichter-App
+// Service Worker – JuMa Schiedsrichter-App
 // Cache-First für Assets, Network-First für API-Calls
 
 const CACHE_NAME = 'juma-tir-v1';

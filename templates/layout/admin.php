@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($title ?? 'Wertungsbüro') ?> – JuMa Tirol</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <title><?= htmlspecialchars($title ?? 'Wertungsbüro') ?> – JuMa</title>
     <link rel="stylesheet" href="/assets/css/main.css">
     <link rel="stylesheet" href="/assets/css/admin.css">
 </head>
 <body class="wt_body wt_body--admin">
     <nav class="wt_nav">
-        <div class="wt_nav__brand">JuMa Tirol – Wertungsbüro</div>
+        <div class="wt_nav__brand">JuMa – Wertungsbüro</div>
         <ul class="wt_nav__links">
             <li><a href="/admin" class="wt_nav__link">Dashboard</a></li>
             <li><a href="/admin/results" class="wt_nav__link">Ergebnisse</a></li>
