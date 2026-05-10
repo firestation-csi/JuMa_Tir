@@ -44,6 +44,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // Nur http/https cachen — chrome-extension:// und andere Schemes ignorieren
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
     // API-Anfragen: Network-First
     if (url.pathname.startsWith('/api/')) {
         event.respondWith(networkFirst(event.request));
