@@ -332,6 +332,13 @@ ul, ol { list-style: none; }
 }
 @keyframes wtPop { from { transform:scale(0.4); opacity:0; } to { transform:scale(1); opacity:1; } }
 
+/* ---- Seiten-Wrapper (zentriert, max-width) ---- */
+.wt_page-wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: var(--wt-space-xl) var(--wt-space-lg);
+}
+
 /* ---- Flash-Nachrichten ---- */
 .wt_flash {
     position: fixed;

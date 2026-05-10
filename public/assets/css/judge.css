@@ -78,6 +78,9 @@
 }
 .wt_tabbar__btn svg { width: 22px; height: 22px; }
 
+/* Kein Tab-Bar auf Login/Confirm-Seiten */
+.wt_scroll--no-tabbar { padding-bottom: 32px; }
+
 /* ---- Seiten-Padding ---- */
 .wt_page { padding: 8px 18px; }
 .wt_page + .wt_page { padding-top: 0; }
