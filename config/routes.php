@@ -23,6 +23,7 @@ return [
         '/api/station/{id}'                                  => ['App\Controller\StationController', 'show'],
     ],
     'POST' => [
+        '/api/judge/verify-station'      => ['App\Controller\JudgeController', 'verifyStation'],
         '/api/judge/login'               => ['App\Controller\JudgeController', 'login'],
         '/api/group/verify'              => ['App\Controller\GroupController', 'verify'],
         '/api/score'                     => ['App\Controller\JudgeController', 'saveScore'],

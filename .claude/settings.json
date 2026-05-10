@@ -13,7 +13,10 @@
       "PowerShell(head -30)",
       "Bash(ls -la \"e:\\\\GIT\\\\JuMa_Tir\\\\\")",
       "Read(//e/GIT/**)",
-      "Bash(dir /B \"e:\\\\GIT\\\\JuMa_Tir\")"
+      "Bash(dir /B \"e:\\\\GIT\\\\JuMa_Tir\")",
+      "PowerShell(Get-ChildItem -Path \"e:\\\\GIT\\\\JuMa_Tir\" -Recurse -Directory | Select-Object -First 20 | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"e:\\\\GIT\\\\JuMa_Tir\\\\public\\\\assets\\\\js\" | ForEach-Object { $_.Name })",
+      "PowerShell(Get-ChildItem -Path \"e:\\\\GIT\\\\JuMa_Tir\\\\public\\\\assets\\\\css\" | ForEach-Object { $_.Name })"
     ]
   }
 }

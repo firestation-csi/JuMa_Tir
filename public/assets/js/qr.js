@@ -48,50 +48,124 @@ export async function stopScanner() {
 }
 
 // ============================================================
-// Schiedsrichter-Login-Seite
+// Schiedsrichter-Login-Seite — 2-Schritt-Flow
+// Schritt 1: Station-Hash per QR oder manuell prüfen
+// Schritt 2: Name eingeben → Anmeldung abschließen
 // ============================================================
+
+let currentStationHash = null;
+
 const startScanBtn = document.getElementById('startScanBtn');
 if (startScanBtn) {
-    const container = document.getElementById('qrReaderContainer');
-
     startScanBtn.addEventListener('click', async () => {
         startScanBtn.disabled = true;
         startScanBtn.textContent = 'Scanner läuft…';
 
         try {
-            await startScanner('qrReaderContainer', async (token) => {
+            await startScanner('qrReaderContainer', async (hash) => {
                 await stopScanner();
-                await loginWithToken(token);
+                await verifyStationHash(hash);
+                // Scanner-Button zurücksetzen falls verifyStationHash fehlschlägt
+                startScanBtn.disabled = false;
+                startScanBtn.textContent = 'QR-Code scannen';
             });
-        } catch (err) {
-            showMessage('Kamera konnte nicht geöffnet werden.', 'error');
+        } catch {
+            setScanError('Kamera konnte nicht geöffnet werden.');
             startScanBtn.disabled = false;
             startScanBtn.textContent = 'QR-Code scannen';
         }
     });
 }
 
-// Token-Formular (manuelle Eingabe)
-const tokenForm = document.getElementById('tokenForm');
-if (tokenForm) {
-    tokenForm.addEventListener('submit', async (e) => {
+// Manueller Hash-Eintrag
+const hashForm = document.getElementById('hashForm');
+if (hashForm) {
+    hashForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const token = document.getElementById('tokenInput').value.trim();
-        if (token) await loginWithToken(token);
+        const hash = document.getElementById('hashInput').value.trim();
+        if (hash) await verifyStationHash(hash);
     });
 }
 
-async function loginWithToken(token) {
+/** Schritt 1: Hash gegen Backend prüfen */
+async function verifyStationHash(hash) {
+    setScanError('');
     try {
-        const data = await apiFetch('/api/judge/login', {
+        const data = await apiFetch('/api/judge/verify-station', {
             method: 'POST',
-            body: JSON.stringify({ token }),
+            body: JSON.stringify({ hash }),
         });
-        showMessage(`Willkommen, ${data.judge_name}!`, 'success');
-        setTimeout(() => (location.href = '/judge/station'), 800);
+        currentStationHash = hash;
+        document.getElementById('stationCode').textContent = data.code;
+        document.getElementById('stationName').textContent = data.name;
+        document.getElementById('stepScan').hidden = true;
+        document.getElementById('stepName').hidden = false;
+        document.getElementById('judgeNameInput').focus();
     } catch (err) {
-        showMessage(err.message, 'error');
+        setScanError(err.message);
     }
+}
+
+/** Zurück zu Schritt 1 */
+const backBtn = document.getElementById('backBtn');
+if (backBtn) {
+    backBtn.addEventListener('click', () => {
+        currentStationHash = null;
+        setLoginError('');
+        document.getElementById('stepName').hidden = true;
+        document.getElementById('stepScan').hidden = false;
+        document.getElementById('judgeNameInput').value = '';
+        document.getElementById('hashInput').value = '';
+        startScanBtn.disabled = false;
+        startScanBtn.textContent = 'QR-Code scannen';
+    });
+}
+
+/** Schritt 2: Anmeldung mit Name abschließen */
+const loginBtn = document.getElementById('loginBtn');
+if (loginBtn) {
+    loginBtn.addEventListener('click', async () => {
+        const name = document.getElementById('judgeNameInput').value.trim();
+        if (!name) {
+            setLoginError('Bitte deinen Namen eingeben.');
+            return;
+        }
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Anmelden…';
+        try {
+            const data = await apiFetch('/api/judge/login', {
+                method: 'POST',
+                body: JSON.stringify({ hash: currentStationHash, name }),
+            });
+            showMessage(`Willkommen, ${data.judge_name}!`, 'success');
+            setTimeout(() => (location.href = '/judge/station'), 700);
+        } catch (err) {
+            setLoginError(err.message);
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Anmelden';
+        }
+    });
+
+    // Enter-Taste im Namensfeld
+    document.getElementById('judgeNameInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') loginBtn.click();
+    });
+}
+
+function setScanError(msg) {
+    const wrap = document.getElementById('scanErrorWrap');
+    const el   = document.getElementById('scanError');
+    if (!wrap || !el) return;
+    el.textContent    = msg;
+    wrap.style.display = msg ? 'block' : 'none';
+}
+
+function setLoginError(msg) {
+    const wrap = document.getElementById('loginErrorWrap');
+    const el   = document.getElementById('loginError');
+    if (!wrap || !el) return;
+    el.textContent    = msg;
+    wrap.style.display = msg ? 'block' : 'none';
 }
 
 // ============================================================

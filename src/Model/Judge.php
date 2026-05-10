@@ -39,6 +39,18 @@ class Judge
         return $stmt->fetchAll();
     }
 
+    /** Sucht vorhandenen Judge per Name+Station oder legt neuen an */
+    public function findOrCreateByNameAndStation(string $name, int $stationId): int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id FROM judges WHERE name = ? AND station_id = ? ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([$name, $stationId]);
+        $existing = $stmt->fetchColumn();
+        if ($existing !== false) return (int)$existing;
+        return $this->create($name, $stationId);
+    }
+
     public function create(string $name, int $stationId): int
     {
         $token = bin2hex(random_bytes(16));

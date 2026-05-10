@@ -28,45 +28,61 @@ class JudgeController
     /** Einstiegsseite */
     public function index(): void
     {
-        $token = $this->request->get('token');
-        if ($token) {
-            $this->loginWithToken((string)$token);
-            return;
-        }
         Response::view('pages/judge/login', ['title' => 'JuMa · Bewerter']);
     }
 
-    /** API: QR-Login */
-    public function login(): void
+    /** API Schritt 1: Station per Hash prüfen */
+    public function verifyStation(): void
     {
-        $data  = $this->request->json();
-        $token = $data['token'] ?? '';
-        if (empty($token)) Response::error('Kein Token übermittelt');
-        $this->loginWithToken($token);
+        $data = $this->request->json();
+        $hash = trim((string)($data['hash'] ?? ''));
+
+        if (empty($hash)) {
+            Response::error('Kein Hash übermittelt');
+        }
+
+        $station = $this->stationModel->findByHash($hash);
+        if (!$station) {
+            Response::error('Station nicht gefunden – QR-Code ungültig', 404);
+        }
+
+        if (!$station['active']) {
+            Response::error('Diese Station ist aktuell nicht aktiv', 403);
+        }
+
+        Response::json([
+            'station_id' => $station['id'],
+            'code'       => $station['code'],
+            'name'       => $station['name'],
+        ]);
     }
 
-    private function loginWithToken(string $token): void
+    /** API Schritt 2: Anmeldung mit Station-Hash + Name */
+    public function login(): void
     {
-        $judge = $this->judgeModel->findByToken($token);
-        if (!$judge) {
-            if ($this->request->isJson()) Response::error('Ungültiger QR-Code', 401);
-            Response::view('pages/judge/login', [
-                'title' => 'JuMa · Bewerter',
-                'error' => 'Ungültiger QR-Code.',
-            ]);
-        }
-        Auth::loginJudge((int)$judge['id'], (int)$judge['station_id']);
+        $data = $this->request->json();
+        $hash = trim((string)($data['hash'] ?? ''));
+        $name = trim((string)($data['name'] ?? ''));
 
-        if ($this->request->isJson()) {
-            Response::json([
-                'judge_id'   => $judge['id'],
-                'judge_name' => $judge['name'],
-                'initials'   => $judge['initials'] ?? substr($judge['name'], 0, 2),
-                'role'       => $judge['role'],
-                'station_id' => $judge['station_id'],
-            ]);
+        if (empty($hash) || empty($name)) {
+            Response::error('Hash und Name sind erforderlich');
         }
-        Response::redirect('/judge/station');
+
+        $station = $this->stationModel->findByHash($hash);
+        if (!$station || !$station['active']) {
+            Response::error('Ungültige Station', 401);
+        }
+
+        $judgeId = $this->judgeModel->findOrCreateByNameAndStation($name, (int)$station['id']);
+        $judge   = $this->judgeModel->findById($judgeId);
+
+        Auth::loginJudge($judgeId, (int)$station['id']);
+
+        Response::json([
+            'judge_id'   => $judgeId,
+            'judge_name' => $judge['name'],
+            'station_id' => $station['id'],
+        ]);
     }
 
     /** Stationsansicht */

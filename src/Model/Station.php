@@ -36,6 +36,14 @@ class Station
         return $stmt->fetchAll();
     }
 
+    public function findByHash(string $hash): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM stations WHERE hash = ?');
+        $stmt->execute([$hash]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function findByCompetition(int $competitionId): array
     {
         $stmt = $this->db->prepare(
