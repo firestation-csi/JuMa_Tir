@@ -56,14 +56,8 @@ class AdminStationTaskController
         $this->verifyCsrf();
         $station = $this->requireStation($stationId);
 
-        $label     = trim((string)$this->request->post('label', ''));
-        $type      = $this->request->post('type', 'boolean');
-        $points    = (int)$this->request->post('points', 1);
-        $sortOrder = (int)$this->request->post('sort_order', 0);
-
-        if (!in_array($type, ['count', 'boolean'], true)) {
-            $type = 'boolean';
-        }
+        [$label, $type, $points, $sortOrder, $sollSek, $maxSek, $fpJe, $einheitSek]
+            = $this->readTaskPost();
 
         if (empty($label) || $points < 1) {
             Response::view('pages/admin/station-task-form', [
@@ -76,7 +70,8 @@ class AdminStationTaskController
             return;
         }
 
-        $this->taskModel->create((int)$stationId, $label, $type, $points, $sortOrder);
+        $this->taskModel->create((int)$stationId, $label, $type, $points, $sortOrder,
+                                 $sollSek, $maxSek, $fpJe, $einheitSek);
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
     }
 
@@ -101,14 +96,8 @@ class AdminStationTaskController
         $station = $this->requireStation($stationId);
         $task    = $this->requireTask($id);
 
-        $label     = trim((string)$this->request->post('label', ''));
-        $type      = $this->request->post('type', 'boolean');
-        $points    = (int)$this->request->post('points', 1);
-        $sortOrder = (int)$this->request->post('sort_order', 0);
-
-        if (!in_array($type, ['count', 'boolean'], true)) {
-            $type = 'boolean';
-        }
+        [$label, $type, $points, $sortOrder, $sollSek, $maxSek, $fpJe, $einheitSek]
+            = $this->readTaskPost();
 
         if (empty($label) || $points < 1) {
             Response::view('pages/admin/station-task-form', [
@@ -121,7 +110,8 @@ class AdminStationTaskController
             return;
         }
 
-        $this->taskModel->update((int)$id, $label, $type, $points, $sortOrder);
+        $this->taskModel->update((int)$id, $label, $type, $points, $sortOrder,
+                                 $sollSek, $maxSek, $fpJe, $einheitSek);
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
     }
 
@@ -132,6 +122,32 @@ class AdminStationTaskController
         $this->requireStation($stationId);
         $this->taskModel->delete((int)$id);
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
+    }
+
+    /** POST-Felder der Aufgabe lesen und normalisieren */
+    private function readTaskPost(): array
+    {
+        $label     = trim((string)$this->request->post('label', ''));
+        $type      = $this->request->post('type', 'boolean');
+        $points    = (int)$this->request->post('points', 1);
+        $sortOrder = (int)$this->request->post('sort_order', 0);
+
+        if (!in_array($type, ['count', 'boolean'], true)) {
+            $type = 'boolean';
+        }
+
+        $toNullInt = fn($v) => ($v !== '' && $v !== null) ? (int)$v : null;
+        $sollSek    = $toNullInt($this->request->post('sollzeit_sek'));
+        $maxSek     = $toNullInt($this->request->post('hoechstzeit_sek'));
+        $fpJe       = $toNullInt($this->request->post('zeitstrafe_fp'));
+        $einheitSek = $toNullInt($this->request->post('zeiteinheit_sek'));
+
+        // Zeitfelder nur setzen wenn Sollzeit angegeben
+        if ($sollSek === null) {
+            $maxSek = $fpJe = $einheitSek = null;
+        }
+
+        return [$label, $type, $points, $sortOrder, $sollSek, $maxSek, $fpJe, $einheitSek];
     }
 
     private function requireStation(string $id): array

@@ -33,43 +33,79 @@ class StationTask
         return $stmt->fetchAll();
     }
 
-    /** Alle Aufgaben einer Station als JSON-Schema für die App */
+    /** JSON-Schema für die App: enthält Zeitwertungs-Felder wenn gesetzt */
     public function findByStationAsSchema(int $stationId): array
     {
-        return array_map(
-            fn(array $t) => [
+        return array_map(function (array $t) {
+            $entry = [
                 'id'     => $t['id'],
                 'label'  => $t['label'],
                 'type'   => $t['type'],
                 'points' => (int)$t['points'],
-            ],
-            $this->findByStation($stationId)
-        );
+            ];
+            // Zeitwertung nur mitgeben wenn vollständig konfiguriert
+            if ($t['sollzeit_sek'] !== null && $t['zeitstrafe_fp'] !== null && $t['zeiteinheit_sek'] !== null) {
+                $entry['time'] = [
+                    'sollzeit_sek'    => (int)$t['sollzeit_sek'],
+                    'hoechstzeit_sek' => $t['hoechstzeit_sek'] !== null ? (int)$t['hoechstzeit_sek'] : null,
+                    'zeitstrafe_fp'   => (int)$t['zeitstrafe_fp'],
+                    'zeiteinheit_sek' => (int)$t['zeiteinheit_sek'],
+                ];
+            }
+            return $entry;
+        }, $this->findByStation($stationId));
     }
 
-    public function create(int $stationId, string $label, string $type, int $points, int $sortOrder = 0): int
+    public function create(int $stationId, string $label, string $type, int $points,
+                           int $sortOrder = 0, ?int $sollzeitSek = null, ?int $hoechstzeitSek = null,
+                           ?int $zeitstrafeFp = null, ?int $zeiteinheitSek = null): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO station_tasks (station_id, label, type, points, sort_order, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, NOW(), NOW())'
+            'INSERT INTO station_tasks
+                (station_id, label, type, points, sort_order,
+                 sollzeit_sek, hoechstzeit_sek, zeitstrafe_fp, zeiteinheit_sek,
+                 created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
         );
-        $stmt->execute([$stationId, $label, $type, $points, $sortOrder]);
+        $stmt->execute([
+            $stationId, $label, $type, $points, $sortOrder,
+            $sollzeitSek, $hoechstzeitSek, $zeitstrafeFp, $zeiteinheitSek,
+        ]);
         return (int)$this->db->lastInsertId();
     }
 
-    public function update(int $id, string $label, string $type, int $points, int $sortOrder): void
+    public function update(int $id, string $label, string $type, int $points,
+                           int $sortOrder, ?int $sollzeitSek, ?int $hoechstzeitSek,
+                           ?int $zeitstrafeFp, ?int $zeiteinheitSek): void
     {
         $stmt = $this->db->prepare(
             'UPDATE station_tasks
-             SET label=?, type=?, points=?, sort_order=?, updated_at=NOW()
+             SET label=?, type=?, points=?, sort_order=?,
+                 sollzeit_sek=?, hoechstzeit_sek=?, zeitstrafe_fp=?, zeiteinheit_sek=?,
+                 updated_at=NOW()
              WHERE id=?'
         );
-        $stmt->execute([$label, $type, $points, $sortOrder, $id]);
+        $stmt->execute([
+            $label, $type, $points, $sortOrder,
+            $sollzeitSek, $hoechstzeitSek, $zeitstrafeFp, $zeiteinheitSek,
+            $id,
+        ]);
     }
 
     public function delete(int $id): void
     {
         $stmt = $this->db->prepare('DELETE FROM station_tasks WHERE id = ?');
         $stmt->execute([$id]);
+    }
+
+    /** Maximale Zeitstrafe berechnen (für Anzeige/Validierung) */
+    public static function maxZeitstrafe(?int $sollSek, ?int $maxSek, ?int $fpJeEinheit, ?int $einheitSek): ?int
+    {
+        if ($sollSek === null || $fpJeEinheit === null || $einheitSek === null || $einheitSek === 0) {
+            return null;
+        }
+        $deckel = $maxSek ?? $sollSek;
+        if ($deckel <= $sollSek) return 0;
+        return (int)floor(($deckel - $sollSek) / $einheitSek) * $fpJeEinheit;
     }
 }

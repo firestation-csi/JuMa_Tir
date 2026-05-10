@@ -101,6 +101,82 @@ $action    = $isEdit
             </div>
         </div>
 
+        <!-- Zeitwertung -->
+        <div style="border-top: 1px solid var(--wt-border, #e5e3df); padding-top: 20px; margin-top: 4px;">
+            <div class="adm_label" style="font-size:.7rem; margin-bottom:14px; letter-spacing:.08em;">
+                ZEITWERTUNG <span style="font-weight:400; text-transform:none; letter-spacing:0;">(optional – nur ausfüllen wenn Zeitlimit gilt)</span>
+            </div>
+
+            <div class="adm_field-row">
+                <div class="adm_field">
+                    <label class="adm_label" for="sollzeit_sek">Sollzeit (Sekunden)</label>
+                    <input
+                        class="adm_input adm_input--mono"
+                        type="number"
+                        id="sollzeit_sek"
+                        name="sollzeit_sek"
+                        value="<?= htmlspecialchars((string)($task['sollzeit_sek'] ?? '')) ?>"
+                        min="1"
+                        placeholder="z.B. 180 (= 3:00)"
+                    >
+                </div>
+                <div class="adm_field">
+                    <label class="adm_label" for="hoechstzeit_sek">Höchstzeit (Sekunden)</label>
+                    <input
+                        class="adm_input adm_input--mono"
+                        type="number"
+                        id="hoechstzeit_sek"
+                        name="hoechstzeit_sek"
+                        value="<?= htmlspecialchars((string)($task['hoechstzeit_sek'] ?? '')) ?>"
+                        min="1"
+                        placeholder="z.B. 300 (= 5:00)"
+                    >
+                </div>
+            </div>
+
+            <div class="adm_field-row">
+                <div class="adm_field">
+                    <label class="adm_label" for="zeitstrafe_fp">FP je Überschreitung</label>
+                    <input
+                        class="adm_input adm_input--mono"
+                        type="number"
+                        id="zeitstrafe_fp"
+                        name="zeitstrafe_fp"
+                        value="<?= htmlspecialchars((string)($task['zeitstrafe_fp'] ?? '')) ?>"
+                        min="1"
+                        placeholder="z.B. 1"
+                    >
+                </div>
+                <div class="adm_field">
+                    <label class="adm_label" for="zeiteinheit_sek">Zeiteinheit (Sekunden)</label>
+                    <input
+                        class="adm_input adm_input--mono"
+                        type="number"
+                        id="zeiteinheit_sek"
+                        name="zeiteinheit_sek"
+                        value="<?= htmlspecialchars((string)($task['zeiteinheit_sek'] ?? '')) ?>"
+                        min="1"
+                        placeholder="z.B. 10"
+                    >
+                </div>
+            </div>
+
+            <?php
+            $maxFp = \App\Model\StationTask::maxZeitstrafe(
+                isset($task['sollzeit_sek'])    ? (int)$task['sollzeit_sek']    : null,
+                isset($task['hoechstzeit_sek']) ? (int)$task['hoechstzeit_sek'] : null,
+                isset($task['zeitstrafe_fp'])   ? (int)$task['zeitstrafe_fp']   : null,
+                isset($task['zeiteinheit_sek']) ? (int)$task['zeiteinheit_sek'] : null,
+            );
+            ?>
+            <span class="adm_hint" id="zeitHint">
+                Formel: <code>FP = ⌊(Ist − Soll) / Zeiteinheit⌋ × FP-Wert</code>, gedeckelt durch Höchstzeit.
+                <?php if ($maxFp !== null): ?>
+                    Aktuell max. <strong><?= $maxFp ?> FP</strong> durch Zeitüberschreitung.
+                <?php endif; ?>
+            </span>
+        </div>
+
         <!-- Aktionen -->
         <div class="adm_form-actions">
             <a href="/admin/stations/<?= $stationId ?>/tasks" class="adm_btn adm_btn--ghost">Abbrechen</a>

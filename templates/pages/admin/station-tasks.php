@@ -35,6 +35,7 @@ $stationId = (int)$station['id'];
                     <th>Bezeichnung</th>
                     <th>Typ</th>
                     <th>Fehlerpunkte</th>
+                    <th>Zeitwertung</th>
                     <th></th>
                 </tr>
             </thead>
@@ -59,6 +60,29 @@ $stationId = (int)$station['id'];
                             <?php endif; ?>
                         </td>
                         <td class="adm_mono"><?= (int)$t['points'] ?> FP</td>
+                        <td>
+                            <?php if ($t['sollzeit_sek'] !== null): ?>
+                                <?php
+                                $fmt = fn(int $s) => sprintf('%d:%02d', intdiv($s, 60), $s % 60);
+                                $maxFp = \App\Model\StationTask::maxZeitstrafe(
+                                    (int)$t['sollzeit_sek'],
+                                    $t['hoechstzeit_sek'] !== null ? (int)$t['hoechstzeit_sek'] : null,
+                                    $t['zeitstrafe_fp']   !== null ? (int)$t['zeitstrafe_fp']   : null,
+                                    $t['zeiteinheit_sek'] !== null ? (int)$t['zeiteinheit_sek'] : null,
+                                );
+                                ?>
+                                <span class="adm_mono" style="font-size:.8rem; white-space:nowrap;">
+                                    Soll <?= $fmt((int)$t['sollzeit_sek']) ?>
+                                    <?php if ($t['hoechstzeit_sek']): ?> / Max <?= $fmt((int)$t['hoechstzeit_sek']) ?><?php endif; ?>
+                                </span><br>
+                                <span class="adm_table__muted" style="font-size:.75rem;">
+                                    <?= (int)($t['zeitstrafe_fp'] ?? 0) ?> FP / <?= (int)($t['zeiteinheit_sek'] ?? 0) ?>s
+                                    <?php if ($maxFp !== null): ?> · max <?= $maxFp ?> FP<?php endif; ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="adm_table__muted">–</span>
+                            <?php endif; ?>
+                        </td>
                         <td class="adm_table__actions">
                             <a href="/admin/stations/<?= $stationId ?>/tasks/<?= (int)$t['id'] ?>/edit"
                                class="adm_btn adm_btn--sm adm_btn--ghost">Bearbeiten</a>
