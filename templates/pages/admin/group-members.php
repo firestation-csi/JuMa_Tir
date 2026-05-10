@@ -42,13 +42,22 @@ $groupId = (int)$group['id'];
                 <tr>
                     <th style="width:2.5rem">#</th>
                     <th>Name</th>
-                    <th>Funktion</th>
+                    <th>Geschlecht</th>
+                    <th>Geburtsdatum</th>
                     <th>Alter</th>
+                    <th>Funktion</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($members as $m): ?>
+                <?php foreach ($members as $m):
+                    $alter = ($m['geburtsdatum'] && $competition_date)
+                        ? \App\Model\GroupMember::calcAge($m['geburtsdatum'], $competition_date)
+                        : null;
+                    $geschlechtLabel = match($m['geschlecht'] ?? '') {
+                        'm' => 'männlich', 'w' => 'weiblich', 'd' => 'divers', default => '–'
+                    };
+                ?>
                     <tr>
                         <td class="adm_mono adm_table__muted"><?= (int)$m['sort_order'] ?></td>
                         <td>
@@ -56,8 +65,10 @@ $groupId = (int)$group['id'];
                                 <?= htmlspecialchars($m['vorname'] . ' ' . $m['name']) ?>
                             </span>
                         </td>
+                        <td class="adm_table__muted"><?= htmlspecialchars($geschlechtLabel) ?></td>
+                        <td class="adm_mono"><?= htmlspecialchars($m['geburtsdatum'] ?? '–') ?></td>
+                        <td class="adm_mono"><?= $alter !== null ? $alter . ' J.' : '–' ?></td>
                         <td class="adm_table__muted"><?= htmlspecialchars($m['funktion'] ?? '–') ?></td>
-                        <td class="adm_mono"><?= $m['alter_jahre'] ? (int)$m['alter_jahre'] . ' J.' : '–' ?></td>
                         <td class="adm_table__actions">
                             <a href="/admin/groups/<?= $groupId ?>/members/<?= (int)$m['id'] ?>/edit"
                                class="adm_btn adm_btn--sm adm_btn--ghost">Bearbeiten</a>

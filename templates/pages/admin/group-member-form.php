@@ -49,7 +49,42 @@ $action  = $isEdit
             </div>
         </div>
 
-        <!-- Funktion + Alter -->
+        <!-- Geburtsdatum + Geschlecht -->
+        <div class="adm_field-row">
+            <div class="adm_field">
+                <label class="adm_label" for="geburtsdatum">Geburtsdatum</label>
+                <input
+                    class="adm_input adm_input--date"
+                    type="date"
+                    id="geburtsdatum"
+                    name="geburtsdatum"
+                    value="<?= htmlspecialchars($member['geburtsdatum'] ?? '') ?>"
+                >
+                <span class="adm_hint">Alter wird zum Wettbewerbstag berechnet</span>
+            </div>
+            <div class="adm_field">
+                <label class="adm_label">Geschlecht</label>
+                <div class="adm_toggle-group">
+                    <label class="adm_toggle">
+                        <input type="radio" name="geschlecht" value="m"
+                            <?= ($member['geschlecht'] ?? '') === 'm' ? 'checked' : '' ?>>
+                        <span class="adm_toggle__btn">männlich</span>
+                    </label>
+                    <label class="adm_toggle">
+                        <input type="radio" name="geschlecht" value="w"
+                            <?= ($member['geschlecht'] ?? '') === 'w' ? 'checked' : '' ?>>
+                        <span class="adm_toggle__btn">weiblich</span>
+                    </label>
+                    <label class="adm_toggle">
+                        <input type="radio" name="geschlecht" value="d"
+                            <?= ($member['geschlecht'] ?? '') === 'd' ? 'checked' : '' ?>>
+                        <span class="adm_toggle__btn">divers</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Funktion + Reihenfolge -->
         <div class="adm_field-row">
             <div class="adm_field">
                 <label class="adm_label" for="funktion">Funktion</label>
@@ -63,33 +98,18 @@ $action  = $isEdit
                 >
             </div>
             <div class="adm_field">
-                <label class="adm_label" for="alter">Alter (Jahre)</label>
+                <label class="adm_label" for="sort_order">Reihenfolge</label>
                 <input
                     class="adm_input adm_input--mono"
                     type="number"
-                    id="alter"
-                    name="alter"
-                    value="<?= htmlspecialchars((string)($member['alter_jahre'] ?? '')) ?>"
-                    min="5"
-                    max="99"
-                    placeholder="–"
+                    id="sort_order"
+                    name="sort_order"
+                    value="<?= (int)($member['sort_order'] ?? 0) ?>"
+                    min="0"
+                    max="255"
                 >
+                <span class="adm_hint">Niedrigere Zahl = weiter oben</span>
             </div>
-        </div>
-
-        <!-- Reihenfolge -->
-        <div class="adm_field" style="max-width: 180px;">
-            <label class="adm_label" for="sort_order">Reihenfolge</label>
-            <input
-                class="adm_input adm_input--mono"
-                type="number"
-                id="sort_order"
-                name="sort_order"
-                value="<?= (int)($member['sort_order'] ?? 0) ?>"
-                min="0"
-                max="255"
-            >
-            <span class="adm_hint">Niedrigere Zahl = weiter oben</span>
         </div>
 
         <!-- Aktionen -->
