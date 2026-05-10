@@ -11,7 +11,7 @@ const station = D.station;
 const tasks   = D.tasks;
 const judge   = D.judge;
 const csrf    = D.csrf;
-const hasTime = !!station.has_time;
+const hasTime = parseInt(station.has_time) === 1;
 
 // ── Stopwatch (module-level, überlebt Re-Renders) ─
 let swRunning = false, swBase = 0, swStart = 0, swRaf = null;
@@ -338,9 +338,9 @@ function renderScoring() {
                             <div class="wt_row-sub">${t.points} FP je Teilnehmer</div>
                         </div>
                         <div class="wt_stepper">
-                            <button data-stepper="${t.id}" data-dir="-1" ${val===0?'disabled':''}>−</button>
+                            <button class="wt_stepper__btn" data-stepper="${t.id}" data-dir="-1" ${val===0?'disabled':''}>−</button>
                             <span class="wt_stepper__val" data-stepper-val="${t.id}">${val}</span>
-                            <button data-stepper="${t.id}" data-dir="1">+</button>
+                            <button class="wt_stepper__btn" data-stepper="${t.id}" data-dir="1">+</button>
                         </div>
                     </div>`; }).join('')}
                 </div>
@@ -544,6 +544,9 @@ function setState(updates) {
 }
 
 function render() {
+    // Lade-Indikator beim ersten Render entfernen
+    document.getElementById('juma-loading')?.remove();
+
     let html;
     if (state.tab === 'verlauf')     html = renderHistory();
     else if (state.tab === 'profil') html = renderProfile();
