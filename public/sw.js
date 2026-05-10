@@ -1,13 +1,11 @@
 // Service Worker – JuMa Schiedsrichter-App
-// Cache-First für Assets, Network-First für API-Calls
+// Strategie: Network-First für Seiten & API, Cache-First nur für echte Assets
 
-const CACHE_NAME = 'juma-tir-v1';
-const CACHE_VERSION = 1;
+// VERSION ERHÖHEN bei jedem Deploy (CSS/JS-Änderungen werden sonst nicht übernommen)
+const CACHE_NAME = 'juma-v2';
 
-// Statische Assets die gecacht werden
+// Nur echte statische Assets voraufladen — KEINE PHP-Seiten
 const STATIC_ASSETS = [
-    '/judge',
-    '/judge/station',
     '/assets/css/main.css',
     '/assets/css/judge.css',
     '/assets/js/app.js',
@@ -16,27 +14,26 @@ const STATIC_ASSETS = [
     '/manifest.json',
 ];
 
-// Installation: Assets voraufladen
+// Dateiendungen die Cache-First bekommen (unveränderliche Assets)
+const CACHE_FIRST_EXTENSIONS = ['.css', '.js', '.png', '.jpg', '.jpeg', '.svg', '.webp', '.woff2', '.woff'];
+
+// Installation: nur echte Assets voraufladen
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(STATIC_ASSETS);
-        }).then(() => {
-            return self.skipWaiting();
-        })
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(STATIC_ASSETS))
+            .then(() => self.skipWaiting())
     );
 });
 
-// Aktivierung: alte Caches löschen
+// Aktivierung: ALLE alten Caches löschen
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys
-                    .filter((key) => key !== CACHE_NAME)
-                    .map((key) => caches.delete(key))
-            );
-        }).then(() => self.clients.claim())
+        caches.keys()
+            .then((keys) => Promise.all(
+                keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+            ))
+            .then(() => self.clients.claim())
     );
 });
 
@@ -44,20 +41,25 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Nur http/https cachen — chrome-extension:// und andere Schemes ignorieren
+    // Nur http/https — chrome-extension etc. ignorieren
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
-    // API-Anfragen: Network-First
-    if (url.pathname.startsWith('/api/')) {
-        event.respondWith(networkFirst(event.request));
-        return;
+    // GET-Anfragen auf eigene Domain unterscheiden
+    if (event.request.method === 'GET') {
+        const ext = url.pathname.substring(url.pathname.lastIndexOf('.'));
+
+        // Echte statische Assets → Cache-First
+        if (CACHE_FIRST_EXTENSIONS.includes(ext)) {
+            event.respondWith(cacheFirst(event.request));
+            return;
+        }
     }
 
-    // Statische Assets: Cache-First
-    event.respondWith(cacheFirst(event.request));
+    // Alles andere (HTML-Seiten, API, POST) → Network-First
+    event.respondWith(networkFirst(event.request));
 });
 
-/** Cache-First: zuerst Cache, bei Fehler Network */
+/** Cache-First: Cache → Network → Offline-Fallback */
 async function cacheFirst(request) {
     const cached = await caches.match(request);
     if (cached) return cached;
@@ -70,6 +72,38 @@ async function cacheFirst(request) {
         }
         return response;
     } catch {
+        return new Response('Asset nicht verfügbar (offline)', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+    }
+}
+
+/** Network-First: Network → Cache → Offline-Fallback */
+async function networkFirst(request) {
+    try {
+        const response = await fetch(request);
+        // Erfolgreiche HTML-Antworten für Offline-Fallback cachen
+        if (response.ok && request.method === 'GET') {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('text/html')) {
+                const cache = await caches.open(CACHE_NAME);
+                cache.put(request, response.clone());
+            }
+        }
+        return response;
+    } catch {
+        // Offline: gecachte Seite zurückgeben falls vorhanden
+        const cached = await caches.match(request);
+        if (cached) return cached;
+
+        const isApi = new URL(request.url).pathname.startsWith('/api/');
+        if (isApi) {
+            return new Response(
+                JSON.stringify({ success: false, error: 'Offline – keine Verbindung' }),
+                { status: 503, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+            );
+        }
         return new Response('Offline – Seite nicht verfügbar', {
             status: 503,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -77,32 +111,13 @@ async function cacheFirst(request) {
     }
 }
 
-/** Network-First: zuerst Network, bei Fehler Cache */
-async function networkFirst(request) {
-    try {
-        return await fetch(request);
-    } catch {
-        const cached = await caches.match(request);
-        if (cached) return cached;
-        return new Response(
-            JSON.stringify({ success: false, error: 'Offline – keine Verbindung' }),
-            {
-                status: 503,
-                headers: { 'Content-Type': 'application/json; charset=utf-8' },
-            }
-        );
-    }
-}
-
-// Sync-Event für Hintergrund-Synchronisation
+// Hintergrund-Sync für Offline-Bewertungen
 self.addEventListener('sync', (event) => {
     if (event.tag === 'sync-scores') {
-        event.waitUntil(syncOfflineScores());
+        event.waitUntil(
+            self.clients.matchAll({ type: 'window' }).then((clients) =>
+                clients.forEach((c) => c.postMessage({ type: 'SW_SYNC' }))
+            )
+        );
     }
 });
-
-async function syncOfflineScores() {
-    // Clients benachrichtigen, damit offline.js die IndexedDB leert
-    const clients = await self.clients.matchAll({ type: 'window' });
-    clients.forEach((client) => client.postMessage({ type: 'SW_SYNC' }));
-}
