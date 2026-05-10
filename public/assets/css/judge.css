@@ -1,0 +1,154 @@
+/* Schiedsrichter-App Styles – Mobile-First */
+
+/* Header */
+.wt_header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--wt-color-primary);
+    color: #fff;
+    padding: var(--wt-space-sm) var(--wt-space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--wt-space-md);
+    box-shadow: var(--wt-shadow-md);
+}
+
+.wt_header__logo {
+    font-weight: 800;
+    font-size: var(--wt-font-size-lg);
+    white-space: nowrap;
+}
+
+.wt_header__title {
+    flex: 1;
+    font-size: var(--wt-font-size-sm);
+    opacity: .85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Sync-Indikator */
+.wt_sync-indicator {
+    font-size: var(--wt-font-size-sm);
+    padding: 2px 10px;
+    border-radius: 999px;
+    min-width: 60px;
+    text-align: center;
+}
+.wt_sync-indicator--online  { background: rgba(255,255,255,.2); }
+.wt_sync-indicator--offline { background: var(--wt-color-warning); color: #fff; }
+.wt_sync-indicator--syncing { background: var(--wt-color-secondary); color: #fff; animation: wt_pulse 1s infinite; }
+
+@keyframes wt_pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+
+/* Hauptbereich */
+.wt_main {
+    padding: var(--wt-space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--wt-space-md);
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+/* Station */
+.wt_station__task {
+    color: var(--wt-color-text-muted);
+    font-size: var(--wt-font-size-sm);
+    margin-top: var(--wt-space-xs);
+}
+
+.wt_station__max-score {
+    margin-top: var(--wt-space-xs);
+    font-size: var(--wt-font-size-sm);
+}
+
+/* Aktive Gruppe */
+.wt_group-badge {
+    background: var(--wt-color-primary-light);
+    border: 2px solid var(--wt-color-primary);
+    border-radius: var(--wt-radius-md);
+    padding: var(--wt-space-sm) var(--wt-space-md);
+    font-weight: 700;
+    font-size: var(--wt-font-size-lg);
+    color: var(--wt-color-primary);
+    margin-bottom: var(--wt-space-md);
+    text-align: center;
+}
+
+/* Bewertungs-Grid */
+.wt_score-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--wt-space-sm);
+    margin-bottom: var(--wt-space-md);
+}
+
+.wt_score-btn {
+    aspect-ratio: 1;
+    border: 2px solid var(--wt-color-border);
+    border-radius: var(--wt-radius-md);
+    background: var(--wt-color-surface);
+    font-size: var(--wt-font-size-xl);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color .1s, border-color .1s, transform .1s;
+    touch-action: manipulation;
+}
+
+.wt_score-btn:hover {
+    border-color: var(--wt-color-primary);
+    background: var(--wt-color-primary-light);
+}
+
+.wt_score-btn--selected {
+    background: var(--wt-color-primary);
+    border-color: var(--wt-color-primary);
+    color: #fff;
+    transform: scale(1.05);
+}
+
+/* Ausgewählter Wert */
+.wt_selected-score {
+    text-align: center;
+    font-size: var(--wt-font-size-lg);
+    margin-bottom: var(--wt-space-sm);
+    color: var(--wt-color-text-muted);
+}
+.wt_selected-score strong {
+    color: var(--wt-color-primary);
+    font-size: var(--wt-font-size-2xl);
+}
+
+/* Bewertungsverlauf */
+.wt_score-history {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wt-space-xs);
+}
+
+.wt_score-history li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--wt-space-xs) var(--wt-space-sm);
+    border-radius: var(--wt-radius-sm);
+    background: var(--wt-color-bg);
+    font-size: var(--wt-font-size-sm);
+}
+
+.wt_score-history__empty { color: var(--wt-color-text-muted); justify-content: center; }
+.wt_score-history__value { font-weight: 700; color: var(--wt-color-primary); }
+.wt_score-history__done  { color: var(--wt-color-success); font-weight: 600; }
+
+/* QR-Scanner */
+.wt_qr-scanner { display: flex; flex-direction: column; gap: var(--wt-space-md); }
+#qrReaderContainer video { width: 100%; border-radius: var(--wt-radius-md); }
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .wt_score-grid { grid-template-columns: repeat(10, 1fr); }
+    .wt_main { padding: var(--wt-space-xl); }
+}

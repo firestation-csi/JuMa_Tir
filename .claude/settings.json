@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(New-Item -ItemType Directory -Force -Path \"e:\\\\GIT\\\\JuMa_Tir\\\\public\\\\assets\\\\css\",)",
+      "Bash(\"e:\\\\GIT\\\\JuMa_Tir\\\\public\\\\assets\\\\js\",)",
+      "Bash(\"e:\\\\GIT\\\\JuMa_Tir\\\\public\\\\assets\\\\img\\\\qrcodes\",)",
+      "Bash(\"e:\\\\GIT\\\\JuMa_Tir\\\\src\\\\Controller\",)",
+      "Bash(\"e:\\\\GIT\\\\JuMa_Tir\\\\src\\\\Model\",)",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"Verzeichnisse erstellt\")"
+    ]
+  }
+}

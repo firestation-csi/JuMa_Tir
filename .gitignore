@@ -1,0 +1,7 @@
+/vendor/
+/.env
+/public/assets/img/qrcodes/*.png
+/public/assets/img/qrcodes/*.svg
+*.log
+.DS_Store
+Thumbs.db

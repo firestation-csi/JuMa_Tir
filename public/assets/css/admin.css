@@ -1,0 +1,160 @@
+/* Wertungsbüro Styles – Desktop-orientiert, responsiv */
+
+/* Navigation */
+.wt_nav {
+    background: var(--wt-color-primary);
+    color: #fff;
+    padding: 0 var(--wt-space-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--wt-space-xl);
+    height: 56px;
+    box-shadow: var(--wt-shadow-md);
+}
+
+.wt_nav__brand {
+    font-weight: 800;
+    font-size: var(--wt-font-size-lg);
+    white-space: nowrap;
+}
+
+.wt_nav__links {
+    display: flex;
+    align-items: center;
+    gap: var(--wt-space-sm);
+    margin-left: auto;
+}
+
+.wt_nav__link {
+    color: rgba(255,255,255,.85);
+    text-decoration: none;
+    padding: var(--wt-space-xs) var(--wt-space-md);
+    border-radius: var(--wt-radius-sm);
+    font-size: var(--wt-font-size-sm);
+    font-weight: 600;
+    transition: background .15s;
+}
+.wt_nav__link:hover, .wt_nav__link--active {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+}
+
+/* Hauptbereich Admin */
+.wt_main--admin {
+    padding: var(--wt-space-xl);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.wt_page-title {
+    font-size: var(--wt-font-size-2xl);
+    font-weight: 800;
+    color: var(--wt-color-primary);
+    margin-bottom: var(--wt-space-xl);
+}
+
+/* Dashboard Grid */
+.wt_dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--wt-space-lg);
+    margin-bottom: var(--wt-space-xl);
+}
+
+/* Statistik-Liste */
+.wt_stat-list { display: flex; flex-direction: column; gap: var(--wt-space-sm); }
+
+.wt_stat-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--wt-space-xs) 0;
+    border-bottom: 1px solid var(--wt-color-border);
+}
+.wt_stat__label { color: var(--wt-color-text-muted); }
+.wt_stat__value { font-size: var(--wt-font-size-xl); font-weight: 700; color: var(--wt-color-primary); }
+
+/* Sektions-Titel */
+.wt_section-title {
+    font-size: var(--wt-font-size-xl);
+    font-weight: 700;
+    color: var(--wt-color-primary);
+    margin: var(--wt-space-xl) 0 var(--wt-space-md);
+}
+
+/* Ergebnisse */
+.wt_results-header {
+    display: flex;
+    align-items: center;
+    gap: var(--wt-space-md);
+    margin-bottom: var(--wt-space-lg);
+    flex-wrap: wrap;
+}
+.wt_results__competition {
+    color: var(--wt-color-text-muted);
+    margin-right: auto;
+}
+
+/* Ranglisten-Tabelle */
+.wt_table--ranking .wt_rank { font-weight: 700; font-size: var(--wt-font-size-lg); }
+.wt_table--ranking .wt_score { font-weight: 700; color: var(--wt-color-primary); }
+
+.wt_row--gold   td { background: #fff8e1; }
+.wt_row--silver td { background: #f5f5f5; }
+.wt_row--bronze td { background: #fbe9e7; }
+
+/* Login */
+.wt_login-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: var(--wt-space-lg);
+}
+
+.wt_card--login { width: 100%; max-width: 400px; }
+
+/* QR-Codes */
+.wt_qrcodes-actions {
+    margin-bottom: var(--wt-space-lg);
+    display: flex;
+    gap: var(--wt-space-md);
+}
+
+.wt_qr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--wt-space-lg);
+    margin-bottom: var(--wt-space-xl);
+}
+
+.wt_qr-card {
+    background: var(--wt-color-surface);
+    border: 1px solid var(--wt-color-border);
+    border-radius: var(--wt-radius-lg);
+    padding: var(--wt-space-md);
+    text-align: center;
+    box-shadow: var(--wt-shadow-sm);
+}
+
+.wt_qr-img {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    border-radius: var(--wt-radius-sm);
+}
+
+.wt_qr-label    { font-weight: 700; margin-top: var(--wt-space-sm); }
+.wt_qr-sublabel { font-size: var(--wt-font-size-sm); color: var(--wt-color-text-muted); }
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .wt_dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Druck-Optimierung */
+@media print {
+    .wt_nav, .wt_qrcodes-actions, .wt_btn { display: none; }
+    .wt_qr-grid { grid-template-columns: repeat(3, 1fr); }
+    .wt_qr-card { break-inside: avoid; }
+}
