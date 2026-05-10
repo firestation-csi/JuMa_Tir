@@ -32,10 +32,32 @@ class Group
         return $row ?: null;
     }
 
+    public function findAll(): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT g.*,
+                    c.name  AS competition_name,
+                    s.code  AS last_station_code,
+                    s.name  AS last_station_name
+             FROM `groups` g
+             LEFT JOIN competitions c ON c.id = g.competition_id
+             LEFT JOIN stations     s ON s.id = g.last_station_id
+             ORDER BY g.competition_id, g.name'
+        );
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function findByCompetition(int $competitionId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT * FROM `groups` WHERE competition_id = ? ORDER BY num'
+            'SELECT g.*,
+                    s.code AS last_station_code,
+                    s.name AS last_station_name
+             FROM `groups` g
+             LEFT JOIN stations s ON s.id = g.last_station_id
+             WHERE g.competition_id = ?
+             ORDER BY g.name'
         );
         $stmt->execute([$competitionId]);
         return $stmt->fetchAll();
@@ -59,17 +81,59 @@ class Group
         return $stmt->fetchAll();
     }
 
-    public function create(string $name, int $num, int $competitionId,
-                           ?string $kreis = null, ?string $altersgruppe = null,
-                           ?string $startnr = null): int
+    /** Besuchsprotokoll der Gruppe */
+    public function getStationLog(int $groupId): array
     {
-        $token = bin2hex(random_bytes(16));
-        $stmt  = $this->db->prepare(
-            'INSERT INTO `groups` (name, num, competition_id, kreis, altersgruppe, startnr, qr_token, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+        $stmt = $this->db->prepare(
+            'SELECT l.*, s.code AS station_code, s.name AS station_name
+             FROM group_station_log l
+             JOIN stations s ON s.id = l.station_id
+             WHERE l.group_id = ?
+             ORDER BY l.checked_in DESC'
         );
-        $stmt->execute([$name, $num, $competitionId, $kreis, $altersgruppe, $startnr, $token]);
+        $stmt->execute([$groupId]);
+        return $stmt->fetchAll();
+    }
+
+    public function create(int $competitionId, string $name, bool $active, string $qrToken,
+                           ?string $registrationDate = null, ?string $kbmArea = null): int
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO `groups`
+                (competition_id, name, active, qr_token, registration_date, kbm_area, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())'
+        );
+        $stmt->execute([$competitionId, $name, $active ? 1 : 0, $qrToken,
+                        $registrationDate ?: null, $kbmArea ?: null]);
         return (int)$this->db->lastInsertId();
+    }
+
+    public function update(int $id, int $competitionId, string $name, bool $active, string $qrToken,
+                           ?string $registrationDate = null, ?string $kbmArea = null): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE `groups`
+             SET competition_id=?, name=?, active=?, qr_token=?,
+                 registration_date=?, kbm_area=?, updated_at=NOW()
+             WHERE id=?'
+        );
+        $stmt->execute([$competitionId, $name, $active ? 1 : 0, $qrToken,
+                        $registrationDate ?: null, $kbmArea ?: null, $id]);
+    }
+
+    public function delete(int $id): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM `groups` WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+
+    /** Letzte Station aktualisieren (wird von der App beim Check-in gesetzt) */
+    public function updateLastStation(int $groupId, int $stationId): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE `groups` SET last_station_id=?, updated_at=NOW() WHERE id=?'
+        );
+        $stmt->execute([$stationId, $groupId]);
     }
 
     public function addMember(int $groupId, string $vorname, string $name,

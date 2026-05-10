@@ -16,6 +16,7 @@
             <li><a href="/admin" class="adm_nav__link">Dashboard</a></li>
             <li><a href="/admin/competitions" class="adm_nav__link">Wettbewerbe</a></li>
             <li><a href="/admin/stations" class="adm_nav__link">Stationen</a></li>
+            <li><a href="/admin/groups" class="adm_nav__link">Gruppen</a></li>
             <li><a href="/admin/results" class="adm_nav__link">Ergebnisse</a></li>
             <li><a href="/admin/qrcodes" class="adm_nav__link">QR-Codes</a></li>
             <li>
