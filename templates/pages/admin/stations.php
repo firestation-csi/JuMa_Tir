@@ -46,12 +46,15 @@ ob_start();
                             </code>
                         </td>
                         <td class="adm_table__actions">
+                            <a href="/admin/stations/<?= (int)$s['id'] ?>/tasks" class="adm_btn adm_btn--sm adm_btn--ghost">
+                                Aufgaben
+                            </a>
                             <a href="/admin/stations/<?= (int)$s['id'] ?>/edit" class="adm_btn adm_btn--sm adm_btn--ghost">
                                 Bearbeiten
                             </a>
                             <form method="POST" action="/admin/stations/<?= (int)$s['id'] ?>/delete"
                                   onsubmit="return confirm('Station «<?= htmlspecialchars(addslashes($s['name'])) ?>» wirklich löschen?')">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
                                 <button type="submit" class="adm_btn adm_btn--sm adm_btn--danger">Löschen</button>
                             </form>
                         </td>
