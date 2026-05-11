@@ -14,6 +14,15 @@ const csrf    = D.csrf;
 const hasTime = parseInt(station.has_time) === 1;
 const taskMap = Object.fromEntries(tasks.map(t => [t.id, t]));
 
+// Debug-Ausgabe: zeigt welche Station wirklich geladen wurde
+console.log('[JuMA] Page loaded — Station:', {
+    dbStationId:   D.stationId,
+    stationObject: station.id + ' · ' + station.code + ' · ' + station.name,
+    dbJudgeId:     D.judgeId,
+    judgeObject:   judge.id + ' · ' + judge.name,
+    historyCount:  (D.history || []).length,
+});
+
 // ── Stopwatch (module-level, überlebt Re-Renders) ─
 let swRunning = false, swBase = 0, swStart = 0, swRaf = null;
 let swMs = 0;
@@ -598,9 +607,11 @@ async function loadAllGroups() {
     setState({ allGroupsLoading: true });
     try {
         const data = await apiFetch('/api/station/groups');
+        console.log('[JuMA] /api/station/groups — API station_id:', data.debug_station_id,
+                    '| Page station_id:', D.stationId,
+                    '| Match:', data.debug_station_id === D.stationId ? '✓' : '✗ MISMATCH!');
         setState({ allGroups: data.groups || [], allGroupsLoading: false });
     } catch {
-        // Bei Fehler leere Liste setzen damit kein erneuter Retry ausgelöst wird
         setState({ allGroups: [], allGroupsLoading: false });
     }
 }
@@ -721,7 +732,10 @@ function renderProfile() {
             <div class="wt_section">
                 <div class="wt_card" style="overflow:hidden;">
                     <div class="wt_row-line">
-                        <div><div class="wt_row-label">Aktive Station</div><div class="wt_row-sub">Wechseln durch Neu-Scan</div></div>
+                        <div>
+                            <div class="wt_row-label">Aktive Station</div>
+                            <div class="wt_row-sub">DB-ID: ${D.stationId} · Judge-ID: ${D.judgeId}</div>
+                        </div>
                         <span class="wt_station-chip"><span class="wt_dot"></span>${esc(station.code)} · ${esc(station.name)}</span>
                     </div>
                     <div class="wt_row-line">

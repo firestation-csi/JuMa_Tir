@@ -2,6 +2,8 @@
 ob_start();
 $appData = json_encode([
     'station'     => $station,
+    'stationId'   => $stationId,   // DB-Station-ID zur Verifikation
+    'judgeId'     => $judgeId,     // DB-Judge-ID zur Verifikation
     'tasks'       => $tasks,
     'judge'       => $judge,
     'history'     => $history,

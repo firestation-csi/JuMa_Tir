@@ -151,6 +151,8 @@ class JudgeController
         Response::view('pages/judge/station', [
             'title'       => 'Station ' . $station['code'],
             'station'     => $station,
+            'stationId'   => $stationId,  // explizit für Debug
+            'judgeId'     => $judgeId,
             'tasks'       => $tasks,
             'judge'       => [
                 'id'       => $judge['id'],
@@ -266,7 +268,7 @@ class JudgeController
 
         $groups = $this->scoreModel->getGroupsStatusAtStation($stationId, (int)$station['competition_id']);
 
-        Response::json(['groups' => $groups]);
+        Response::json(['groups' => $groups, 'debug_station_id' => $stationId]);
     }
 
     /** API: Nachrichten laden */
