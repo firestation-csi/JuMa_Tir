@@ -8,6 +8,7 @@ use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Judge;
+use App\Model\Message;
 use App\Model\Score;
 use App\Model\Station;
 use App\Model\StationTask;
@@ -19,6 +20,7 @@ class JudgeController
     private Score       $scoreModel;
     private Station     $stationModel;
     private StationTask $taskModel;
+    private Message     $messageModel;
 
     public function __construct(private Request $request)
     {
@@ -26,6 +28,7 @@ class JudgeController
         $this->scoreModel   = new Score();
         $this->stationModel = new Station();
         $this->taskModel    = new StationTask();
+        $this->messageModel = new Message();
     }
 
     /** Einstiegsseite */
@@ -106,32 +109,40 @@ class JudgeController
         $tasks   = $this->taskModel->findByStationAsSchema($stationId);
         $scores  = $this->scoreModel->findByStation($stationId);
 
-        // Verlauf (letzte 20 Bewertungen dieser Station durch diesen Schiedsrichter)
+        // Verlauf inkl. Task-Ergebnisse für Detailmodal
         $history = array_map(fn($s) => [
-            'score_id'    => $s['id'],
-            'group_id'    => $s['group_id'],
-            'group_name'  => $s['group_name'],
-            'group_num'   => $s['group_num'],
-            'kreis'       => $s['kreis'],
-            'total_fp'    => $s['total_fp'],
-            'synced'      => $s['synced_at'] !== null,
-            'timestamp'   => date('H:i', strtotime($s['created_at'])),
+            'score_id'     => $s['id'],
+            'group_id'     => $s['group_id'],
+            'group_name'   => $s['group_name'],
+            'group_num'    => $s['group_num'],
+            'kreis'        => $s['kreis'],
+            'total_fp'     => $s['total_fp'],
+            'synced'       => $s['synced_at'] !== null,
+            'timestamp'    => date('H:i', strtotime($s['created_at'])),
+            'impression'   => $s['impression'],
+            'time_ms'      => $s['time_ms'],
+            'notes'        => $s['notes'],
+            'task_results' => $s['task_results'] ? json_decode($s['task_results'], true) : [],
         ], array_slice($scores, 0, 20));
 
         $initials = implode('', array_map(fn($w) => mb_strtoupper(mb_substr($w, 0, 1)),
             array_filter(explode(' ', $judge['name']))));
 
+        // Ungelesene Nachrichten zählen
+        $unreadCount = $this->messageModel->countUnread($stationId);
+
         Response::view('pages/judge/station', [
-            'title'   => 'Station ' . $station['code'],
-            'station' => $station,
-            'tasks'   => $tasks,
-            'judge'   => [
+            'title'       => 'Station ' . $station['code'],
+            'station'     => $station,
+            'tasks'       => $tasks,
+            'judge'       => [
                 'id'       => $judge['id'],
                 'name'     => $judge['name'],
                 'initials' => mb_substr($initials, 0, 2),
             ],
-            'history' => $history,
-            'csrf'    => Auth::getCsrfToken(),
+            'history'     => $history,
+            'unreadCount' => $unreadCount,
+            'csrf'        => Auth::getCsrfToken(),
         ]);
     }
 
@@ -170,17 +181,15 @@ class JudgeController
             if ($task['type'] === 'boolean' && $value === 'fail') {
                 $totalFp += (int)$task['points'];
             } elseif ($task['type'] === 'count' && (int)$value > 0) {
-                // Wert auf max_count begrenzen
                 $count = (int)$value;
                 if ($task['max_count'] !== null) {
                     $count = min($count, (int)$task['max_count']);
                 }
                 $totalFp += $count * (int)$task['points'];
             }
-            // time-Typ: Zeitstrafe wird unten aus time_ms berechnet
         }
 
-        // Zeitstrafe berechnen (gilt für time-Typ und optionale Zeitfelder an anderen Typen)
+        // Zeitstrafe berechnen
         if ($timeMs !== null && $timeMs > 0) {
             foreach ($taskDefs as $task) {
                 if ($task['sollzeit_sek'] === null || $task['zeitstrafe_fp'] === null || $task['zeiteinheit_sek'] === null) {
@@ -202,6 +211,79 @@ class JudgeController
         );
 
         Response::json(['score_id' => $scoreId, 'total_fp' => $totalFp]);
+    }
+
+    /** API: Bewertung löschen */
+    public function deleteScore(string $scoreId): void
+    {
+        if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
+
+        $score = $this->scoreModel->findById((int)$scoreId);
+        if (!$score) {
+            Response::error('Bewertung nicht gefunden', 404);
+        }
+
+        // Nur Bewertungen dieser Station dürfen gelöscht werden
+        if ((int)$score['station_id'] !== Auth::getStationId()) {
+            Response::error('Nicht autorisiert', 403);
+        }
+
+        $this->scoreModel->delete((int)$scoreId);
+        Response::json(['success' => true]);
+    }
+
+    /** API: Alle Gruppen mit Score-Status an dieser Station */
+    public function stationGroups(): void
+    {
+        if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
+
+        $stationId = Auth::getStationId();
+        $station   = $this->stationModel->findById($stationId);
+        if (!$station) Response::error('Station nicht gefunden', 404);
+
+        $groups = $this->scoreModel->getGroupsStatusAtStation($stationId, (int)$station['competition_id']);
+
+        Response::json(['groups' => $groups]);
+    }
+
+    /** API: Nachrichten laden */
+    public function getMessages(): void
+    {
+        if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
+
+        $stationId = Auth::getStationId();
+        $messages  = $this->messageModel->findByStation($stationId);
+        $unread    = $this->messageModel->countUnread($stationId);
+
+        Response::json(['messages' => $messages, 'unread' => $unread]);
+    }
+
+    /** API: Nachricht senden (Schiedsrichter → Zentrale) */
+    public function sendMessage(): void
+    {
+        if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
+
+        $data = $this->request->json();
+        $body = trim((string)($data['body'] ?? ''));
+
+        if (empty($body)) {
+            Response::error('Nachricht darf nicht leer sein');
+        }
+
+        $stationId = Auth::getStationId();
+        $judgeId   = Auth::getJudgeId();
+
+        $id = $this->messageModel->create($stationId, $judgeId, $body);
+        Response::json(['message_id' => $id]);
+    }
+
+    /** API: Nachrichten als gelesen markieren */
+    public function markMessagesRead(): void
+    {
+        if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
+
+        $this->messageModel->markAllRead(Auth::getStationId());
+        Response::json(['success' => true]);
     }
 
     /** API: Offline-Queue synchronisieren */

@@ -1,11 +1,12 @@
 <?php
 ob_start();
 $appData = json_encode([
-    'station' => $station,
-    'tasks'   => $tasks,
-    'judge'   => $judge,
-    'history' => $history,
-    'csrf'    => $csrf,
+    'station'     => $station,
+    'tasks'       => $tasks,
+    'judge'       => $judge,
+    'history'     => $history,
+    'unreadCount' => $unreadCount,
+    'csrf'        => $csrf,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 ?>
 <script type="application/json" id="__JUMA__"><?= $appData ?></script>

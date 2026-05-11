@@ -12,6 +12,7 @@ const tasks   = D.tasks;
 const judge   = D.judge;
 const csrf    = D.csrf;
 const hasTime = parseInt(station.has_time) === 1;
+const taskMap = Object.fromEntries(tasks.map(t => [t.id, t]));
 
 // ── Stopwatch (module-level, überlebt Re-Renders) ─
 let swRunning = false, swBase = 0, swStart = 0, swRaf = null;
@@ -56,15 +57,20 @@ function updateSwFace() {
 
 // ── State ─────────────────────────────────────
 const state = {
-    route:      'dashboard',
-    tab:        'aktiv',
-    group:      null,
-    history:    D.history || [],
-    scoring:    emptyScoring(),
-    submitting: false,
-    submitted:  false,
-    online:     navigator.onLine,
-    queueCount: 0,
+    route:           'dashboard',
+    tab:             'aktiv',
+    group:           null,
+    history:         D.history || [],
+    scoring:         emptyScoring(),
+    submitting:      false,
+    submitted:       false,
+    online:          navigator.onLine,
+    queueCount:      0,
+    messages:        [],
+    unreadCount:     D.unreadCount || 0,
+    chatInput:       '',
+    allGroups:       null,
+    allGroupsLoading: false,
 };
 
 function emptyScoring() {
@@ -137,13 +143,19 @@ function topHeaderHtml(showBack = false) {
 }
 
 function tabBarHtml() {
-    const t = (id, icon, label) =>
-        `<button class="wt_tabbar__btn${state.tab===id?' wt_tabbar__btn--active':''}" data-tab="${id}">
-            ${icon}<span>${label}</span></button>`;
+    const t = (id, icon, label, badge = 0) => {
+        const badgeHtml = badge > 0
+            ? `<span class="wt_tab-badge">${badge > 9 ? '9+' : badge}</span>`
+            : '';
+        return `<button class="wt_tabbar__btn${state.tab===id?' wt_tabbar__btn--active':''}" data-tab="${id}">
+            <span style="position:relative;display:inline-block;">${icon}${badgeHtml}</span>
+            <span>${label}</span></button>`;
+    };
     return `<div class="wt_tabbar">
-        ${t('aktiv',   svgFlame(), 'Aktiv')}
-        ${t('verlauf', svgList(),  'Verlauf')}
-        ${t('profil',  svgUser(),  'Profil')}
+        ${t('aktiv',    svgFlame(),   'Aktiv')}
+        ${t('verlauf',  svgList(),    'Verlauf')}
+        ${t('zentrale', svgChat(),    'Zentrale', state.unreadCount)}
+        ${t('profil',   svgUser(),    'Profil')}
     </div>`;
 }
 
@@ -160,8 +172,33 @@ function progressHtml(step) {
 }
 
 // ── Screens ────────────────────────────────────
+function scoreCardColor(fp) {
+    return fp > 10 ? { c: 'var(--wt-red)', bg: 'var(--wt-red-tint)' }
+                   : { c: 'var(--wt-ok)',  bg: 'var(--wt-ok-soft)'  };
+}
+
+function scoreCardHtml(h, idx) {
+    const { c, bg } = scoreCardColor(h.total_fp);
+    return `
+    <button class="wt_score-card" data-score-idx="${idx}">
+        <div class="wt_group-num" style="background:${bg};color:${c};">#${esc(h.group_num)}</div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:14.5px;font-weight:600;">${esc(h.group_name)}</div>
+            <div class="wt_group-meta">
+                <span>${esc(h.timestamp)}</span><span class="wt_sep"></span>
+                <span style="color:${h.synced?'var(--wt-ok)':'var(--wt-warn)'};">${h.synced?'übermittelt':'ausstehend'}</span>
+            </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+            <div class="wt_mono" style="font-size:18px;font-weight:700;color:${c};">${h.total_fp}</div>
+            <div class="wt_caption" style="font-size:10px;">FP</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--wt-text-subtle);flex-shrink:0;"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>`;
+}
+
 function renderDashboard() {
-    const last = state.history[0];
+    const last3 = state.history.slice(0, 3);
     return `
         ${topHeaderHtml()}
         <div class="wt_scroll wt_fade-in">
@@ -177,29 +214,13 @@ function renderDashboard() {
                     Gruppe meldet sich mit Karte an deiner Station an
                 </div>
             </div>
-            ${state.history.length > 0 ? `
+            ${last3.length > 0 ? `
             <div class="wt_section">
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 10px;">
-                    <span class="wt_eyebrow">Heute bewertet</span>
-                    <span class="wt_caption wt_mono">${state.history.length}</span>
+                    <span class="wt_eyebrow">Letzte Bewertungen</span>
+                    <span class="wt_caption wt_mono">${state.history.length} gesamt</span>
                 </div>
-                <div class="wt_card" style="overflow:hidden;">
-                    ${state.history.slice(0,5).map(h => `
-                    <div class="wt_list-row">
-                        <div class="wt_group-num" style="background:${h.total_fp>10?'var(--wt-red-tint)':'var(--wt-ok-soft)'};color:${h.total_fp>10?'var(--wt-red)':'var(--wt-ok)'};">#${esc(h.group_num)}</div>
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-size:14.5px;font-weight:600;">${esc(h.group_name)}</div>
-                            <div class="wt_group-meta">
-                                <span>${esc(h.timestamp)}</span><span class="wt_sep"></span>
-                                <span style="color:${h.synced?'var(--wt-ok)':'var(--wt-warn)'};">${h.synced?'übermittelt':'ausstehend'}</span>
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div class="wt_mono" style="font-size:16px;font-weight:600;">${h.total_fp}</div>
-                            <div class="wt_caption" style="font-size:10px;">FP</div>
-                        </div>
-                    </div>`).join('')}
-                </div>
+                ${last3.map((h, i) => scoreCardHtml(h, i)).join('')}
             </div>` : ''}
         </div>
         ${tabBarHtml()}`;
@@ -482,40 +503,152 @@ function renderConfirm() {
 }
 
 function renderHistory() {
+    // Daten laden wenn noch nicht vorhanden
+    if (!state.allGroups && !state.allGroupsLoading) loadAllGroups();
+
+    const groups  = state.allGroups || [];
+    const scored  = groups.filter(g => g.score_id);
+    const pending = groups.filter(g => !g.score_id);
+
+    const groupRowHtml = (g) => {
+        const hasFp  = g.score_id !== null;
+        const { c, bg } = scoreCardColor(hasFp ? g.total_fp : 0);
+        return `
+        <div class="wt_group-row${hasFp ? '' : ' wt_group-row--pending'}">
+            <div class="wt_group-num" style="${hasFp ? `background:${bg};color:${c};` : ''}">#${esc(g.group_num)}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:600;">${esc(g.group_name)}</div>
+                <div class="wt_group-meta">
+                    ${g.kreis ? `<span>${esc(g.kreis)}</span>` : ''}
+                    ${g.altersgruppe ? `<span class="wt_sep"></span><span>${esc(g.altersgruppe)}</span>` : ''}
+                    ${hasFp ? `<span class="wt_sep"></span><span style="color:var(--wt-text-subtle);">${esc(g.scored_at ? g.scored_at.substring(11,16) : '')}</span>` : ''}
+                </div>
+            </div>
+            ${hasFp
+                ? `<div style="text-align:right;flex-shrink:0;">
+                       <div class="wt_mono" style="font-size:16px;font-weight:700;color:${c};">${g.total_fp}</div>
+                       <div class="wt_caption" style="font-size:10px;">FP</div>
+                   </div>`
+                : `<span class="wt_caption" style="flex-shrink:0;color:var(--wt-text-subtle);">ausstehend</span>`}
+        </div>`;
+    };
+
     return `
         ${topHeaderHtml()}
         <div class="wt_scroll wt_fade-in">
             <div class="wt_section" style="padding-top:16px;">
-                <div class="wt_eyebrow">Verlauf</div>
-                <h2 class="wt_h1" style="margin-top:4px;">${state.history.length} bewertet<br>heute.</h2>
+                <div class="wt_eyebrow">Verlauf · ${esc(station.code)}</div>
+                <h2 class="wt_h1" style="margin-top:4px;">${scored.length} von ${groups.length}<br>bewertet.</h2>
             </div>
-            ${state.history.length > 0 ? `
+
+            ${state.allGroupsLoading ? `
             <div class="wt_section">
+                <div class="wt_caption" style="text-align:center;padding:32px 0;">Lade Gruppen…</div>
+            </div>` : ''}
+
+            ${scored.length > 0 ? `
+            <div class="wt_section">
+                <div class="wt_eyebrow" style="padding:0 4px 10px;color:var(--wt-ok);">Bewertet (${scored.length})</div>
                 <div class="wt_card" style="overflow:hidden;">
-                    ${state.history.map(h => `
-                    <div class="wt_list-row">
-                        <div class="wt_group-num" style="background:${h.total_fp>10?'var(--wt-red-tint)':'var(--wt-ok-soft)'};color:${h.total_fp>10?'var(--wt-red)':'var(--wt-ok)'};">#${esc(h.group_num)}</div>
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-size:14.5px;font-weight:600;">${esc(h.group_name)}</div>
-                            <div class="wt_group-meta">
-                                <span>${esc(h.timestamp)}</span>
-                                ${h.kreis?`<span class="wt_sep"></span><span>${esc(h.kreis)}</span>`:''}
-                                <span class="wt_sep"></span>
-                                <span style="color:${h.synced?'var(--wt-ok)':'var(--wt-warn)'};">${h.synced?'übermittelt':'ausstehend'}</span>
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div class="wt_mono" style="font-size:16px;font-weight:600;">${h.total_fp}</div>
-                            <div class="wt_caption" style="font-size:10px;">FP</div>
-                        </div>
-                    </div>`).join('')}
+                    ${scored.map(groupRowHtml).join('')}
                 </div>
-            </div>` : `
+            </div>` : ''}
+
+            ${pending.length > 0 ? `
             <div class="wt_section">
-                <div class="wt_caption" style="text-align:center;padding:32px 0;">Noch keine Gruppen bewertet.</div>
-            </div>`}
+                <div class="wt_eyebrow" style="padding:0 4px 10px;">Ausstehend (${pending.length})</div>
+                <div class="wt_card" style="overflow:hidden;">
+                    ${pending.map(groupRowHtml).join('')}
+                </div>
+            </div>` : ''}
+
+            ${!state.allGroupsLoading && groups.length === 0 ? `
+            <div class="wt_section">
+                <div class="wt_caption" style="text-align:center;padding:32px 0;">Keine Gruppen gefunden.</div>
+            </div>` : ''}
         </div>
         ${tabBarHtml()}`;
+}
+
+async function loadAllGroups() {
+    setState({ allGroupsLoading: true });
+    try {
+        const data = await apiFetch('/api/station/groups');
+        setState({ allGroups: data.groups || [], allGroupsLoading: false });
+    } catch {
+        setState({ allGroupsLoading: false });
+    }
+}
+
+function renderChat() {
+    const msgs = state.messages;
+    const fmtTime = (iso) => {
+        if (!iso) return '';
+        const d = new Date(iso.replace(' ', 'T'));
+        return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    };
+
+    const bubblesHtml = msgs.length === 0
+        ? `<div class="wt_caption" style="text-align:center;padding:40px 0;">Noch keine Nachrichten von der Wertungszentrale.</div>`
+        : msgs.map(m => {
+            const isJudge = m.sender === 'judge';
+            return `
+            <div style="display:flex;flex-direction:column;align-items:${isJudge?'flex-end':'flex-start'};">
+                <div class="wt_chat-bubble wt_chat-bubble--${isJudge?'judge':'zentrale'}">${esc(m.body)}</div>
+                <div class="wt_chat-meta${isJudge?' wt_chat-meta--right':''}">${isJudge ? 'Du' : 'Zentrale'} · ${fmtTime(m.created_at)}</div>
+            </div>`;
+        }).join('');
+
+    return `
+        ${topHeaderHtml()}
+        <div class="wt_scroll wt_fade-in wt_scroll--chat" id="chatScroll">
+            <div class="wt_section" style="padding-top:16px;">
+                <div class="wt_eyebrow">Wertungszentrale</div>
+                <h2 class="wt_h1" style="margin-top:4px;">Nachrichten.</h2>
+            </div>
+            <div class="wt_chat-messages" id="chatMessages">
+                ${bubblesHtml}
+            </div>
+        </div>
+        <div class="wt_chat-input-bar">
+            <textarea id="chatInput" rows="1" placeholder="Nachricht an Zentrale…">${esc(state.chatInput)}</textarea>
+            <button class="wt_chat-send-btn" id="btnChatSend" ${state.chatInput.trim() ? '' : 'disabled'}>
+                ${svgSend()}
+            </button>
+        </div>
+        ${tabBarHtml()}`;
+}
+
+async function loadMessages() {
+    try {
+        const data = await apiFetch('/api/messages');
+        const wasUnread = state.unreadCount;
+        setState({ messages: data.messages || [], unreadCount: data.unread || 0 });
+        // Wenn Chat-Tab offen: als gelesen markieren
+        if (state.tab === 'zentrale' && wasUnread > 0) {
+            apiFetch('/api/messages/read', { method: 'POST' }).catch(() => {});
+            setState({ unreadCount: 0 });
+        }
+        // Chat-Scroll ans Ende
+        if (state.tab === 'zentrale') {
+            setTimeout(() => {
+                const el = document.getElementById('chatScroll');
+                if (el) el.scrollTop = el.scrollHeight;
+            }, 50);
+        }
+    } catch { /* Offline – ignorieren */ }
+}
+
+async function sendChatMessage() {
+    const body = state.chatInput.trim();
+    if (!body) return;
+    setState({ chatInput: '' });
+    try {
+        await apiFetch('/api/messages', { method: 'POST', body: JSON.stringify({ body }) });
+        loadMessages();
+    } catch (err) {
+        showMessage('Senden fehlgeschlagen', 'error');
+    }
 }
 
 function renderProfile() {
@@ -569,6 +702,7 @@ function render() {
 
     let html;
     if (state.tab === 'verlauf')     html = renderHistory();
+    else if (state.tab === 'zentrale') html = renderChat();
     else if (state.tab === 'profil') html = renderProfile();
     else switch (state.route) {
         case 'checkin':       html = renderCheckin();              break;
@@ -588,8 +722,25 @@ function attachHandlers() {
     // Tab-Bar
     root.querySelectorAll('[data-tab]').forEach(btn =>
         btn.addEventListener('click', () => {
-            setState({ tab: btn.dataset.tab, route: 'dashboard' });
+            const newTab = btn.dataset.tab;
+            // Beim Öffnen des Chat-Tabs: als gelesen markieren + Nachrichten laden
+            if (newTab === 'zentrale') {
+                if (state.unreadCount > 0) {
+                    apiFetch('/api/messages/read', { method: 'POST' }).catch(() => {});
+                }
+                loadMessages();
+                setState({ tab: newTab, route: 'dashboard', unreadCount: 0 });
+            } else if (newTab === 'verlauf' && !state.allGroups) {
+                setState({ tab: newTab, route: 'dashboard' });
+                loadAllGroups();
+            } else {
+                setState({ tab: newTab, route: 'dashboard' });
+            }
         }));
+
+    // Aktiv Tab: Score-Cards klickbar
+    root.querySelectorAll('[data-score-idx]').forEach(btn =>
+        btn.addEventListener('click', () => showScoreModal(parseInt(btn.dataset.scoreIdx))));
 
     // Dashboard → Checkin
     const btnCheckin = document.getElementById('btnCheckin');
@@ -677,6 +828,25 @@ function attachHandlers() {
     });
     const btnSwReset = document.getElementById('btnSwReset');
     if (btnSwReset) btnSwReset.addEventListener('click', () => { swReset(); render(); });
+
+    // Chat: Eingabe + Senden
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.value = state.chatInput;
+        chatInput.addEventListener('input', (e) => {
+            state.chatInput = e.target.value;
+            const btn = document.getElementById('btnChatSend');
+            if (btn) btn.disabled = !e.target.value.trim();
+            // Auto-resize
+            e.target.style.height = 'auto';
+            e.target.style.height = Math.min(e.target.scrollHeight, 80) + 'px';
+        });
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+        });
+    }
+    const btnChatSend = document.getElementById('btnChatSend');
+    if (btnChatSend) btnChatSend.addEventListener('click', sendChatMessage);
 
     // Profil: Abmelden
     const btnLogout = document.getElementById('btnLogout');
@@ -793,15 +963,21 @@ async function transmit() {
 
         setTimeout(() => {
             const newEntry = {
-                score_id:   result.score_id,
-                group_id:   state.group.group_id,
-                group_name: state.group.group_name,
-                group_num:  state.group.group_num,
-                kreis:      state.group.kreis || '',
-                total_fp:   result.total_fp,
-                synced:     true,
-                timestamp:  new Date().toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }),
+                score_id:     result.score_id,
+                group_id:     state.group.group_id,
+                group_name:   state.group.group_name,
+                group_num:    state.group.group_num,
+                kreis:        state.group.kreis || '',
+                total_fp:     result.total_fp,
+                synced:       true,
+                timestamp:    new Date().toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }),
+                impression:   state.scoring.impression,
+                time_ms:      hasTime ? Math.round(swMs) : null,
+                notes:        state.scoring.notes || null,
+                task_results: payload.tasks,
             };
+            // Verlauf-Cache invalidieren damit Gruppen-Status aktuell bleibt
+            state.allGroups = null;
             state.history = [newEntry, ...state.history];
             state.submitted = false;
             state.route     = 'dashboard';
@@ -836,6 +1012,91 @@ async function transmit() {
     }
 }
 
+function showScoreModal(historyIdx) {
+    const h = state.history[historyIdx];
+    if (!h) return;
+
+    const impLabel = { sehr_gut:'Sehr gut', gut:'Gut', befriedigend:'Befriedigend' }[h.impression] || '–';
+    const { c } = scoreCardColor(h.total_fp);
+
+    // Nur Fehler / nicht-null Einträge zeigen
+    const failRows = (h.task_results || []).filter(r => {
+        const t = taskMap[r.task_id];
+        if (!t) return false;
+        return (t.type === 'boolean' && r.value === 'fail') ||
+               (t.type === 'count' && (r.value ?? 0) > 0);
+    }).map(r => {
+        const t = taskMap[r.task_id];
+        let fp = 0, valLabel = '';
+        if (t.type === 'boolean') {
+            fp = t.points;
+            valLabel = 'Fehler';
+        } else {
+            fp = (r.value ?? 0) * t.points;
+            valLabel = `${r.value} × ${t.points} FP`;
+        }
+        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--wt-border);">
+            <div style="font-size:13px;color:var(--wt-text);flex:1;">${esc(t.label)}</div>
+            <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--wt-red);white-space:nowrap;font-weight:600;">+${fp} FP</div>
+        </div>`;
+    }).join('');
+
+    const timeHtml = h.time_ms
+        ? `<div class="wt_summary-row" style="padding:8px 0;">
+               <span style="color:var(--wt-text-muted);font-size:13px;">Zeit</span>
+               <span style="font-family:'JetBrains Mono',monospace;font-weight:600;">${swFmt(h.time_ms).main}</span>
+           </div>`
+        : '';
+
+    const d = document.createElement('dialog');
+    d.style.cssText = 'border:0;border-radius:20px;padding:0;background:var(--wt-surface);color:var(--wt-text);width:360px;max-width:94vw;box-shadow:0 16px 48px rgba(0,0,0,.22);';
+    d.innerHTML = `
+        <div style="padding:18px 18px 12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div class="wt_group-num" style="background:var(--wt-surface-alt);">#${esc(h.group_num)}</div>
+                <div style="flex:1;">
+                    <div style="font-size:15px;font-weight:700;">${esc(h.group_name)}</div>
+                    <div class="wt_caption wt_mono">${esc(h.timestamp)} · ${h.synced?'übermittelt':'ausstehend'}</div>
+                </div>
+                <div style="font-size:32px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${c};">${h.total_fp}</div>
+            </div>
+        </div>
+        <div style="max-height:45vh;overflow-y:auto;padding:0 18px;border-top:1px solid var(--wt-border);">
+            ${failRows || `<div style="padding:16px 0;text-align:center;color:var(--wt-text-subtle);font-size:13px;">Keine Fehler — alles korrekt.</div>`}
+            ${timeHtml}
+            ${h.notes ? `<div style="padding:10px 0;font-size:13px;color:var(--wt-text-muted);font-style:italic;">"${esc(h.notes)}"</div>` : ''}
+            <div style="display:flex;justify-content:space-between;padding:10px 0;">
+                <span style="color:var(--wt-text-muted);font-size:13px;">Eindruck</span>
+                <span style="font-size:13px;font-weight:600;">${impLabel}</span>
+            </div>
+        </div>
+        <div style="padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--wt-border);">
+            <button id="btnModalDelete" style="flex:1;height:44px;border:1px solid var(--wt-red);background:transparent;color:var(--wt-red);border-radius:12px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;">
+                Löschen
+            </button>
+            <button id="btnModalClose" style="flex:2;height:44px;background:var(--wt-surface-alt);border:1px solid var(--wt-border);border-radius:12px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;">
+                Schließen
+            </button>
+        </div>`;
+
+    document.body.appendChild(d);
+    d.showModal();
+
+    d.querySelector('#btnModalClose').onclick = () => d.close();
+    d.querySelector('#btnModalDelete').onclick = async () => {
+        if (!confirm(`Bewertung für #${h.group_num} ${h.group_name} wirklich löschen?`)) return;
+        try {
+            await apiFetch(`/api/score/${h.score_id}/delete`, { method: 'POST' });
+            state.history = state.history.filter((_, i) => i !== historyIdx);
+            d.close();
+            render();
+        } catch (err) {
+            showMessage('Löschen fehlgeschlagen: ' + err.message, 'error');
+        }
+    };
+    d.addEventListener('close', () => d.remove());
+}
+
 function showGroupInfo(g) {
     const rows = (g.members || []).map((m, i) => `
         <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--wt-border);">
@@ -863,15 +1124,21 @@ function showGroupInfo(g) {
 }
 
 // ── Inline SVG Icons ───────────────────────────
-const svgQr = () => `<svg width="20" height="20" viewBox="0 0 22 22" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="2" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="2" y="13" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="4.5" y="4.5" width="2" height="2" fill="currentColor"/><rect x="15.5" y="4.5" width="2" height="2" fill="currentColor"/><rect x="4.5" y="15.5" width="2" height="2" fill="currentColor"/></svg>`;
+const svgQr    = () => `<svg width="20" height="20" viewBox="0 0 22 22" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="2" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="2" y="13" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="4.5" y="4.5" width="2" height="2" fill="currentColor"/><rect x="15.5" y="4.5" width="2" height="2" fill="currentColor"/><rect x="4.5" y="15.5" width="2" height="2" fill="currentColor"/></svg>`;
 const svgArrow = () => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9h10M9 4l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const svgInfo = () => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.2" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="5.6" r=".9" fill="currentColor"/><path d="M9 8.2v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const svgInfo  = () => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.2" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="5.6" r=".9" fill="currentColor"/><path d="M9 8.2v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const svgFlame = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 2c0 4-5 5-5 10a5 5 0 1010 0c0-2-1.5-3.5-2.5-4.5C11 6 14 5 11 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
-const svgList = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 6h14M4 11h14M4 16h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
-const svgUser = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const svgList  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 6h14M4 11h14M4 16h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+const svgUser  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const svgChat  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 4h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H7l-4 3V5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+const svgSend  = () => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M15 9L3 3l3 6-3 6 12-6z" fill="currentColor"/></svg>`;
 
 // ── Start ──────────────────────────────────────
 render();
 
 // Queue-Count beim Laden anfragen
 window.dispatchEvent(new Event('wt:request-queue-count'));
+
+// Nachrichten-Polling alle 20 Sekunden
+loadMessages();
+setInterval(loadMessages, 20_000);

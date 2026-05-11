@@ -140,6 +140,30 @@ class Score
         return $stmt->fetchAll();
     }
 
+    public function delete(int $id): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM scores WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+
+    /** Alle Gruppen eines Wettbewerbs mit Score-Status an einer Station */
+    public function getGroupsStatusAtStation(int $stationId, int $competitionId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT g.id AS group_id, g.num AS group_num, g.name AS group_name,
+                    g.kreis, g.altersgruppe, g.startnr,
+                    s.id AS score_id, s.total_fp, s.impression,
+                    s.created_at AS scored_at, j.name AS judge_name
+             FROM `groups` g
+             LEFT JOIN scores s ON s.group_id = g.id AND s.station_id = :station
+             LEFT JOIN judges j ON j.id = s.judge_id
+             WHERE g.competition_id = :comp
+             ORDER BY g.num ASC, g.name ASC'
+        );
+        $stmt->execute([':station' => $stationId, ':comp' => $competitionId]);
+        return $stmt->fetchAll();
+    }
+
     public function getStatsByStation(int $stationId): array
     {
         $stmt = $this->db->prepare(
