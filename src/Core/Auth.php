@@ -25,9 +25,11 @@ class Auth
         $_SESSION['csrf_token']     = self::generateCsrfToken();
     }
 
-    /** Schiedsrichter-Session setzen */
+    /** Schiedsrichter-Session setzen — alten State vollständig löschen */
     public static function loginJudge(int $judgeId, int $stationId): void
     {
+        // Alle alten Session-Daten entfernen bevor neue gesetzt werden
+        session_unset();
         session_regenerate_id(true);
         $_SESSION['judge_id']   = $judgeId;
         $_SESSION['station_id'] = $stationId;

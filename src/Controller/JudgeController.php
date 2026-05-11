@@ -96,20 +96,31 @@ class JudgeController
     {
         if (!Auth::isJudge()) Response::redirect('/judge');
 
-        $judgeId   = Auth::getJudgeId();
-        $stationId = Auth::getStationId();
-
-        if (!$judgeId || !$stationId) {
+        $judgeId = Auth::getJudgeId();
+        if (!$judgeId) {
             Auth::logout();
             Response::redirect('/judge');
         }
 
-        $judge   = $this->judgeModel->findById($judgeId);
-        $station = $this->stationModel->findById($stationId);
-
-        if (!$station || !$judge) {
+        $judge = $this->judgeModel->findById($judgeId);
+        if (!$judge) {
             Auth::logout();
             Response::redirect('/judge');
+        }
+
+        // Authoritative station_id kommt IMMER aus dem judges-DB-Eintrag,
+        // nicht aus der Session — damit funktioniert der Station-Wechsel zuverlässig
+        $stationId = (int)$judge['station_id'];
+        $station   = $this->stationModel->findById($stationId);
+
+        if (!$station) {
+            Auth::logout();
+            Response::redirect('/judge');
+        }
+
+        // Session korrigieren falls sie abweicht (z.B. nach Cookie-Problem)
+        if (Auth::getStationId() !== $stationId) {
+            Auth::loginJudge($judgeId, $stationId);
         }
 
         $tasks  = $this->taskModel->findByStationAsSchema($stationId);
@@ -169,7 +180,9 @@ class JudgeController
             Response::error('Pflichtfelder fehlen');
         }
 
-        if ($stationId !== Auth::getStationId()) {
+        // Autorisierung über Judge-DB-Eintrag, nicht über Session-Station
+        $judge = $this->judgeModel->findById(Auth::getJudgeId());
+        if (!$judge || (int)$judge['station_id'] !== $stationId) {
             Response::error('Nicht autorisiert für diese Station', 403);
         }
 
@@ -229,8 +242,9 @@ class JudgeController
             Response::error('Bewertung nicht gefunden', 404);
         }
 
-        // Nur Bewertungen dieser Station dürfen gelöscht werden
-        if ((int)$score['station_id'] !== Auth::getStationId()) {
+        // Nur Bewertungen der eigenen Station dürfen gelöscht werden
+        $judge = $this->judgeModel->findById((int)Auth::getJudgeId());
+        if (!$judge || (int)$score['station_id'] !== (int)$judge['station_id']) {
             Response::error('Nicht autorisiert', 403);
         }
 
@@ -243,10 +257,11 @@ class JudgeController
     {
         if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
 
-        $stationId = Auth::getStationId();
-        if (!$stationId) Response::error('Station nicht ermittelbar', 500);
+        $judge = $this->judgeModel->findById((int)Auth::getJudgeId());
+        if (!$judge) Response::error('Schiedsrichter nicht gefunden', 404);
 
-        $station = $this->stationModel->findById($stationId);
+        $stationId = (int)$judge['station_id'];
+        $station   = $this->stationModel->findById($stationId);
         if (!$station) Response::error('Station nicht gefunden', 404);
 
         $groups = $this->scoreModel->getGroupsStatusAtStation($stationId, (int)$station['competition_id']);
@@ -259,7 +274,7 @@ class JudgeController
     {
         if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
 
-        $stationId = Auth::getStationId();
+        $stationId = $this->judgeStationId();
         $messages  = $this->messageModel->findByStation($stationId);
         $unread    = $this->messageModel->countUnread($stationId);
 
@@ -278,8 +293,8 @@ class JudgeController
             Response::error('Nachricht darf nicht leer sein');
         }
 
-        $stationId = Auth::getStationId();
         $judgeId   = Auth::getJudgeId();
+        $stationId = $this->judgeStationId();
 
         $id = $this->messageModel->create($stationId, $judgeId, $body);
         Response::json(['message_id' => $id]);
@@ -290,8 +305,16 @@ class JudgeController
     {
         if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
 
-        $this->messageModel->markAllRead(Auth::getStationId());
+        $this->messageModel->markAllRead($this->judgeStationId());
         Response::json(['success' => true]);
+    }
+
+    /** Gibt die Station-ID des eingeloggten Schiedsrichters aus der DB zurück */
+    private function judgeStationId(): int
+    {
+        $judge = $this->judgeModel->findById((int)Auth::getJudgeId());
+        if (!$judge) Response::error('Schiedsrichter nicht gefunden', 404);
+        return (int)$judge['station_id'];
     }
 
     /** API: Offline-Queue synchronisieren */
