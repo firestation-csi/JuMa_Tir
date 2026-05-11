@@ -8,7 +8,7 @@ ob_start();
         <div class="wt_card">
             <h2 class="wt_card__title">Wettbewerb</h2>
             <p><strong><?= htmlspecialchars($competition['name']) ?></strong></p>
-            <p>Datum: <?= htmlspecialchars($competition['date']) ?></p>
+            <p>Datum: <?= $competition['date'] ? date('d.m.Y', strtotime($competition['date'])) : '–' ?></p>
             <p>Status: <span class="wt_badge wt_badge--<?= htmlspecialchars($competition['status']) ?>">
                 <?= htmlspecialchars($competition['status']) ?>
             </span></p>

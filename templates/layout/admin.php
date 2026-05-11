@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="mobile-web-app-capable" content="yes">
-    <title><?= htmlspecialchars($title ?? 'Wertungsbüro') ?> – JuMa</title>
+    <title><?= htmlspecialchars($title ?? 'Wertungsbüro') ?> – KFV-Tirschenreuth</title>
     <link rel="stylesheet" href="/assets/css/main.css">
     <link rel="stylesheet" href="/assets/css/admin.css">
 </head>
 <body class="wt_body wt_body--admin">
 
     <nav class="adm_nav">
-        <a href="/admin" class="adm_nav__brand">JuMa <span>·</span> Wertungsbüro</a>
+        <a href="/admin" class="adm_nav__brand">KFV-Tirschenreuth <span>·</span> Wertungsbüro</a>
         <button class="adm_nav__burger" id="navBurger" aria-label="Menü">
             <span></span><span></span><span></span>
         </button>

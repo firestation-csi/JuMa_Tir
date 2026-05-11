@@ -34,7 +34,7 @@ ob_start();
                             <span class="adm_table__name"><?= htmlspecialchars($c['name']) ?></span>
                         </td>
                         <td class="adm_table__muted"><?= htmlspecialchars($c['location'] ?? '–') ?></td>
-                        <td class="adm_mono"><?= htmlspecialchars($c['date']) ?></td>
+                        <td class="adm_mono"><?= $c['date'] ? date('d.m.Y', strtotime($c['date'])) : '–' ?></td>
                         <td>
                             <span class="adm_badge adm_badge--<?= $c['status'] === 'active' ? 'active' : 'inactive' ?>">
                                 <?= $c['status'] === 'active' ? 'Aktiv' : 'Inaktiv' ?>

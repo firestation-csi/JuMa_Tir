@@ -19,7 +19,7 @@ $groupId = (int)$group['id'];
     <span class="adm_meta__value"><?= htmlspecialchars($group['name']) ?></span>
     <?php if (!empty($group['registration_date'])): ?>
         <span class="adm_meta__sep">·</span>
-        <span class="adm_meta__value adm_mono"><?= htmlspecialchars($group['registration_date']) ?></span>
+        <span class="adm_meta__value adm_mono"><?= date('d.m.Y', strtotime($group['registration_date'])) ?></span>
     <?php endif; ?>
     <?php if ($group['last_station_id']): ?>
         <span class="adm_meta__sep">·</span>

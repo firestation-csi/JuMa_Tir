@@ -35,7 +35,7 @@ ob_start();
                             <span class="adm_table__name"><?= htmlspecialchars($g['name']) ?></span>
                         </td>
                         <td class="adm_table__muted"><?= htmlspecialchars($g['competition_name'] ?? '–') ?></td>
-                        <td class="adm_mono"><?= htmlspecialchars($g['registration_date'] ?? '–') ?></td>
+                        <td class="adm_mono"><?= !empty($g['registration_date']) ? date('d.m.Y', strtotime($g['registration_date'])) : '–' ?></td>
                         <td>
                             <span class="adm_badge adm_badge--<?= $g['active'] ? 'active' : 'inactive' ?>">
                                 <?= $g['active'] ? 'Aktiv' : 'Inaktiv' ?>

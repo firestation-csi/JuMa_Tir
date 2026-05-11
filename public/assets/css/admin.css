@@ -147,6 +147,7 @@
     border-radius: var(--wt-r-lg);
     box-shadow: var(--wt-shadow-sm);
     overflow: hidden;
+    padding: 15px;
 }
 
 /* ---- Tabellen ---- */

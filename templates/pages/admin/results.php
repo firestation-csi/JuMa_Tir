@@ -4,7 +4,7 @@ ob_start();
 <div class="wt_results-header">
     <?php if (!empty($competition)): ?>
         <p class="wt_results__competition"><?= htmlspecialchars($competition['name']) ?>
-            – <?= htmlspecialchars($competition['date']) ?></p>
+            – <?= $competition['date'] ? date('d.m.Y', strtotime($competition['date'])) : '' ?></p>
     <?php endif; ?>
     <button class="wt_btn wt_btn--secondary" id="exportCsvBtn" type="button">CSV exportieren</button>
     <button class="wt_btn wt_btn--secondary" onclick="window.print()">Drucken</button>

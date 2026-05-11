@@ -8,7 +8,7 @@ foreach ($overview as $o) $totalUnread += $o['unread_judge'];
 
 $fmtTime = function (string $iso): string {
     $ts = strtotime($iso);
-    return $ts ? date('d.m. H:i', $ts) : '';
+    return $ts ? date('d.m.Y H:i', $ts) : '';
 };
 ?>
 
