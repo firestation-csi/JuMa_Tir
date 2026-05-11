@@ -56,22 +56,25 @@ class AdminStationTaskController
         $this->verifyCsrf();
         $station = $this->requireStation($stationId);
 
-        [$label, $type, $points, $sortOrder, $sollSek, $maxSek, $fpJe, $einheitSek]
+        [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek]
             = $this->readTaskPost();
 
-        if (empty($label) || $points < 1) {
+        $error = $this->validate($type, $label, $points, $sollSek, $fpJe, $einheitSek);
+        if ($error) {
             Response::view('pages/admin/station-task-form', [
                 'title'   => 'Aufgabe anlegen',
                 'station' => $station,
                 'task'    => null,
-                'error'   => 'Bezeichnung und Fehlerpunkte (min. 1) sind Pflichtfelder.',
+                'error'   => $error,
                 'csrf'    => Auth::getCsrfToken(),
             ]);
             return;
         }
 
-        $this->taskModel->create((int)$stationId, $label, $type, $points, $sortOrder,
-                                 $sollSek, $maxSek, $fpJe, $einheitSek);
+        $this->taskModel->create(
+            (int)$stationId, $label, $type, $points, $sortOrder,
+            $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek
+        );
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
     }
 
@@ -96,22 +99,25 @@ class AdminStationTaskController
         $station = $this->requireStation($stationId);
         $task    = $this->requireTask($id);
 
-        [$label, $type, $points, $sortOrder, $sollSek, $maxSek, $fpJe, $einheitSek]
+        [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek]
             = $this->readTaskPost();
 
-        if (empty($label) || $points < 1) {
+        $error = $this->validate($type, $label, $points, $sollSek, $fpJe, $einheitSek);
+        if ($error) {
             Response::view('pages/admin/station-task-form', [
                 'title'   => 'Aufgabe bearbeiten',
                 'station' => $station,
                 'task'    => $task,
-                'error'   => 'Bezeichnung und Fehlerpunkte (min. 1) sind Pflichtfelder.',
+                'error'   => $error,
                 'csrf'    => Auth::getCsrfToken(),
             ]);
             return;
         }
 
-        $this->taskModel->update((int)$id, $label, $type, $points, $sortOrder,
-                                 $sollSek, $maxSek, $fpJe, $einheitSek);
+        $this->taskModel->update(
+            (int)$id, $label, $type, $points, $sortOrder,
+            $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek
+        );
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
     }
 
@@ -124,30 +130,53 @@ class AdminStationTaskController
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
     }
 
-    /** POST-Felder der Aufgabe lesen und normalisieren */
+    /** POST-Felder lesen und normalisieren */
     private function readTaskPost(): array
     {
         $label     = trim((string)$this->request->post('label', ''));
         $type      = $this->request->post('type', 'boolean');
-        $points    = (int)$this->request->post('points', 1);
         $sortOrder = (int)$this->request->post('sort_order', 0);
 
-        if (!in_array($type, ['count', 'boolean'], true)) {
+        if (!in_array($type, ['count', 'boolean', 'time'], true)) {
             $type = 'boolean';
         }
 
         $toNullInt = fn($v) => ($v !== '' && $v !== null) ? (int)$v : null;
+
+        // Fehlerpunkte: bei time-Typ = 1 (wird via zeitstrafe_fp gesteuert)
+        $points = $type === 'time' ? 1 : max(1, (int)$this->request->post('points', 1));
+
+        // max_count nur für count-Typ relevant
+        $maxCount = $type === 'count' ? $toNullInt($this->request->post('max_count')) : null;
+
+        // Zeitfelder — Pflicht bei time-Typ, optional bei anderen
         $sollSek    = $toNullInt($this->request->post('sollzeit_sek'));
         $maxSek     = $toNullInt($this->request->post('hoechstzeit_sek'));
         $fpJe       = $toNullInt($this->request->post('zeitstrafe_fp'));
         $einheitSek = $toNullInt($this->request->post('zeiteinheit_sek'));
 
-        // Zeitfelder nur setzen wenn Sollzeit angegeben
-        if ($sollSek === null) {
+        // Zeitfelder löschen wenn kein Sollzeit angegeben (außer bei time-Typ)
+        if ($type !== 'time' && $sollSek === null) {
             $maxSek = $fpJe = $einheitSek = null;
         }
 
-        return [$label, $type, $points, $sortOrder, $sollSek, $maxSek, $fpJe, $einheitSek];
+        return [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek];
+    }
+
+    private function validate(
+        string $type, string $label, int $points,
+        ?int $sollSek, ?int $fpJe, ?int $einheitSek
+    ): string {
+        if (empty($label)) {
+            return 'Bezeichnung ist ein Pflichtfeld.';
+        }
+        if ($type !== 'time' && $points < 1) {
+            return 'Fehlerpunkte müssen mindestens 1 sein.';
+        }
+        if ($type === 'time' && ($sollSek === null || $fpJe === null || $einheitSek === null)) {
+            return 'Bei Zeitwertung sind Sollzeit, FP je Einheit und Zeiteinheit Pflichtfelder.';
+        }
+        return '';
     }
 
     private function requireStation(string $id): array

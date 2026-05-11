@@ -170,11 +170,17 @@ class JudgeController
             if ($task['type'] === 'boolean' && $value === 'fail') {
                 $totalFp += (int)$task['points'];
             } elseif ($task['type'] === 'count' && (int)$value > 0) {
-                $totalFp += (int)$value * (int)$task['points'];
+                // Wert auf max_count begrenzen
+                $count = (int)$value;
+                if ($task['max_count'] !== null) {
+                    $count = min($count, (int)$task['max_count']);
+                }
+                $totalFp += $count * (int)$task['points'];
             }
+            // time-Typ: Zeitstrafe wird unten aus time_ms berechnet
         }
 
-        // Zeitstrafe berechnen
+        // Zeitstrafe berechnen (gilt für time-Typ und optionale Zeitfelder an anderen Typen)
         if ($timeMs !== null && $timeMs > 0) {
             foreach ($taskDefs as $task) {
                 if ($task['sollzeit_sek'] === null || $task['zeitstrafe_fp'] === null || $task['zeiteinheit_sek'] === null) {

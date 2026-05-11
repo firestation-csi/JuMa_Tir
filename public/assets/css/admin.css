@@ -222,6 +222,12 @@
 .adm_badge--active::before   { background: var(--wt-ok); }
 .adm_badge--inactive { background: var(--wt-surface-alt); color: var(--wt-text-subtle); }
 .adm_badge--inactive::before { background: var(--wt-text-subtle); }
+.adm_badge--count  { background: #e8f0fe; color: #1a56db; }
+.adm_badge--count::before  { background: #1a56db; }
+.adm_badge--bool   { background: var(--wt-ok-soft); color: var(--wt-ok); }
+.adm_badge--bool::before   { background: var(--wt-ok); }
+.adm_badge--time   { background: #fff3e0; color: #c05621; }
+.adm_badge--time::before   { background: #c05621; }
 
 /* ---- Alerts ---- */
 .adm_alert {
@@ -338,6 +344,21 @@
     background: var(--wt-red);
     color: #fff;
     box-shadow: 0 1px 3px rgba(212,38,58,0.25);
+}
+.adm_toggle input:checked + .adm_toggle__btn--count {
+    background: #1a56db;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(26,86,219,0.25);
+}
+.adm_toggle input:checked + .adm_toggle__btn--bool {
+    background: var(--wt-ok);
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.adm_toggle input:checked + .adm_toggle__btn--time {
+    background: #c05621;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(192,86,33,0.25);
 }
 .adm_toggle input:checked + .adm_toggle__btn:not(.adm_toggle__btn--active) {
     background: var(--wt-surface);

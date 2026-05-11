@@ -1,4 +1,5 @@
 <?php
+/** @var array $station @var array $tasks @var string $csrf */
 ob_start();
 $stationId = (int)$station['id'];
 ?>
@@ -50,7 +51,14 @@ $stationId = (int)$station['id'];
                             <?php if ($t['type'] === 'count'): ?>
                                 <span class="adm_badge adm_badge--count">
                                     <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-                                    Zähler / Teilnehmer
+                                    Zähler
+                                </span>
+                                <?php if ($t['max_count'] !== null): ?>
+                                    <span class="adm_table__muted" style="font-size:.75rem;margin-left:4px;">max <?= (int)$t['max_count'] ?></span>
+                                <?php endif; ?>
+                            <?php elseif ($t['type'] === 'time'): ?>
+                                <span class="adm_badge adm_badge--time">
+                                    ⏱ Zeitwertung
                                 </span>
                             <?php else: ?>
                                 <span class="adm_badge adm_badge--bool">
@@ -59,7 +67,18 @@ $stationId = (int)$station['id'];
                                 </span>
                             <?php endif; ?>
                         </td>
-                        <td class="adm_mono"><?= (int)$t['points'] ?> FP</td>
+                        <td class="adm_mono">
+                            <?php if ($t['type'] === 'time'): ?>
+                                <?= (int)($t['zeitstrafe_fp'] ?? 0) ?> FP / <?= (int)($t['zeiteinheit_sek'] ?? 0) ?>s
+                            <?php else: ?>
+                                <?= (int)$t['points'] ?> FP
+                                <?php if ($t['type'] === 'count' && $t['max_count'] !== null): ?>
+                                    <span class="adm_table__muted" style="font-size:.8rem;">
+                                        · max <?= (int)$t['max_count'] * (int)$t['points'] ?> FP
+                                    </span>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($t['sollzeit_sek'] !== null): ?>
                                 <?php
@@ -76,8 +95,7 @@ $stationId = (int)$station['id'];
                                     <?php if ($t['hoechstzeit_sek']): ?> / Max <?= $fmt((int)$t['hoechstzeit_sek']) ?><?php endif; ?>
                                 </span><br>
                                 <span class="adm_table__muted" style="font-size:.75rem;">
-                                    <?= (int)($t['zeitstrafe_fp'] ?? 0) ?> FP / <?= (int)($t['zeiteinheit_sek'] ?? 0) ?>s
-                                    <?php if ($maxFp !== null): ?> · max <?= $maxFp ?> FP<?php endif; ?>
+                                    <?php if ($maxFp !== null): ?>max <?= $maxFp ?> FP<?php endif; ?>
                                 </span>
                             <?php else: ?>
                                 <span class="adm_table__muted">–</span>

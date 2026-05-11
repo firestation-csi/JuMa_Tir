@@ -33,17 +33,18 @@ class StationTask
         return $stmt->fetchAll();
     }
 
-    /** JSON-Schema für die App: enthält Zeitwertungs-Felder wenn gesetzt */
+    /** JSON-Schema für die App */
     public function findByStationAsSchema(int $stationId): array
     {
         return array_map(function (array $t) {
             $entry = [
-                'id'     => $t['id'],
-                'label'  => $t['label'],
-                'type'   => $t['type'],
-                'points' => (int)$t['points'],
+                'id'        => $t['id'],
+                'label'     => $t['label'],
+                'type'      => $t['type'],
+                'points'    => (int)$t['points'],
+                'max_count' => $t['max_count'] !== null ? (int)$t['max_count'] : null,
             ];
-            // Zeitwertung nur mitgeben wenn vollständig konfiguriert
+            // Zeitkonfiguration mitgeben wenn vollständig (für count/boolean optional, für time Pflicht)
             if ($t['sollzeit_sek'] !== null && $t['zeitstrafe_fp'] !== null && $t['zeiteinheit_sek'] !== null) {
                 $entry['time'] = [
                     'sollzeit_sek'    => (int)$t['sollzeit_sek'],
@@ -56,37 +57,41 @@ class StationTask
         }, $this->findByStation($stationId));
     }
 
-    public function create(int $stationId, string $label, string $type, int $points,
-                           int $sortOrder = 0, ?int $sollzeitSek = null, ?int $hoechstzeitSek = null,
-                           ?int $zeitstrafeFp = null, ?int $zeiteinheitSek = null): int
-    {
+    public function create(
+        int $stationId, string $label, string $type, int $points,
+        int $sortOrder = 0, ?int $maxCount = null,
+        ?int $sollzeitSek = null, ?int $hoechstzeitSek = null,
+        ?int $zeitstrafeFp = null, ?int $zeiteinheitSek = null
+    ): int {
         $stmt = $this->db->prepare(
             'INSERT INTO station_tasks
-                (station_id, label, type, points, sort_order,
+                (station_id, label, type, points, max_count, sort_order,
                  sollzeit_sek, hoechstzeit_sek, zeitstrafe_fp, zeiteinheit_sek,
                  created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
         );
         $stmt->execute([
-            $stationId, $label, $type, $points, $sortOrder,
+            $stationId, $label, $type, $points, $maxCount, $sortOrder,
             $sollzeitSek, $hoechstzeitSek, $zeitstrafeFp, $zeiteinheitSek,
         ]);
         return (int)$this->db->lastInsertId();
     }
 
-    public function update(int $id, string $label, string $type, int $points,
-                           int $sortOrder, ?int $sollzeitSek, ?int $hoechstzeitSek,
-                           ?int $zeitstrafeFp, ?int $zeiteinheitSek): void
-    {
+    public function update(
+        int $id, string $label, string $type, int $points,
+        int $sortOrder, ?int $maxCount,
+        ?int $sollzeitSek, ?int $hoechstzeitSek,
+        ?int $zeitstrafeFp, ?int $zeiteinheitSek
+    ): void {
         $stmt = $this->db->prepare(
             'UPDATE station_tasks
-             SET label=?, type=?, points=?, sort_order=?,
+             SET label=?, type=?, points=?, max_count=?, sort_order=?,
                  sollzeit_sek=?, hoechstzeit_sek=?, zeitstrafe_fp=?, zeiteinheit_sek=?,
                  updated_at=NOW()
              WHERE id=?'
         );
         $stmt->execute([
-            $label, $type, $points, $sortOrder,
+            $label, $type, $points, $maxCount, $sortOrder,
             $sollzeitSek, $hoechstzeitSek, $zeitstrafeFp, $zeiteinheitSek,
             $id,
         ]);

@@ -89,8 +89,13 @@ function calcFp(taskValues) {
     let fp = 0;
     for (const t of tasks) {
         const v = taskValues[t.id];
-        if (t.type === 'boolean' && v === 'fail') fp += t.points;
-        else if (t.type === 'count' && v > 0)     fp += v * t.points;
+        if (t.type === 'boolean' && v === 'fail') {
+            fp += t.points;
+        } else if (t.type === 'count' && v > 0) {
+            const clamped = t.max_count !== null ? Math.min(v, t.max_count) : v;
+            fp += clamped * t.points;
+        }
+        // Zeitstrafe: gilt für time-Typ (eigene Aufgabe) und optionale Zeitfelder an anderen Typen
         if (t.time) {
             const sek = Math.floor(swMs / 1000);
             const { sollzeit_sek: soll, hoechstzeit_sek: max, zeitstrafe_fp: fpj, zeiteinheit_sek: einh } = t.time;
@@ -104,6 +109,7 @@ function calcFp(taskValues) {
 }
 
 function allScored(taskValues) {
+    // Nur boolean-Tasks müssen explizit bewertet werden; count/time haben sinnvolle Standardwerte
     return tasks.filter(t => t.type === 'boolean').every(t => taskValues[t.id]);
 }
 
@@ -304,6 +310,14 @@ function renderScoring() {
                             <button class="wt_btn wt_btn--ghost" id="btnSwReset" style="flex:0;padding:0 18px;">↺</button>
                         </div>
                     </div>
+                    ${tasks.filter(t => t.time).map(t => {
+                        const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+                        return `<div style="padding:10px 16px 0;border-top:1px solid var(--wt-border);display:flex;gap:16px;font-size:12px;color:var(--wt-text-subtle);">
+                            <span>Soll: <strong>${fmt(t.time.sollzeit_sek)}</strong></span>
+                            ${t.time.hoechstzeit_sek ? `<span>Max: <strong>${fmt(t.time.hoechstzeit_sek)}</strong></span>` : ''}
+                            <span>${t.time.zeitstrafe_fp} FP / ${t.time.zeiteinheit_sek}s Überschreitung</span>
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>` : ''}
 
@@ -330,17 +344,21 @@ function renderScoring() {
                 <div class="wt_eyebrow" style="padding:0 4px 8px;">Fehlerpunkte je Teilnehmer</div>
                 <div class="wt_card">
                     ${countTasks.map(t => {
-                        const val = tv[t.id] ?? 0;
+                        const val    = tv[t.id] ?? 0;
+                        const maxVal = t.max_count !== null ? t.max_count : 999;
+                        const sub    = t.max_count !== null
+                            ? `${t.points} FP je Verstoß · max ${t.max_count}`
+                            : `${t.points} FP je Verstoß`;
                         return `
                     <div class="wt_row-line">
                         <div style="min-width:0;flex:1;">
                             <div class="wt_row-label">${esc(t.label)}</div>
-                            <div class="wt_row-sub">${t.points} FP je Teilnehmer</div>
+                            <div class="wt_row-sub">${sub}</div>
                         </div>
                         <div class="wt_stepper">
                             <button class="wt_stepper__btn" data-stepper="${t.id}" data-dir="-1" ${val===0?'disabled':''}>−</button>
                             <span class="wt_stepper__val" data-stepper-val="${t.id}">${val}</span>
-                            <button class="wt_stepper__btn" data-stepper="${t.id}" data-dir="1">+</button>
+                            <button class="wt_stepper__btn" data-stepper="${t.id}" data-dir="1" data-max="${maxVal}" ${val>=maxVal?'disabled':''}>+</button>
                         </div>
                     </div>`; }).join('')}
                 </div>
@@ -613,8 +631,10 @@ function attachHandlers() {
         btn.addEventListener('click', () => {
             const taskId = parseInt(btn.dataset.stepper);
             const dir    = parseInt(btn.dataset.dir);
+            const max    = btn.dataset.max !== undefined ? parseInt(btn.dataset.max) : 999;
             const cur    = state.scoring.taskValues[taskId] ?? 0;
-            state.scoring.taskValues = { ...state.scoring.taskValues, [taskId]: Math.max(0, cur + dir) };
+            const next   = Math.min(max, Math.max(0, cur + dir));
+            state.scoring.taskValues = { ...state.scoring.taskValues, [taskId]: next };
             updateScoringLive();
         });
     });
@@ -694,6 +714,10 @@ function updateScoringLive() {
     root.querySelectorAll('[data-stepper][data-dir="-1"]').forEach(btn => {
         btn.disabled = (tv[parseInt(btn.dataset.stepper)] ?? 0) === 0;
     });
+    root.querySelectorAll('[data-stepper][data-dir="1"]').forEach(btn => {
+        const max = btn.dataset.max !== undefined ? parseInt(btn.dataset.max) : 999;
+        btn.disabled = (tv[parseInt(btn.dataset.stepper)] ?? 0) >= max;
+    });
 
     // Impression aktive Klassen
     root.querySelectorAll('[data-impression]').forEach(btn => {
@@ -745,7 +769,10 @@ async function transmit() {
         tasks: tasks.map(t => ({
             task_id: t.id,
             type:    t.type,
-            value:   tv[t.id] ?? (t.type === 'boolean' ? null : 0),
+            // time-Typ: Wert kommt aus Stoppuhr (time_ms), kein eigener taskValue
+            value:   t.type === 'boolean' ? (tv[t.id] ?? null)
+                   : t.type === 'count'   ? (tv[t.id] ?? 0)
+                   : null,
         })),
         impression: state.scoring.impression,
         time_ms:    hasTime ? Math.round(swMs) : null,
