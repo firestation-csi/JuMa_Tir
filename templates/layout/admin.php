@@ -12,7 +12,10 @@
 
     <nav class="adm_nav">
         <a href="/admin" class="adm_nav__brand">JuMa <span>·</span> Wertungsbüro</a>
-        <ul class="adm_nav__links">
+        <button class="adm_nav__burger" id="navBurger" aria-label="Menü">
+            <span></span><span></span><span></span>
+        </button>
+        <ul class="adm_nav__links" id="navLinks">
             <li><a href="/admin" class="adm_nav__link">Dashboard</a></li>
             <li><a href="/admin/competitions" class="adm_nav__link">Wettbewerbe</a></li>
             <li><a href="/admin/stations" class="adm_nav__link">Stationen</a></li>
@@ -20,9 +23,9 @@
             <li><a href="/admin/results" class="adm_nav__link">Ergebnisse</a></li>
             <li><a href="/admin/qrcodes" class="adm_nav__link">QR-Codes</a></li>
             <li>
-                <a href="/admin/messages" class="adm_nav__link" style="position:relative;">
+                <a href="/admin/messages" class="adm_nav__link">
                     Nachrichten
-                    <span id="msgBadge" style="display:none;position:absolute;top:-4px;right:-10px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--wt-red);color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;"></span>
+                    <span id="msgBadge" class="adm_nav-badge" style="display:none;"></span>
                 </a>
             </li>
             <li>
@@ -42,7 +45,18 @@
     <script src="/assets/js/app.js" type="module"></script>
     <script src="/assets/js/admin.js" type="module"></script>
     <script>
-    // Nachrichten-Badge in der Nav live aktualisieren
+    // Hamburger-Menü
+    (function () {
+        const burger = document.getElementById('navBurger');
+        const links  = document.getElementById('navLinks');
+        if (!burger || !links) return;
+        burger.addEventListener('click', () => {
+            const open = links.classList.toggle('adm_nav__links--open');
+            burger.classList.toggle('adm_nav__burger--open', open);
+        });
+    })();
+
+    // Nachrichten-Badge
     (function () {
         const badge = document.getElementById('msgBadge');
         if (!badge) return;
@@ -52,12 +66,8 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 const n    = data.unread || 0;
-                if (n > 0) {
-                    badge.textContent  = n > 9 ? '9+' : n;
-                    badge.style.display = 'inline-flex';
-                } else {
-                    badge.style.display = 'none';
-                }
+                badge.textContent   = n > 9 ? '9+' : (n || '');
+                badge.style.display = n > 0 ? 'inline-flex' : 'none';
             } catch { /* Offline */ }
         }
         checkUnread();

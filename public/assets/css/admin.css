@@ -484,14 +484,116 @@
     .adm_qr-card { break-inside: avoid; }
 }
 
-/* ---- Responsive ---- */
-@media (max-width: 768px) {
-    .adm_main { padding: 20px 16px 48px; }
+/* ---- Nav-Badge (Nachrichten) ---- */
+.adm_nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--wt-red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+/* ---- Hamburger (mobil) ---- */
+.adm_nav__burger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--wt-r-sm);
+    cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.adm_nav__burger span {
+    display: block;
+    height: 2px;
+    background: #fff;
+    border-radius: 2px;
+    transition: transform 200ms ease, opacity 200ms ease;
+}
+.adm_nav__burger--open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.adm_nav__burger--open span:nth-child(2) { opacity: 0; }
+.adm_nav__burger--open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ---- Responsive: Tablet ---- */
+@media (max-width: 900px) {
+    .adm_main { padding: 24px 20px 48px; }
+    .adm_nav { padding: 0 16px; gap: 16px; }
+    .adm_nav__link { padding: 6px 10px; font-size: 13px; }
+}
+
+/* ---- Responsive: Mobil ---- */
+@media (max-width: 680px) {
+    /* Nav: Hamburger */
+    .adm_nav {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 10px 16px;
+        gap: 0;
+    }
+    .adm_nav__brand { flex: 1; }
+    .adm_nav__burger { display: flex; }
+
+    .adm_nav__links {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        padding: 8px 0 4px;
+        gap: 2px;
+        order: 3;
+        margin: 0;
+    }
+    .adm_nav__links--open { display: flex; }
+    .adm_nav__links li { width: 100%; }
+    .adm_nav__link {
+        display: block;
+        padding: 10px 12px;
+        border-radius: var(--wt-r-sm);
+        font-size: 14px;
+    }
+    .adm_nav__logout { margin-left: 0; width: 100%; text-align: center; padding: 10px; }
+
+    /* Main */
+    .adm_main { padding: 16px 12px 48px; }
+    .adm_page-title { font-size: 20px; margin-bottom: 16px; }
+
+    /* Formular */
     .adm_field-row { grid-template-columns: 1fr; }
-    .adm_nav__links { gap: 0; }
-    .adm_nav__link  { padding: 6px 8px; font-size: 12.5px; }
-    .adm_table th:nth-child(3),
-    .adm_table td:nth-child(3),
-    .adm_table th:nth-child(5),
-    .adm_table td:nth-child(5) { display: none; }
+    .adm_form { padding: 18px; }
+    .adm_form-wrap { max-width: 100%; }
+
+    /* Tabellen: horizontal scrollbar statt Spalten verstecken */
+    .adm_card { overflow-x: auto; }
+    .adm_table { min-width: 500px; }
+
+    /* Toolbar */
+    .adm_toolbar { flex-wrap: wrap; }
+    .adm_toolbar .adm_btn { flex: 1; min-width: 120px; }
+
+    /* Toggle-Gruppe (Task-Typ) */
+    .adm_toggle-group {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .adm_toggle { flex: 1; }
+    .adm_toggle__btn { text-align: center; width: 100%; padding: 8px 10px; }
+
+    /* Chat */
+    .adm_msg-thread { max-height: 55vh; }
+    .adm_msg-bubble { max-width: 88%; }
+    .adm_msg-form-actions { flex-direction: column; align-items: stretch; }
 }

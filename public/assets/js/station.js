@@ -76,7 +76,7 @@ const state = {
 function emptyScoring() {
     const taskValues = {};
     tasks.filter(t => t.type === 'boolean').forEach(t => { taskValues[t.id] = 'ok'; });
-    return { taskValues, impression: null, notes: '' };
+    return { taskValues, impression: null };
 }
 
 // ── Sync-Status ────────────────────────────────
@@ -117,12 +117,27 @@ function calcFp(taskValues) {
 }
 
 function allScored(taskValues) {
-    // Nur boolean-Tasks müssen explizit bewertet werden; count/time haben sinnvolle Standardwerte
     return tasks.filter(t => t.type === 'boolean').every(t => taskValues[t.id]);
 }
 
+const hasTimeComponent = hasTime || tasks.some(t => t.time);
+
+/** Gibt {ok, hints} zurück — hints ist ein Array mit Beschreibungen was noch fehlt */
+function readyCheck(taskValues, impression) {
+    const hints = [];
+    if (!impression) hints.push('Eindruck wählen');
+    if (hasTimeComponent) {
+        if (swMs === 0)      hints.push('Zeit stoppen');
+        else if (swRunning)  hints.push('Stoppuhr anhalten');
+    }
+    return { ok: hints.length === 0, hints };
+}
+
 // ── HTML-Helfer ────────────────────────────────
+// esc: für Attributwerte (inkl. Anführungszeichen)
 const esc = (v) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// escT: für Text-Inhalte (Anführungszeichen müssen NICHT escaped werden)
+const escT = (v) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 function syncPillHtml() {
     const offline = !state.online;
@@ -279,11 +294,27 @@ function renderGroupConfirm(group) {
                     ${svgInfo()} Gruppen-Info (${group.members.length} Teilnehmer)
                 </button>
             </div>` : ''}
+            ${group.already_scored ? `
+            <div class="wt_section">
+                <div class="wt_card" style="padding:16px;border:2px solid var(--wt-warn);background:rgba(245,158,11,.07);">
+                    <div style="font-weight:700;font-size:14px;color:var(--wt-warn);margin-bottom:6px;">⚠ Bereits bewertet</div>
+                    <div style="font-size:13px;color:var(--wt-text-muted);">
+                        Diese Gruppe wurde an dieser Station bereits bewertet
+                        ${group.existing_judge ? ` von <strong>${esc(group.existing_judge)}</strong>` : ''}.
+                        Ergebnis: <strong class="wt_mono">${group.existing_fp} FP</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="wt_section">
+                <button class="wt_btn wt_btn--ghost wt_btn--block" id="btnBack" style="height:48px;">
+                    Zurück zum Dashboard
+                </button>
+            </div>` : `
             <div class="wt_section">
                 <button class="wt_btn wt_btn--primary wt_btn--block" id="btnStartScoring" style="height:56px;font-size:16px;">
                     Bewertung starten ${svgArrow()}
                 </button>
-            </div>
+            </div>`}
         </div>`;
 }
 
@@ -292,7 +323,7 @@ function renderScoring() {
     const tv  = state.scoring.taskValues;
     const fp  = calcFp(tv);
     const imp = state.scoring.impression;
-    const ready = allScored(tv) && imp;
+    const { ok: ready, hints } = readyCheck(tv, imp);
 
     const boolTasks  = tasks.filter(t => t.type === 'boolean');
     const countTasks = tasks.filter(t => t.type === 'count');
@@ -401,20 +432,13 @@ function renderScoring() {
             </div>
 
             <div class="wt_section">
-                <div class="wt_eyebrow" style="padding:0 4px 8px;">Kommentar <span style="font-weight:400;text-transform:none;">(optional)</span></div>
-                <textarea id="scoreNotes" class="wt_textarea" rows="3"
-                    placeholder="Auffälligkeiten an die Wertungszentrale..."
-                    style="width:100%;resize:none;">${esc(state.scoring.notes)}</textarea>
-            </div>
-
-            <div class="wt_section">
                 <button class="wt_btn wt_btn--primary wt_btn--block" id="btnToConfirm"
                     style="height:56px;font-size:16px;" ${ready?'':'disabled'}>
                     Zur Bestätigung ${svgArrow()}
                 </button>
-                ${!ready ? `<div class="wt_caption" style="text-align:center;margin-top:10px;">
-                    Bitte alle Kriterien beurteilen und Eindruck wählen.
-                </div>` : ''}
+                <div id="scoringHint" class="wt_caption" style="text-align:center;margin-top:10px;color:var(--wt-warn);font-weight:600;">
+                    ${!ready ? hints.map(h => '· ' + h).join('  ') : ''}
+                </div>
             </div>
         </div>`;
 }
@@ -466,9 +490,6 @@ function renderConfirm() {
                         <div class="wt_eyebrow">Eindruck</div>
                         <span class="wt_total-pill" style="background:var(--wt-ok-soft);color:var(--wt-ok);">${imp}</span>
                     </div>
-                    ${state.scoring.notes ? `
-                    <div style="height:1px;background:var(--wt-border);margin:16px 0;"></div>
-                    <div class="wt_caption" style="line-height:1.5;">"${esc(state.scoring.notes)}"</div>` : ''}
                 </div>
             </div>
             <div class="wt_section" style="display:flex;flex-direction:column;gap:10px;padding-bottom:32px;">
@@ -598,7 +619,7 @@ function renderChat() {
             const isJudge = m.sender === 'judge';
             return `
             <div style="display:flex;flex-direction:column;align-items:${isJudge?'flex-end':'flex-start'};">
-                <div class="wt_chat-bubble wt_chat-bubble--${isJudge?'judge':'zentrale'}">${esc(m.body)}</div>
+                <div class="wt_chat-bubble wt_chat-bubble--${isJudge?'judge':'zentrale'}">${escT(m.body)}</div>
                 <div class="wt_chat-meta${isJudge?' wt_chat-meta--right':''}">${isJudge ? 'Du' : 'Zentrale'} · ${fmtTime(m.created_at)}</div>
             </div>`;
         }).join('');
@@ -828,12 +849,6 @@ function attachHandlers() {
             updateScoringLive();
         }));
 
-    // Scoring: Notizen (debounced into state on blur)
-    const notesEl = document.getElementById('scoreNotes');
-    if (notesEl) notesEl.addEventListener('input', (e) => {
-        state.scoring.notes = e.target.value;
-    });
-
     // Scoring: Weiter zur Bestätigung
     const btnToConfirm = document.getElementById('btnToConfirm');
     if (btnToConfirm) btnToConfirm.addEventListener('click', () => {
@@ -854,6 +869,8 @@ function attachHandlers() {
     if (btnSwToggle) btnSwToggle.addEventListener('click', () => {
         if (swRunning) { swStop(); } else { swStartTimer(); }
         render();
+        // Hint sofort aktualisieren (Zeit angehalten → evtl. ready)
+        if (state.route === 'scoring') updateScoringLive();
     });
     const btnSwReset = document.getElementById('btnSwReset');
     if (btnSwReset) btnSwReset.addEventListener('click', () => { swReset(); render(); });
@@ -925,11 +942,13 @@ function updateScoringLive() {
         btn.classList.toggle('wt_impression-btn--active', btn.dataset.impression === state.scoring.impression);
     });
 
-    // Submit-Button
+    // Submit-Button + Hint-Text
     const btnToConfirm = document.getElementById('btnToConfirm');
+    const hintEl       = document.getElementById('scoringHint');
     if (btnToConfirm) {
-        const ready = allScored(tv) && state.scoring.impression;
+        const { ok: ready, hints } = readyCheck(tv, state.scoring.impression);
         btnToConfirm.disabled = !ready;
+        if (hintEl) hintEl.textContent = !ready ? hints.map(h => '· ' + h).join('  ') : '';
     }
 }
 
@@ -976,8 +995,8 @@ async function transmit() {
                    : null,
         })),
         impression: state.scoring.impression,
-        time_ms:    hasTime ? Math.round(swMs) : null,
-        notes:      state.scoring.notes || null,
+        time_ms:    hasTimeComponent ? Math.round(swMs) : null,
+        notes:      null,
     };
 
     setState({ submitting: true });
@@ -1001,8 +1020,8 @@ async function transmit() {
                 synced:       true,
                 timestamp:    new Date().toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }),
                 impression:   state.scoring.impression,
-                time_ms:      hasTime ? Math.round(swMs) : null,
-                notes:        state.scoring.notes || null,
+                time_ms:      hasTimeComponent ? Math.round(swMs) : null,
+                notes:        null,
                 task_results: payload.tasks,
             };
             // Verlauf-Cache invalidieren damit Gruppen-Status aktuell bleibt
@@ -1132,7 +1151,9 @@ function showGroupInfo(g) {
             <div style="width:26px;height:26px;border-radius:8px;background:var(--wt-surface-alt);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--wt-text-muted);">${i+1}</div>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:13.5px;font-weight:600;">${esc(m.vorname)} ${esc(m.name)}</div>
-                ${m.funktion?`<div style="font-size:11.5px;color:var(--wt-text-subtle);">${esc(m.funktion)}</div>`:''}
+                <div style="font-size:11.5px;color:var(--wt-text-subtle);">
+                    ${m.funktion ? esc(m.funktion) : ''}${m.funktion && m.alter_jahre ? ' · ' : ''}${m.alter_jahre ? m.alter_jahre + ' J.' : ''}
+                </div>
             </div>
         </div>`).join('');
 

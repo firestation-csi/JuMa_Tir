@@ -87,6 +87,22 @@ $fmtTime = function (string $iso): string {
     </div>
 <?php endif; ?>
 
+<script>
+// Übersicht alle 15 Sekunden aktualisieren wenn ungelesene Nachrichten vorhanden
+(function () {
+    let hasUnread = <?= $totalUnread > 0 ? 'true' : 'false' ?>;
+    setInterval(async () => {
+        try {
+            const res  = await fetch('/api/admin/message-count', { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if ((data.unread > 0) !== hasUnread) {
+                location.reload();
+            }
+        } catch { /* Offline */ }
+    }, 15_000);
+})();
+</script>
 <?php
 $content = ob_get_clean();
 require dirname(__DIR__, 2) . '/layout/admin.php';

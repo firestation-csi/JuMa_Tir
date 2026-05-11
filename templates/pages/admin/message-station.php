@@ -45,7 +45,7 @@ $fmtDate = function (string $iso): string {
         <?php endif; ?>
         <div class="adm_msg-row adm_msg-row--<?= $m['sender'] ?>">
             <div class="adm_msg-bubble adm_msg-bubble--<?= $m['sender'] ?>">
-                <?= nl2br(htmlspecialchars($m['body'])) ?>
+                <?= nl2br(htmlspecialchars($m['body'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8')) ?>
             </div>
             <div class="adm_msg-meta">
                 <?php if ($m['sender'] === 'judge'): ?>
@@ -129,10 +129,13 @@ $fmtDate = function (string $iso): string {
             const sender = m.sender === 'judge'
                 ? esc(m.judge_name || 'Schiedsrichter')
                 : 'Zentrale';
-            html += `
-            <div class="adm_msg-row adm_msg-row--${esc(m.sender)}">
-                <div class="adm_msg-bubble adm_msg-bubble--${esc(m.sender)}">
-                    ${esc(m.body).replace(/\n/g,'<br>')}
+            // Sender als Attributwert escapen, Body nur Text-escapen (keine &quot;)
+        const escAttr = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const escBody = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        html += `
+            <div class="adm_msg-row adm_msg-row--${escAttr(m.sender)}">
+                <div class="adm_msg-bubble adm_msg-bubble--${escAttr(m.sender)}">
+                    ${escBody(m.body).replace(/\n/g,'<br>')}
                 </div>
                 <div class="adm_msg-meta">${sender} · ${fmtTime(m.created_at)}</div>
             </div>`;

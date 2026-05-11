@@ -24,6 +24,20 @@ class Score
         return $row ?: null;
     }
 
+    /** Prüft ob eine Gruppe an einer Station bereits bewertet wurde (durch irgendeinen Schiedsrichter) */
+    public function findExistingAtStation(int $groupId, int $stationId): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT s.*, j.name AS judge_name
+             FROM scores s JOIN judges j ON j.id = s.judge_id
+             WHERE s.group_id = ? AND s.station_id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$groupId, $stationId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function findExisting(int $judgeId, int $groupId, int $stationId): ?array
     {
         $stmt = $this->db->prepare(

@@ -6,6 +6,16 @@
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    /* Doppeltipp-Zoom deaktivieren, Scrollen bleibt möglich */
+    touch-action: manipulation;
+}
+
+/* Alle interaktiven Elemente ebenfalls */
+.wt_body--judge button,
+.wt_body--judge a,
+.wt_body--judge input,
+.wt_body--judge textarea {
+    touch-action: manipulation;
 }
 
 /* Floating Top-Header */
