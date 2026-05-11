@@ -98,16 +98,22 @@ class JudgeController
 
         $judgeId   = Auth::getJudgeId();
         $stationId = Auth::getStationId();
-        $judge     = $this->judgeModel->findById($judgeId);
-        $station   = $this->stationModel->findById($stationId);
+
+        if (!$judgeId || !$stationId) {
+            Auth::logout();
+            Response::redirect('/judge');
+        }
+
+        $judge   = $this->judgeModel->findById($judgeId);
+        $station = $this->stationModel->findById($stationId);
 
         if (!$station || !$judge) {
             Auth::logout();
             Response::redirect('/judge');
         }
 
-        $tasks   = $this->taskModel->findByStationAsSchema($stationId);
-        $scores  = $this->scoreModel->findByStation($stationId);
+        $tasks  = $this->taskModel->findByStationAsSchema($stationId);
+        $scores = $this->scoreModel->findByStation($stationId);
 
         // Verlauf inkl. Task-Ergebnisse für Detailmodal
         $history = array_map(fn($s) => [
@@ -238,7 +244,9 @@ class JudgeController
         if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
 
         $stationId = Auth::getStationId();
-        $station   = $this->stationModel->findById($stationId);
+        if (!$stationId) Response::error('Station nicht ermittelbar', 500);
+
+        $station = $this->stationModel->findById($stationId);
         if (!$station) Response::error('Station nicht gefunden', 404);
 
         $groups = $this->scoreModel->getGroupsStatusAtStation($stationId, (int)$station['competition_id']);

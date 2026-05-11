@@ -24,16 +24,19 @@ class Score
         return $row ?: null;
     }
 
-    /** Prüft ob eine Gruppe an einer Station bereits bewertet wurde (durch irgendeinen Schiedsrichter) */
+    /** Prüft ob eine Gruppe GENAU AN DIESER STATION bereits bewertet wurde */
     public function findExistingAtStation(int $groupId, int $stationId): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT s.*, j.name AS judge_name
-             FROM scores s JOIN judges j ON j.id = s.judge_id
-             WHERE s.group_id = ? AND s.station_id = ?
+            'SELECT s.id, s.total_fp, s.impression, s.created_at,
+                    j.name AS judge_name
+             FROM scores s
+             LEFT JOIN judges j ON j.id = s.judge_id
+             WHERE s.group_id   = :group_id
+               AND s.station_id = :station_id
              LIMIT 1'
         );
-        $stmt->execute([$groupId, $stationId]);
+        $stmt->execute([':group_id' => $groupId, ':station_id' => $stationId]);
         $row = $stmt->fetch();
         return $row ?: null;
     }
@@ -55,11 +58,11 @@ class Score
                     j.name AS judge_name
              FROM scores s
              JOIN `groups` g ON g.id = s.group_id
-             JOIN judges j ON j.id = s.judge_id
-             WHERE s.station_id = ?
+             LEFT JOIN judges j ON j.id = s.judge_id
+             WHERE s.station_id = :station_id
              ORDER BY s.created_at DESC'
         );
-        $stmt->execute([$stationId]);
+        $stmt->execute([':station_id' => $stationId]);
         return $stmt->fetchAll();
     }
 

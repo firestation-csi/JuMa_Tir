@@ -42,7 +42,10 @@ class GroupController
         }
 
         $stationId = Auth::getStationId();
-        $existing  = $this->scoreModel->findExistingAtStation((int)$group['id'], $stationId);
+        if ($stationId === null) {
+            Response::error('Station nicht ermittelbar', 500);
+        }
+        $existing = $this->scoreModel->findExistingAtStation((int)$group['id'], $stationId);
 
         $members = $this->groupModel->getMembers((int)$group['id']);
 
