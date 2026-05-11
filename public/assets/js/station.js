@@ -503,8 +503,10 @@ function renderConfirm() {
 }
 
 function renderHistory() {
-    // Daten laden wenn noch nicht vorhanden
-    if (!state.allGroups && !state.allGroupsLoading) loadAllGroups();
+    // Daten laden wenn noch nicht vorhanden — deferred, damit kein Re-Render mitten im Render
+    if (!state.allGroups && !state.allGroupsLoading) {
+        setTimeout(loadAllGroups, 0);
+    }
 
     const groups  = state.allGroups || [];
     const scored  = groups.filter(g => g.score_id);
@@ -571,12 +573,14 @@ function renderHistory() {
 }
 
 async function loadAllGroups() {
+    if (state.allGroupsLoading) return;
     setState({ allGroupsLoading: true });
     try {
         const data = await apiFetch('/api/station/groups');
         setState({ allGroups: data.groups || [], allGroupsLoading: false });
     } catch {
-        setState({ allGroupsLoading: false });
+        // Bei Fehler leere Liste setzen damit kein erneuter Retry ausgelöst wird
+        setState({ allGroups: [], allGroupsLoading: false });
     }
 }
 
@@ -730,9 +734,6 @@ function attachHandlers() {
                 }
                 loadMessages();
                 setState({ tab: newTab, route: 'dashboard', unreadCount: 0 });
-            } else if (newTab === 'verlauf' && !state.allGroups) {
-                setState({ tab: newTab, route: 'dashboard' });
-                loadAllGroups();
             } else {
                 setState({ tab: newTab, route: 'dashboard' });
             }

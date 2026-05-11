@@ -26,9 +26,9 @@ return [
         '/admin/groups/{groupId}/members'                        => ['App\Controller\AdminGroupMemberController', 'index'],
         '/admin/groups/{groupId}/members/new'                    => ['App\Controller\AdminGroupMemberController', 'create'],
         '/admin/groups/{groupId}/members/{id}/edit'              => ['App\Controller\AdminGroupMemberController', 'edit'],
-        '/api/station/{id}'                                      => ['App\Controller\StationController', 'show'],
         '/api/station/groups'                                    => ['App\Controller\JudgeController', 'stationGroups'],
         '/api/messages'                                          => ['App\Controller\JudgeController', 'getMessages'],
+        '/api/station/{id}'                                      => ['App\Controller\StationController', 'show'],
     ],
     'POST' => [
         '/api/judge/verify-station'      => ['App\Controller\JudgeController', 'verifyStation'],
@@ -36,7 +36,6 @@ return [
         '/api/group/verify'              => ['App\Controller\GroupController', 'verify'],
         '/api/score'                     => ['App\Controller\JudgeController', 'saveScore'],
         '/api/score/{id}/delete'         => ['App\Controller\JudgeController', 'deleteScore'],
-        '/api/station/groups'            => ['App\Controller\JudgeController', 'stationGroups'],
         '/api/messages'                  => ['App\Controller\JudgeController', 'sendMessage'],
         '/api/messages/read'             => ['App\Controller\JudgeController', 'markMessagesRead'],
         '/api/sync'                      => ['App\Controller\JudgeController', 'sync'],
