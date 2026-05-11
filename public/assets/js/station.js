@@ -625,22 +625,50 @@ function renderChat() {
 
 async function loadMessages() {
     try {
-        const data = await apiFetch('/api/messages');
-        const wasUnread = state.unreadCount;
-        setState({ messages: data.messages || [], unreadCount: data.unread || 0 });
-        // Wenn Chat-Tab offen: als gelesen markieren
-        if (state.tab === 'zentrale' && wasUnread > 0) {
-            apiFetch('/api/messages/read', { method: 'POST' }).catch(() => {});
-            setState({ unreadCount: 0 });
-        }
-        // Chat-Scroll ans Ende
+        const data      = await apiFetch('/api/messages');
+        const newMsgs   = data.messages || [];
+        const unread = state.tab === 'zentrale' ? 0 : (parseInt(data.unread) || 0);
+
+        state.messages = newMsgs;
+
         if (state.tab === 'zentrale') {
+            // Chat-Tab offen: als gelesen markieren, Chat neu rendern
+            if (state.unreadCount > 0) {
+                apiFetch('/api/messages/read', { method: 'POST' }).catch(() => {});
+            }
+            state.unreadCount = 0;
+            render();
             setTimeout(() => {
                 const el = document.getElementById('chatScroll');
                 if (el) el.scrollTop = el.scrollHeight;
             }, 50);
+        } else {
+            // Nicht im Chat: nur Badge aktualisieren, KEIN Re-Render
+            const changed = unread !== state.unreadCount;
+            state.unreadCount = unread;
+            if (changed) updateTabBadge();
         }
     } catch { /* Offline – ignorieren */ }
+}
+
+/** Aktualisiert nur den Zentrale-Badge in der Tab-Bar ohne Re-Render */
+function updateTabBadge() {
+    const btn = root.querySelector('[data-tab="zentrale"]');
+    if (!btn) return;
+    let badge = btn.querySelector('.wt_tab-badge');
+    if (state.unreadCount > 0) {
+        if (!badge) {
+            const iconWrap = btn.querySelector('span');
+            if (iconWrap) {
+                badge = document.createElement('span');
+                badge.className = 'wt_tab-badge';
+                iconWrap.appendChild(badge);
+            }
+        }
+        if (badge) badge.textContent = state.unreadCount > 9 ? '9+' : state.unreadCount;
+    } else if (badge) {
+        badge.remove();
+    }
 }
 
 async function sendChatMessage() {

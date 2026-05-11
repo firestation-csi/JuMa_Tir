@@ -88,17 +88,61 @@ $fmtDate = function (string $iso): string {
 </div>
 
 <script>
-// Nachrichten ans Ende scrollen
 (function () {
-    const thread = document.getElementById('msgThread');
-    if (thread) thread.scrollTop = thread.scrollHeight;
-})();
-
-// Live-Polling: neue Nachrichten alle 10 Sekunden laden
-(function () {
+    const thread    = document.getElementById('msgThread');
     const stationId = <?= (int)$station['id'] ?>;
     let lastCount   = <?= count($messages) ?>;
 
+    // Beim Laden ans Ende scrollen
+    if (thread) thread.scrollTop = thread.scrollHeight;
+
+    function fmtTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso.replace(' ', 'T'));
+        return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+    function fmtDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso.replace(' ', 'T'));
+        return String(d.getDate()).padStart(2,'0') + '.' +
+               String(d.getMonth()+1).padStart(2,'0') + '.' +
+               d.getFullYear();
+    }
+    function esc(s) {
+        return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                              .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function renderThread(messages) {
+        if (!thread) return;
+        if (!messages.length) {
+            thread.innerHTML = '<div style="text-align:center;padding:32px;color:var(--wt-text-subtle);font-size:.9rem;">Noch keine Nachrichten an dieser Station.</div>';
+            return;
+        }
+        let html = '';
+        let lastDate = '';
+        for (const m of messages) {
+            const d = fmtDate(m.created_at);
+            if (d !== lastDate) {
+                lastDate = d;
+                html += `<div class="adm_msg-date">${esc(d)}</div>`;
+            }
+            const sender = m.sender === 'judge'
+                ? esc(m.judge_name || 'Schiedsrichter')
+                : 'Zentrale';
+            html += `
+            <div class="adm_msg-row adm_msg-row--${esc(m.sender)}">
+                <div class="adm_msg-bubble adm_msg-bubble--${esc(m.sender)}">
+                    ${esc(m.body).replace(/\n/g,'<br>')}
+                </div>
+                <div class="adm_msg-meta">${sender} · ${fmtTime(m.created_at)}</div>
+            </div>`;
+        }
+        const wasAtBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 60;
+        thread.innerHTML  = html;
+        if (wasAtBottom) thread.scrollTop = thread.scrollHeight;
+    }
+
+    // Live-Polling alle 10 Sekunden — nur Thread aktualisieren, kein Seitenreload
     setInterval(async () => {
         try {
             const res  = await fetch(`/api/admin/messages/${stationId}`, { credentials: 'same-origin' });
@@ -106,10 +150,9 @@ $fmtDate = function (string $iso): string {
             const data = await res.json();
             if (data.messages && data.messages.length !== lastCount) {
                 lastCount = data.messages.length;
-                // Seite neu laden um neue Nachrichten anzuzeigen
-                location.reload();
+                renderThread(data.messages);
             }
-        } catch { /* Offline – ignorieren */ }
+        } catch { /* Offline */ }
     }, 10_000);
 })();
 </script>
