@@ -68,7 +68,9 @@ const state = {
 };
 
 function emptyScoring() {
-    return { taskValues: {}, impression: null, notes: '' };
+    const taskValues = {};
+    tasks.filter(t => t.type === 'boolean').forEach(t => { taskValues[t.id] = 'ok'; });
+    return { taskValues, impression: null, notes: '' };
 }
 
 // ── Sync-Status ────────────────────────────────
