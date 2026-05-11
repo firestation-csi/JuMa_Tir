@@ -210,19 +210,36 @@ class JudgeController
             }
         }
 
-        // Zeitstrafe berechnen
-        if ($timeMs !== null && $timeMs > 0) {
-            foreach ($taskDefs as $task) {
-                if ($task['sollzeit_sek'] === null || $task['zeitstrafe_fp'] === null || $task['zeiteinheit_sek'] === null) {
-                    continue;
-                }
-                $sek     = intdiv($timeMs, 1000);
-                $sollSek = (int)$task['sollzeit_sek'];
-                if ($sek <= $sollSek) continue;
+        // Zeitstrafe berechnen (Single- und Multi-Timer)
+        $taskResultMap = array_column($taskResults, null, 'task_id');
 
-                $maxSek  = $task['hoechstzeit_sek'] !== null ? (int)$task['hoechstzeit_sek'] : $sek;
-                $overSek = min($sek, $maxSek) - $sollSek;
-                $totalFp += (int)floor($overSek / (int)$task['zeiteinheit_sek']) * (int)$task['zeitstrafe_fp'];
+        foreach ($taskDefs as $task) {
+            if ($task['type'] !== 'time') continue;
+            if ($task['sollzeit_sek'] === null || $task['zeitstrafe_fp'] === null || $task['zeiteinheit_sek'] === null) {
+                continue;
+            }
+            $felder  = (int)($task['zeit_felder'] ?? 1);
+            $sollSek = (int)$task['sollzeit_sek'];
+            $maxSekLimit = $task['hoechstzeit_sek'] !== null ? (int)$task['hoechstzeit_sek'] : PHP_INT_MAX;
+            $fpJe    = (int)$task['zeitstrafe_fp'];
+            $einh    = (int)$task['zeiteinheit_sek'];
+
+            $calcFpMs = function (int $ms) use ($sollSek, $maxSekLimit, $fpJe, $einh): int {
+                if ($ms <= 0) return 0;
+                $sek = intdiv($ms, 1000);
+                if ($sek <= $sollSek) return 0;
+                $overSek = min($sek, $maxSekLimit) - $sollSek;
+                return (int)floor($overSek / $einh) * $fpJe;
+            };
+
+            if ($felder > 1) {
+                $r     = $taskResultMap[$task['id']] ?? null;
+                $times = isset($r['times']) && is_array($r['times']) ? $r['times'] : [];
+                foreach ($times as $ms) {
+                    $totalFp += $calcFpMs((int)$ms);
+                }
+            } elseif ($timeMs !== null && $timeMs > 0) {
+                $totalFp += $calcFpMs($timeMs);
             }
         }
 

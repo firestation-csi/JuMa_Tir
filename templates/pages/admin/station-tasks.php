@@ -60,6 +60,9 @@ $stationId = (int)$station['id'];
                                 <span class="adm_badge adm_badge--time">
                                     ⏱ Zeitwertung
                                 </span>
+                                <?php if ((int)($t['zeit_felder'] ?? 1) > 1): ?>
+                                    <span class="adm_table__muted" style="font-size:.75rem;margin-left:4px;"><?= (int)$t['zeit_felder'] ?>× je TN</span>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <span class="adm_badge adm_badge--bool">
                                     <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px"><path d="M3 8l4 4 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>

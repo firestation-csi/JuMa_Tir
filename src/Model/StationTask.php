@@ -51,6 +51,7 @@ class StationTask
                     'hoechstzeit_sek' => $t['hoechstzeit_sek'] !== null ? (int)$t['hoechstzeit_sek'] : null,
                     'zeitstrafe_fp'   => (int)$t['zeitstrafe_fp'],
                     'zeiteinheit_sek' => (int)$t['zeiteinheit_sek'],
+                    'zeit_felder'     => (int)($t['zeit_felder'] ?? 1),
                 ];
             }
             return $entry;
@@ -61,18 +62,19 @@ class StationTask
         int $stationId, string $label, string $type, int $points,
         int $sortOrder = 0, ?int $maxCount = null,
         ?int $sollzeitSek = null, ?int $hoechstzeitSek = null,
-        ?int $zeitstrafeFp = null, ?int $zeiteinheitSek = null
+        ?int $zeitstrafeFp = null, ?int $zeiteinheitSek = null,
+        int $zeitFelder = 1
     ): int {
         $stmt = $this->db->prepare(
             'INSERT INTO station_tasks
                 (station_id, label, type, points, max_count, sort_order,
-                 sollzeit_sek, hoechstzeit_sek, zeitstrafe_fp, zeiteinheit_sek,
+                 sollzeit_sek, hoechstzeit_sek, zeitstrafe_fp, zeiteinheit_sek, zeit_felder,
                  created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
         );
         $stmt->execute([
             $stationId, $label, $type, $points, $maxCount, $sortOrder,
-            $sollzeitSek, $hoechstzeitSek, $zeitstrafeFp, $zeiteinheitSek,
+            $sollzeitSek, $hoechstzeitSek, $zeitstrafeFp, $zeiteinheitSek, $zeitFelder,
         ]);
         return (int)$this->db->lastInsertId();
     }
@@ -81,19 +83,20 @@ class StationTask
         int $id, string $label, string $type, int $points,
         int $sortOrder, ?int $maxCount,
         ?int $sollzeitSek, ?int $hoechstzeitSek,
-        ?int $zeitstrafeFp, ?int $zeiteinheitSek
+        ?int $zeitstrafeFp, ?int $zeiteinheitSek,
+        int $zeitFelder = 1
     ): void {
         $stmt = $this->db->prepare(
             'UPDATE station_tasks
              SET label=?, type=?, points=?, max_count=?, sort_order=?,
                  sollzeit_sek=?, hoechstzeit_sek=?, zeitstrafe_fp=?, zeiteinheit_sek=?,
-                 updated_at=NOW()
+                 zeit_felder=?, updated_at=NOW()
              WHERE id=?'
         );
         $stmt->execute([
             $label, $type, $points, $maxCount, $sortOrder,
             $sollzeitSek, $hoechstzeitSek, $zeitstrafeFp, $zeiteinheitSek,
-            $id,
+            $zeitFelder, $id,
         ]);
     }
 

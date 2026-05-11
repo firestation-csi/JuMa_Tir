@@ -181,6 +181,23 @@ $currentType = $task['type'] ?? 'boolean';
             </div>
 
             <!-- Reihenfolge für time-Typ -->
+            <div class="adm_field">
+                <label class="adm_label" for="zeit_felder">Zeit-Felder (Anzahl Teilnehmer) *</label>
+                <input
+                    class="adm_input adm_input--mono"
+                    type="number"
+                    id="zeit_felder"
+                    name="zeit_felder"
+                    value="<?= (int)($task['zeit_felder'] ?? 1) ?>"
+                    min="1"
+                    max="10"
+                >
+                <span class="adm_hint">
+                    1 = ein Stoppuhr-Wert für die Gruppe.<br>
+                    &gt;1 = je ein Stoppuhr-Wert pro Teilnehmer (z.B. 4 beim Zielwurf).
+                </span>
+            </div>
+
             <div class="adm_field" id="field-sort-time">
                 <label class="adm_label" for="sort_order_time">Reihenfolge</label>
                 <input

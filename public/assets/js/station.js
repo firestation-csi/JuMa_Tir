@@ -64,6 +64,63 @@ function updateSwFace() {
     el.innerHTML = `${main}<span class="wt_stopwatch__ms">.${frac}</span>`;
 }
 
+// ── Multi-Stopwatch (für zeit_felder > 1) ─────
+// { taskId: [{ms, running, base, start, raf}, ...] }
+const multiSw = {};
+
+function mswGet(taskId, n) {
+    if (!multiSw[taskId]) {
+        multiSw[taskId] = Array.from({ length: n }, () =>
+            ({ ms: 0, running: false, base: 0, start: 0, raf: null }));
+    }
+    return multiSw[taskId];
+}
+
+function mswToggle(taskId, idx) {
+    const task = taskMap[taskId];
+    if (!task?.time) return;
+    const arr = mswGet(taskId, task.time.zeit_felder);
+    const sw  = arr[idx];
+    if (sw.running) {
+        sw.base   += performance.now() - sw.start;
+        sw.ms      = sw.base;
+        sw.running = false;
+        cancelAnimationFrame(sw.raf);
+        // Wert in taskValues speichern
+        state.scoring.taskValues = {
+            ...state.scoring.taskValues,
+            [taskId]: arr.map(s => Math.round(s.ms)),
+        };
+        updateScoringLive();
+    } else {
+        sw.start   = performance.now();
+        sw.running = true;
+        const tick = () => {
+            sw.ms = sw.base + (performance.now() - sw.start);
+            const el = document.getElementById(`msw-${taskId}-${idx}`);
+            if (el) el.textContent = swFmt(sw.ms).main;
+            if (sw.running) sw.raf = requestAnimationFrame(tick);
+        };
+        sw.raf = requestAnimationFrame(tick);
+    }
+    render();
+}
+
+function mswReset(taskId, idx) {
+    const task = taskMap[taskId];
+    if (!task?.time) return;
+    const arr = mswGet(taskId, task.time.zeit_felder);
+    const sw  = arr[idx];
+    cancelAnimationFrame(sw.raf);
+    sw.ms = sw.base = 0;
+    sw.running = false;
+    state.scoring.taskValues = {
+        ...state.scoring.taskValues,
+        [taskId]: arr.map(s => Math.round(s.ms)),
+    };
+    render();
+}
+
 // ── State ─────────────────────────────────────
 const state = {
     route:           'dashboard',
@@ -85,6 +142,11 @@ const state = {
 function emptyScoring() {
     const taskValues = {};
     tasks.filter(t => t.type === 'boolean').forEach(t => { taskValues[t.id] = 'ok'; });
+    // Multi-Timer-Arrays vorbelegen und Stopwatch-State zurücksetzen
+    tasks.filter(t => t.type === 'time' && (t.time?.zeit_felder ?? 1) > 1).forEach(t => {
+        taskValues[t.id] = new Array(t.time.zeit_felder).fill(0);
+        delete multiSw[t.id]; // Stopwatch-State zurücksetzen
+    });
     return { taskValues, impression: null };
 }
 
@@ -112,13 +174,21 @@ function calcFp(taskValues) {
             const clamped = t.max_count !== null ? Math.min(v, t.max_count) : v;
             fp += clamped * t.points;
         }
-        // Zeitstrafe: gilt für time-Typ (eigene Aufgabe) und optionale Zeitfelder an anderen Typen
+        // Zeitstrafe
         if (t.time) {
-            const sek = Math.floor(swMs / 1000);
+            const felder = t.time.zeit_felder ?? 1;
             const { sollzeit_sek: soll, hoechstzeit_sek: max, zeitstrafe_fp: fpj, zeiteinheit_sek: einh } = t.time;
-            if (sek > soll) {
+            const calcTimeFp = (ms) => {
+                const sek  = Math.floor(ms / 1000);
+                if (sek <= soll) return 0;
                 const over = (max ? Math.min(sek, max) : sek) - soll;
-                fp += Math.floor(over / einh) * fpj;
+                return Math.floor(over / einh) * fpj;
+            };
+            if (felder > 1) {
+                const times = Array.isArray(v) ? v : (Array.isArray(taskValues[t.id]) ? taskValues[t.id] : []);
+                times.forEach(ms => { if (ms > 0) fp += calcTimeFp(ms); });
+            } else {
+                fp += calcTimeFp(swMs);
             }
         }
     }
@@ -135,9 +205,22 @@ const hasTimeComponent = hasTime || tasks.some(t => t.time);
 function readyCheck(taskValues, impression) {
     const hints = [];
     if (!impression) hints.push('Eindruck wählen');
-    if (hasTimeComponent) {
-        if (swMs === 0)      hints.push('Zeit stoppen');
-        else if (swRunning)  hints.push('Stoppuhr anhalten');
+
+    for (const t of tasks) {
+        if (t.type !== 'time' || !t.time) continue;
+        const felder = t.time.zeit_felder ?? 1;
+        if (felder > 1) {
+            const arr = multiSw[t.id] || [];
+            if (arr.some(sw => sw.running)) hints.push('Alle Zeiten anhalten');
+        } else {
+            if (swMs === 0)     hints.push('Zeit stoppen');
+            else if (swRunning) hints.push('Stoppuhr anhalten');
+        }
+    }
+    // Fallback: station has_time ohne dedizierten time-Task
+    if (hasTime && !tasks.some(t => t.type === 'time')) {
+        if (swMs === 0)     hints.push('Zeit stoppen');
+        else if (swRunning) hints.push('Stoppuhr anhalten');
     }
     return { ok: hints.length === 0, hints };
 }
@@ -334,9 +417,12 @@ function renderScoring() {
     const imp = state.scoring.impression;
     const { ok: ready, hints } = readyCheck(tv, imp);
 
-    const boolTasks  = tasks.filter(t => t.type === 'boolean');
-    const countTasks = tasks.filter(t => t.type === 'count');
-    const hasTimeTasks = tasks.some(t => t.time);
+    const boolTasks       = tasks.filter(t => t.type === 'boolean');
+    const countTasks      = tasks.filter(t => t.type === 'count');
+    const singleTimeTasks = tasks.filter(t => t.type === 'time' && (t.time?.zeit_felder ?? 1) === 1);
+    const multiTimeTasks  = tasks.filter(t => t.type === 'time' && (t.time?.zeit_felder ?? 1) > 1);
+    const hasTimeTasks    = tasks.some(t => t.time);
+    const showSingleSw    = hasTime || singleTimeTasks.length > 0;
 
     return `
         ${topHeaderHtml(true)}
@@ -358,7 +444,7 @@ function renderScoring() {
                 <div style="margin-top:14px;">${progressHtml(2)}</div>
             </div>
 
-            ${(hasTime || hasTimeTasks) ? `
+            ${showSingleSw ? `
             <div class="wt_section">
                 <div class="wt_eyebrow" style="padding:0 4px 8px;">Zeit</div>
                 <div class="wt_card">
@@ -373,16 +459,47 @@ function renderScoring() {
                             <button class="wt_btn wt_btn--ghost" id="btnSwReset" style="flex:0;padding:0 18px;">↺</button>
                         </div>
                     </div>
-                    ${tasks.filter(t => t.time).map(t => {
+                    ${singleTimeTasks.map(t => {
                         const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
                         return `<div style="padding:10px 16px 0;border-top:1px solid var(--wt-border);display:flex;gap:16px;font-size:12px;color:var(--wt-text-subtle);">
                             <span>Soll: <strong>${fmt(t.time.sollzeit_sek)}</strong></span>
                             ${t.time.hoechstzeit_sek ? `<span>Max: <strong>${fmt(t.time.hoechstzeit_sek)}</strong></span>` : ''}
-                            <span>${t.time.zeitstrafe_fp} FP / ${t.time.zeiteinheit_sek}s Überschreitung</span>
+                            <span>${t.time.zeitstrafe_fp} FP / ${t.time.zeiteinheit_sek}s</span>
                         </div>`;
                     }).join('')}
                 </div>
             </div>` : ''}
+
+            ${multiTimeTasks.map(t => {
+                const felder = t.time.zeit_felder;
+                const arr    = mswGet(t.id, felder);
+                const fmt    = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+                const rows   = arr.map((sw, i) => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--wt-border);">
+                        <div style="width:28px;height:28px;border-radius:8px;background:var(--wt-surface-alt);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--wt-text-muted);flex-shrink:0;">T${i+1}</div>
+                        <div id="msw-${t.id}-${i}" style="flex:1;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-0.02em;">
+                            ${swFmt(sw.ms).main}
+                        </div>
+                        <button class="wt_btn ${sw.running ? 'wt_btn--dark' : sw.ms > 0 ? 'wt_btn--ghost' : 'wt_btn--primary'}" style="min-width:74px;height:36px;font-size:13px;"
+                                data-msw="${t.id}" data-msw-idx="${i}">
+                            ${sw.running ? 'Stopp' : sw.ms > 0 ? 'Weiter' : 'Start'}
+                        </button>
+                        <button class="wt_btn wt_btn--ghost" style="flex:0;height:36px;padding:0 12px;"
+                                data-msw-reset="${t.id}" data-msw-idx="${i}">↺</button>
+                    </div>`).join('');
+                return `
+                <div class="wt_section">
+                    <div class="wt_eyebrow" style="padding:0 4px 8px;">${esc(t.label)}</div>
+                    <div class="wt_card">
+                        ${rows}
+                        <div style="padding:10px 16px;font-size:12px;color:var(--wt-text-subtle);border-top:1px solid var(--wt-border);">
+                            Soll: <strong>${fmt(t.time.sollzeit_sek)}</strong>
+                            ${t.time.hoechstzeit_sek ? ` / Max: <strong>${fmt(t.time.hoechstzeit_sek)}</strong>` : ''}
+                            &nbsp;·&nbsp; ${t.time.zeitstrafe_fp} FP / ${t.time.zeiteinheit_sek}s je TN
+                        </div>
+                    </div>
+                </div>`;
+            }).join('')}
 
             ${boolTasks.length > 0 ? `
             <div class="wt_section">
@@ -889,6 +1006,16 @@ function attachHandlers() {
     const btnSwReset = document.getElementById('btnSwReset');
     if (btnSwReset) btnSwReset.addEventListener('click', () => { swReset(); render(); });
 
+    // Multi-Stopwatch Toggle
+    root.querySelectorAll('[data-msw][data-msw-idx]').forEach(btn =>
+        btn.addEventListener('click', () =>
+            mswToggle(parseInt(btn.dataset.msw), parseInt(btn.dataset.mswIdx))));
+
+    // Multi-Stopwatch Reset
+    root.querySelectorAll('[data-msw-reset][data-msw-idx]').forEach(btn =>
+        btn.addEventListener('click', () =>
+            mswReset(parseInt(btn.dataset.mswReset), parseInt(btn.dataset.mswIdx))));
+
     // Chat: Eingabe + Senden
     const chatInput = document.getElementById('chatInput');
     if (chatInput) {
@@ -1000,16 +1127,23 @@ async function transmit() {
     const payload = {
         group_id:   state.group.group_id,
         station_id: parseInt(station.id),
-        tasks: tasks.map(t => ({
-            task_id: t.id,
-            type:    t.type,
-            // time-Typ: Wert kommt aus Stoppuhr (time_ms), kein eigener taskValue
-            value:   t.type === 'boolean' ? (tv[t.id] ?? null)
-                   : t.type === 'count'   ? (tv[t.id] ?? 0)
-                   : null,
-        })),
+        tasks: tasks.map(t => {
+            const entry = {
+                task_id: t.id,
+                type:    t.type,
+                value:   t.type === 'boolean' ? (tv[t.id] ?? null)
+                       : t.type === 'count'   ? (tv[t.id] ?? 0)
+                       : null,
+            };
+            // Multi-Timer: Array der Einzelzeiten mitschicken
+            if (t.type === 'time' && (t.time?.zeit_felder ?? 1) > 1) {
+                entry.times = Array.isArray(tv[t.id]) ? tv[t.id].map(ms => ms ?? 0) : [];
+            }
+            return entry;
+        }),
         impression: state.scoring.impression,
-        time_ms:    hasTimeComponent ? Math.round(swMs) : null,
+        // Globale Stoppuhr nur wenn Single-Time-Tasks oder station has_time vorhanden
+        time_ms:    (hasTime || singleTimeTasks.length > 0) ? Math.round(swMs) : null,
         notes:      null,
     };
 
@@ -1034,7 +1168,7 @@ async function transmit() {
                 synced:       true,
                 timestamp:    new Date().toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }),
                 impression:   state.scoring.impression,
-                time_ms:      hasTimeComponent ? Math.round(swMs) : null,
+                time_ms:      (hasTime || singleTimeTasks.length > 0) ? Math.round(swMs) : null,
                 notes:        null,
                 task_results: payload.tasks,
             };

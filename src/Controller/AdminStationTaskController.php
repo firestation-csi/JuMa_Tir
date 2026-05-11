@@ -56,7 +56,7 @@ class AdminStationTaskController
         $this->verifyCsrf();
         $station = $this->requireStation($stationId);
 
-        [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek]
+        [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek, $zeitFelder]
             = $this->readTaskPost();
 
         $error = $this->validate($type, $label, $points, $sollSek, $fpJe, $einheitSek);
@@ -73,7 +73,7 @@ class AdminStationTaskController
 
         $this->taskModel->create(
             (int)$stationId, $label, $type, $points, $sortOrder,
-            $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek
+            $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek, $zeitFelder
         );
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
     }
@@ -99,7 +99,7 @@ class AdminStationTaskController
         $station = $this->requireStation($stationId);
         $task    = $this->requireTask($id);
 
-        [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek]
+        [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek, $zeitFelder]
             = $this->readTaskPost();
 
         $error = $this->validate($type, $label, $points, $sollSek, $fpJe, $einheitSek);
@@ -116,7 +116,7 @@ class AdminStationTaskController
 
         $this->taskModel->update(
             (int)$id, $label, $type, $points, $sortOrder,
-            $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek
+            $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek, $zeitFelder
         );
         Response::redirect('/admin/stations/' . (int)$stationId . '/tasks');
     }
@@ -160,7 +160,9 @@ class AdminStationTaskController
             $maxSek = $fpJe = $einheitSek = null;
         }
 
-        return [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek];
+        $zeitFelder = $type === 'time' ? max(1, (int)$this->request->post('zeit_felder', 1)) : 1;
+
+        return [$label, $type, $points, $sortOrder, $maxCount, $sollSek, $maxSek, $fpJe, $einheitSek, $zeitFelder];
     }
 
     private function validate(
