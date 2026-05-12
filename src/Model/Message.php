@@ -129,6 +129,17 @@ class Message
         return (int)$this->db->lastInsertId();
     }
 
+    /** Hilfeanfrage einer Gruppe speichern */
+    public function createFromGroup(int $stationId, int $groupId, string $groupName, string $body): int
+    {
+        $stmt = $this->db->prepare(
+            "INSERT INTO messages (station_id, judge_id, group_id, group_name, sender, body, created_at)
+             VALUES (?, NULL, ?, ?, 'group', ?, NOW())"
+        );
+        $stmt->execute([$stationId, $groupId, $groupName, $body]);
+        return (int)$this->db->lastInsertId();
+    }
+
     /** Nachricht von der Zentrale speichern */
     public function createFromZentrale(int $stationId, string $body): int
     {
