@@ -6,6 +6,15 @@ ob_start();
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Neue Station
     </a>
+    <a href="/admin/stations/routes" class="adm_btn adm_btn--ghost">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="3"  cy="13" r="1.8" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="13" cy="3"  r="1.8" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="13" cy="13" r="1.8" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M3 11V7a4 4 0 0 1 4-4h2M13 5v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Routen
+    </a>
 </div>
 
 <?php if (empty($stations)): ?>
