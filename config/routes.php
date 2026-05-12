@@ -60,6 +60,7 @@ return [
         '/admin/stations'                                    => ['App\Controller\AdminStationController', 'store'],
         '/admin/stations/routes'                             => ['App\Controller\AdminStationRouteController', 'store'],
         '/admin/stations/routes/{id}/edit'                   => ['App\Controller\AdminStationRouteController', 'update'],
+        '/admin/stations/routes/{id}/waypoints'              => ['App\Controller\AdminStationRouteController', 'saveWaypoints'],
         '/admin/stations/routes/{id}/delete'                 => ['App\Controller\AdminStationRouteController', 'delete'],
         '/admin/stations/laufwege'                           => ['App\Controller\AdminStationRouteController', 'storeLaufweg'],
         '/admin/stations/laufwege/{id}/delete'               => ['App\Controller\AdminStationRouteController', 'deleteLaufweg'],

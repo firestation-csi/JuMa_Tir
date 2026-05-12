@@ -98,6 +98,26 @@ class AdminStationRouteController
         Response::redirect('/admin/stations/routes');
     }
 
+    /** API: Waypoints eines Abschnitts speichern */
+    public function saveWaypoints(string $id): void
+    {
+        $this->verifyCsrf();
+        $route = $this->requireRoute($id);
+        $data  = $this->request->json();
+
+        $raw = $data['waypoints'] ?? [];
+        // Validierung: Array von [lat, lng] Paaren
+        $waypoints = [];
+        foreach ($raw as $pt) {
+            if (isset($pt[0], $pt[1]) && is_numeric($pt[0]) && is_numeric($pt[1])) {
+                $waypoints[] = [(float)$pt[0], (float)$pt[1]];
+            }
+        }
+
+        $this->routeModel->saveWaypoints((int)$id, $waypoints);
+        Response::json(['success' => true, 'count' => count($waypoints)]);
+    }
+
     /** Laufweg anlegen */
     public function storeLaufweg(): void
     {

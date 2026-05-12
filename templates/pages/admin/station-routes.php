@@ -8,6 +8,13 @@ $analysis     = $analysis     ?? [];
 $csrf         = $csrf         ?? '';
 $error        = $_GET['error'] ?? null;
 
+$extraHead = '
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+';
+$extraScripts = '
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+';
+
 ob_start();
 
 $fmtDur = function (?int $sek): string {
@@ -169,7 +176,15 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
         <div style="padding:12px 18px;border-bottom:1px solid var(--wt-border);display:flex;align-items:center;gap:10px;background:<?= htmlspecialchars($lw['color']) ?>11;">
             <span style="width:12px;height:12px;border-radius:50%;background:<?= htmlspecialchars($lw['color']) ?>;flex-shrink:0;"></span>
             <span style="font-weight:800;font-size:15px;"><?= htmlspecialchars($lw['name']) ?></span>
-            <span style="font-size:12px;color:var(--wt-text-muted);margin-left:auto;"><?= count($grpRoutes) ?> Abschnitte</span>
+            <span style="font-size:12px;color:var(--wt-text-muted);"><?= count($grpRoutes) ?> Abschnitte</span>
+            <button class="adm_btn adm_btn--sm adm_btn--ghost" style="margin-left:auto;"
+                    onclick="openParcoursMap(<?= (int)$lw['id'] ?>)">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M1 3l5 2 4-2 5 2v10l-5-2-4 2-5-2V3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                    <path d="M6 5v10M10 3v10" stroke="currentColor" stroke-width="1.4"/>
+                </svg>
+                Karte
+            </button>
         </div>
 
         <!-- Visuelle Kette -->
@@ -391,6 +406,44 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
 
 </div><!-- /rte_layout -->
 
+<!-- ── Karten-Modal ─────────────────────────────────── -->
+<dialog id="parcoursMapModal" style="
+    border:0;padding:0;border-radius:16px;
+    width:min(920px,96vw);height:min(680px,90vh);
+    display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 24px 64px rgba(0,0,0,.28);">
+
+    <div id="mapModalHeader" style="
+        display:flex;align-items:center;gap:10px;
+        padding:12px 16px;border-bottom:1px solid var(--wt-border);
+        background:var(--wt-surface);flex-shrink:0;">
+        <span id="mapModalColorDot" style="width:14px;height:14px;border-radius:50%;flex-shrink:0;"></span>
+        <span id="mapModalTitle" style="font-weight:800;font-size:15px;flex:1;"></span>
+        <span id="mapModalHint" style="font-size:12px;color:var(--wt-text-muted);">
+            Klick auf Karte = Wegpunkt · Ziehen = verschieben · Rechtsklick = entfernen
+        </span>
+        <button id="btnRecalcRoute" class="adm_btn adm_btn--ghost adm_btn--sm">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 0 .5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M2 4v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Route neu
+        </button>
+        <button id="btnSaveWaypoints" class="adm_btn adm_btn--primary adm_btn--sm">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2h9l3 3v9H2V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 2v4h6V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            Speichern
+        </button>
+        <button id="btnCloseMapModal" class="adm_btn adm_btn--ghost adm_btn--sm" style="padding:0 10px;">✕</button>
+    </div>
+
+    <div id="parcoursMap" style="flex:1;min-height:0;"></div>
+
+    <div id="mapModalStatus" style="
+        padding:8px 16px;font-size:12px;color:var(--wt-text-muted);
+        border-top:1px solid var(--wt-border);background:var(--wt-surface-alt);
+        display:flex;align-items:center;gap:12px;flex-shrink:0;">
+        <span id="mapStatusText">Bereit</span>
+        <span id="mapDistInfo" style="margin-left:auto;font-family:monospace;"></span>
+    </div>
+</dialog>
+
 <script>
 // Farb-Picker: ausgewählten Punkt hervorheben
 document.querySelectorAll('.lw-color-dot').forEach(dot => {
@@ -400,6 +453,305 @@ document.querySelectorAll('.lw-color-dot').forEach(dot => {
         document.querySelectorAll('.lw-color-dot').forEach(d => d.classList.remove('lw-color-dot--active'));
         dot.classList.add('lw-color-dot--active');
     });
+});
+
+// ── Parcours-Daten aus PHP ─────────────────────────────
+<?php
+// Parcours-Daten für JavaScript aufbereiten
+$parcoursData = [];
+foreach ($laufwege as $lw) {
+    $lwId    = (int)$lw['id'];
+    $segs    = [];
+    foreach ($routes as $r) {
+        if ((int)$r['laufweg_id'] !== $lwId) continue;
+        $segs[] = [
+            'route_id'    => (int)$r['id'],
+            'from_code'   => $r['from_code'],
+            'from_name'   => $r['from_name'],
+            'from_lat'    => $r['from_lat']  ? (float)$r['from_lat']  : null,
+            'from_lng'    => $r['from_lng']  ? (float)$r['from_lng']  : null,
+            'to_code'     => $r['to_code'],
+            'to_name'     => $r['to_name'],
+            'to_lat'      => $r['to_lat']    ? (float)$r['to_lat']    : null,
+            'to_lng'      => $r['to_lng']    ? (float)$r['to_lng']    : null,
+            'waypoints'   => $r['waypoints'] ? json_decode($r['waypoints'], true) : [],
+            'distance_m'  => $r['distance_m']  ? (int)$r['distance_m']  : null,
+            'est_time_min'=> $r['est_time_min'] ? (int)$r['est_time_min'] : null,
+        ];
+    }
+    if (empty($segs)) continue;
+    $parcoursData[$lwId] = [
+        'id'    => $lwId,
+        'name'  => $lw['name'],
+        'color' => $lw['color'],
+        'segments' => $segs,
+    ];
+}
+?>
+const PARCOURS = <?= json_encode($parcoursData, JSON_UNESCAPED_UNICODE) ?>;
+const CSRF     = <?= json_encode($csrf) ?>;
+
+// ── Karten-Modul ──────────────────────────────────────
+let mapInstance   = null;
+let currentLwId   = null;
+let waypointData  = {};  // route_id → [[lat,lng], ...]
+let waypointMarkers = {}; // route_id → [L.Marker, ...]
+let routePolylines  = {}; // route_id → L.Polyline
+let stationMarkers  = []; // L.Marker[]
+let addingToSegment = null;
+
+async function openParcoursMap(lwId) {
+    const p = PARCOURS[lwId];
+    if (!p) return;
+
+    currentLwId = lwId;
+
+    // Modal befüllen
+    document.getElementById('mapModalColorDot').style.background = p.color;
+    document.getElementById('mapModalTitle').textContent = p.name;
+    const modal = document.getElementById('parcoursMapModal');
+    modal.showModal();
+
+    // Kurz warten bis der Dialog gerendert ist
+    await new Promise(r => setTimeout(r, 60));
+
+    // Leaflet-Karte initialisieren oder recyceln
+    if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
+    }
+    mapInstance = L.map('parcoursMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+    }).addTo(mapInstance);
+
+    // State für diesen Parcours initialisieren
+    waypointData    = {};
+    waypointMarkers = {};
+    routePolylines  = {};
+    stationMarkers  = [];
+
+    p.segments.forEach(s => {
+        waypointData[s.route_id] = (s.waypoints || []).map(wp => [...wp]);
+    });
+
+    // Stationen + Waypoints zeichnen
+    drawStations(p);
+    drawAllWaypointMarkers(p);
+
+    // Bestehende Routen laden (OSRM)
+    await recalcAllRoutes(p);
+
+    // Karte auf Parcours-Ausdehnung einpassen
+    fitMap(p);
+
+    // Klick auf Karte = neuen Wegpunkt hinzufügen (zum nächsten Segment)
+    mapInstance.on('click', e => {
+        const segs = p.segments.filter(s => s.from_lat && s.to_lat);
+        if (!segs.length) return;
+        // Nächstes Segment (vereinfacht: letztes mit Koordinaten)
+        const seg = segs[segs.length - 1];
+        addWaypoint(p, seg.route_id, [e.latlng.lat, e.latlng.lng]);
+    });
+}
+
+function fitMap(p) {
+    const pts = [];
+    p.segments.forEach(s => {
+        if (s.from_lat) pts.push([s.from_lat, s.from_lng]);
+        if (s.to_lat)   pts.push([s.to_lat, s.to_lng]);
+        (waypointData[s.route_id] || []).forEach(wp => pts.push(wp));
+    });
+    if (pts.length > 1) mapInstance.fitBounds(L.latLngBounds(pts), { padding: [40, 40] });
+    else if (pts.length === 1) mapInstance.setView(pts[0], 14);
+    else mapInstance.setView([49.877, 12.330], 12); // Fallback TIR
+}
+
+function drawStations(p) {
+    stationMarkers.forEach(m => m.remove());
+    stationMarkers = [];
+    const seen = new Set();
+    p.segments.forEach((s, i) => {
+        [
+            { code: s.from_code, name: s.from_name, lat: s.from_lat, lng: s.from_lng, isStart: i === 0 },
+            { code: s.to_code,   name: s.to_name,   lat: s.to_lat,   lng: s.to_lng,   isStart: false },
+        ].forEach(st => {
+            if (!st.lat || seen.has(st.code)) return;
+            seen.add(st.code);
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="
+                    background:${st.isStart ? p.color : '#fff'};
+                    color:${st.isStart ? '#fff' : p.color};
+                    border:3px solid ${p.color};
+                    border-radius:50%;width:36px;height:36px;
+                    display:flex;align-items:center;justify-content:center;
+                    font-family:monospace;font-size:12px;font-weight:800;
+                    box-shadow:0 2px 8px rgba(0,0,0,.25);">${st.code}</div>`,
+                iconSize: [36, 36], iconAnchor: [18, 18],
+            });
+            const m = L.marker([st.lat, st.lng], { icon, zIndexOffset: 1000 })
+                .addTo(mapInstance)
+                .bindTooltip(`<strong>Station ${st.code}</strong><br>${st.name}`, { direction: 'top' });
+            stationMarkers.push(m);
+        });
+    });
+}
+
+function drawAllWaypointMarkers(p) {
+    Object.values(waypointMarkers).flat().forEach(m => m.remove());
+    waypointMarkers = {};
+    p.segments.forEach(s => {
+        waypointMarkers[s.route_id] = [];
+        (waypointData[s.route_id] || []).forEach((wp, idx) => {
+            addWaypointMarker(p, s.route_id, wp, idx);
+        });
+    });
+}
+
+function addWaypointMarker(p, routeId, latlng, idx) {
+    const icon = L.divIcon({
+        className: '',
+        html: `<div style="
+            background:#fff;border:2.5px solid ${p.color};
+            border-radius:50%;width:14px;height:14px;
+            box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:move;"></div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7],
+    });
+    const marker = L.marker(latlng, { icon, draggable: true, zIndexOffset: 500 })
+        .addTo(mapInstance)
+        .bindTooltip('Ziehen zum Verschieben · Rechtsklick zum Entfernen', { direction: 'top' });
+
+    marker.on('dragend', async () => {
+        const pos = marker.getLatLng();
+        waypointData[routeId][idx] = [pos.lat, pos.lng];
+        const seg = PARCOURS[currentLwId].segments.find(s => s.route_id === routeId);
+        if (seg) await recalcSegment(PARCOURS[currentLwId], seg);
+    });
+
+    marker.on('contextmenu', async () => {
+        waypointData[routeId].splice(idx, 1);
+        drawAllWaypointMarkers(PARCOURS[currentLwId]);
+        const seg = PARCOURS[currentLwId].segments.find(s => s.route_id === routeId);
+        if (seg) await recalcSegment(PARCOURS[currentLwId], seg);
+    });
+
+    if (!waypointMarkers[routeId]) waypointMarkers[routeId] = [];
+    waypointMarkers[routeId][idx] = marker;
+    return marker;
+}
+
+function addWaypoint(p, routeId, latlng) {
+    if (!waypointData[routeId]) waypointData[routeId] = [];
+    const idx = waypointData[routeId].length;
+    waypointData[routeId].push(latlng);
+    addWaypointMarker(p, routeId, latlng, idx);
+    const seg = p.segments.find(s => s.route_id === routeId);
+    if (seg) recalcSegment(p, seg);
+}
+
+async function recalcAllRoutes(p) {
+    setStatus('Berechne Routen via OSRM…');
+    Object.values(routePolylines).forEach(pl => pl.remove());
+    routePolylines = {};
+
+    let totalDist = 0;
+    for (const seg of p.segments) {
+        const dist = await recalcSegment(p, seg);
+        if (dist) totalDist += dist;
+    }
+    if (totalDist > 0) {
+        document.getElementById('mapDistInfo').textContent =
+            'Gesamt: ' + (totalDist >= 1000 ? (totalDist / 1000).toFixed(1) + ' km' : totalDist + ' m');
+    }
+    setStatus('Route geladen · Klick auf Karte = Wegpunkt hinzufügen');
+}
+
+async function recalcSegment(p, seg) {
+    if (!seg.from_lat || !seg.to_lat) return null;
+
+    const wps  = waypointData[seg.route_id] || [];
+    const coords = [
+        [seg.from_lng, seg.from_lat],
+        ...wps.map(wp => [wp[1], wp[0]]),
+        [seg.to_lng, seg.to_lat],
+    ];
+    const coordStr = coords.map(c => c[0] + ',' + c[1]).join(';');
+    const url = `https://router.project-osrm.org/route/v1/foot/${coordStr}?overview=full&geometries=geojson`;
+
+    try {
+        const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const data = await res.json();
+        if (data.code !== 'Ok' || !data.routes?.[0]) return null;
+
+        const geom   = data.routes[0].geometry.coordinates; // [[lng,lat], ...]
+        const latlngs = geom.map(c => [c[1], c[0]]);
+
+        if (routePolylines[seg.route_id]) routePolylines[seg.route_id].remove();
+
+        routePolylines[seg.route_id] = L.polyline(latlngs, {
+            color:   p.color,
+            weight:  5,
+            opacity: 0.85,
+        }).addTo(mapInstance);
+
+        // Popup auf Linienmitte mit Segment-Info
+        const mid = latlngs[Math.floor(latlngs.length / 2)];
+        const dist = Math.round(data.routes[0].distance);
+        const time = Math.round(data.routes[0].duration / 60);
+        routePolylines[seg.route_id].bindPopup(
+            `<strong>${seg.from_code} → ${seg.to_code}</strong><br>${dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m'} · ca. ${time} min`
+        );
+
+        return dist;
+    } catch { return null; }
+}
+
+function setStatus(msg) {
+    document.getElementById('mapStatusText').textContent = msg;
+}
+
+// ── Buttons ───────────────────────────────────────────
+document.getElementById('btnRecalcRoute').addEventListener('click', () => {
+    if (currentLwId) recalcAllRoutes(PARCOURS[currentLwId]);
+});
+
+document.getElementById('btnSaveWaypoints').addEventListener('click', async () => {
+    const p    = PARCOURS[currentLwId];
+    const btn  = document.getElementById('btnSaveWaypoints');
+    btn.disabled = true;
+    btn.textContent = 'Speichert…';
+    let ok = true;
+
+    for (const seg of p.segments) {
+        const wps = waypointData[seg.route_id] || [];
+        try {
+            const res = await fetch(`/admin/stations/routes/${seg.route_id}/waypoints`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ waypoints: wps, csrf_token: CSRF }),
+            });
+            if (!res.ok) ok = false;
+        } catch { ok = false; }
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = ok
+        ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gespeichert'
+        : '⚠ Fehler';
+    setTimeout(() => {
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2h9l3 3v9H2V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 2v4h6V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Speichern';
+    }, 2000);
+});
+
+document.getElementById('btnCloseMapModal').addEventListener('click', () => {
+    document.getElementById('parcoursMapModal').close();
+});
+
+document.getElementById('parcoursMapModal').addEventListener('close', () => {
+    if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+    currentLwId = null;
 });
 </script>
 

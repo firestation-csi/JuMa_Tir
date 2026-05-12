@@ -94,7 +94,9 @@ class StationRoute
         $stmt = $this->db->prepare(
             'SELECT r.*,
                     sf.code AS from_code, sf.name AS from_name,
+                    sf.lat  AS from_lat,  sf.lng  AS from_lng,
                     st.code AS to_code,   st.name AS to_name,
+                    st.lat  AS to_lat,    st.lng  AS to_lng,
                     lw.name  AS laufweg_name,
                     lw.color AS laufweg_color
              FROM station_routes r
@@ -131,6 +133,14 @@ class StationRoute
             ':sort' => $sortOrder,     ':notes'=> $notes,
         ]);
         return (int)$this->db->lastInsertId();
+    }
+
+    public function saveWaypoints(int $id, array $waypoints): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE station_routes SET waypoints = :wp, updated_at = NOW() WHERE id = :id'
+        );
+        $stmt->execute([':wp' => json_encode($waypoints), ':id' => $id]);
     }
 
     public function update(int $id, ?int $laufwegId, int $fromId, int $toId,
