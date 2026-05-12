@@ -178,6 +178,12 @@
 
 .adm_table__name   { font-weight: 700; color: var(--wt-text); }
 .adm_table__muted  { color: var(--wt-text-muted); }
+
+/* Spalten die bei schmalen Fenstern ausgeblendet werden */
+@media (max-width: 1024px) {
+    .adm_col--hide-sm { display: none; }
+}
+
 .adm_table__actions {
     display: flex;
     gap: 8px;

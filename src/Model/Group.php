@@ -36,13 +36,22 @@ class Group
     {
         $stmt = $this->db->prepare(
             'SELECT g.*,
-                    c.name  AS competition_name,
-                    s.code  AS last_station_code,
-                    s.name  AS last_station_name
+                    c.name      AS competition_name,
+                    ls_s.code   AS last_station_code,
+                    ls_s.name   AS last_station_name,
+                    ls.checked_in  AS last_checked_in,
+                    ls.checked_out AS last_checked_out
              FROM `groups` g
              LEFT JOIN competitions c ON c.id = g.competition_id
-             LEFT JOIN stations     s ON s.id = g.last_station_id
-             ORDER BY g.competition_id, g.name'
+             LEFT JOIN group_station_log ls
+                ON  ls.group_id   = g.id
+                AND ls.checked_in = (
+                    SELECT MAX(l.checked_in)
+                    FROM group_station_log l
+                    WHERE l.group_id = g.id
+                )
+             LEFT JOIN stations ls_s ON ls_s.id = ls.station_id
+             ORDER BY g.competition_id, g.num, g.name'
         );
         $stmt->execute();
         return $stmt->fetchAll();
