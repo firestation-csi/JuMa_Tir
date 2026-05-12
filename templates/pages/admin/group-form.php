@@ -94,22 +94,59 @@ $action = $isEdit
             <span class="adm_hint">Wird automatisch generiert. Gruppen-QR-Codes enthalten diesen Hash.</span>
         </div>
 
-        <!-- KBM-Bereich (Platzhalter für später) -->
+        <!-- Feuerwehr -->
+        <?php
+        // Feuerwehren nach KBI-Bereich gruppieren
+        $fwByKbi = [];
+        foreach ($feuerwehren as $fw) {
+            $fwByKbi[$fw['kbi_bereich']][] = $fw;
+        }
+        ksort($fwByKbi);
+        $selectedFwId = (int)($group['feuerwehr_id'] ?? 0);
+        ?>
         <div class="adm_field">
-            <label class="adm_label" for="kbm_area">
-                KBM-Bereich
-                <span class="adm_badge adm_badge--inactive" style="margin-left:6px; vertical-align:middle;">demnächst</span>
-            </label>
+            <label class="adm_label" for="feuerwehr_id">Feuerwehr</label>
+            <select class="adm_input" id="feuerwehr_id" name="feuerwehr_id">
+                <option value="">– Feuerwehr wählen –</option>
+                <?php foreach ($fwByKbi as $kbi => $wehren): ?>
+                    <optgroup label="<?= htmlspecialchars($kbi) ?>">
+                        <?php foreach ($wehren as $fw): ?>
+                            <option value="<?= (int)$fw['id'] ?>"
+                                    data-bereich="<?= htmlspecialchars($fw['bereich']) ?>"
+                                    <?= $selectedFwId === (int)$fw['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($fw['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <!-- Bereich (wird aus Feuerwehr-Auswahl befüllt) -->
+        <div class="adm_field">
+            <label class="adm_label" for="kbm_area_display">Bereich</label>
             <input
-                class="adm_input"
+                class="adm_input adm_input--mono"
                 type="text"
-                id="kbm_area"
-                name="kbm_area"
+                id="kbm_area_display"
                 value="<?= htmlspecialchars($group['kbm_area'] ?? '') ?>"
-                placeholder="wird später konfiguriert"
-                disabled
+                readonly
+                placeholder="wird aus Feuerwehr-Auswahl übernommen"
             >
         </div>
+
+        <script>
+        (function () {
+            const sel     = document.getElementById('feuerwehr_id');
+            const display = document.getElementById('kbm_area_display');
+            function update() {
+                const opt = sel.options[sel.selectedIndex];
+                display.value = opt ? (opt.dataset.bereich || '') : '';
+            }
+            sel.addEventListener('change', update);
+            update();
+        })();
+        </script>
 
         <!-- Aktionen -->
         <div class="adm_form-actions">

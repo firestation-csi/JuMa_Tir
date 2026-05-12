@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS judges (
     station_id INT          NOT NULL,
     name       VARCHAR(255) NOT NULL,
     initials   VARCHAR(5),
-    role       VARCHAR(100) NOT NULL DEFAULT 'Schiedsrichter A',
+    role       VARCHAR(100) NOT NULL DEFAULT '',
     qr_token   CHAR(32)     NOT NULL,
     created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

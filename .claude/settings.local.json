@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(python3 -c \"import openpyxl; print\\('ok'\\)\")",
+      "Bash(php -r \"echo 'php ok';\")",
+      "Bash(py -c \"import openpyxl; print\\('ok'\\)\")",
+      "PowerShell(python --version)",
+      "PowerShell(python3 --version)",
+      "PowerShell(py --version)",
+      "PowerShell(Get-ChildItem \"$env:APPDATA\\\\Python\\\\Python314\\\\Scripts\" -ErrorAction SilentlyContinue | Select-Object -First 5; Get-ChildItem \"$env:APPDATA\\\\Python\\\\Python314\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\Python\" -ErrorAction SilentlyContinue | Select-Object Name; Get-ChildItem \"C:\\\\Users\\\\csi\\\\AppData\\\\Local\\\\Programs\\\\Python\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "Bash(ls /c/Users/csi/AppData/Roaming/Python/Python312/Scripts/ 2>/dev/null | head -20; ls /c/Users/csi/AppData/Local/Programs/Python/ 2>/dev/null | head -10)",
+      "Read(//c/Users/csi/AppData/Roaming/Python/Python312/**)",
+      "Read(//c/Users/csi/AppData/Local/Programs/**)",
+      "Bash(find /c/Users/csi -name \"python*.exe\" 2>/dev/null | head -10; find /c/Python* -name \"python.exe\" 2>/dev/null | head -5)",
+      "Read(//c/Users/csi/**)",
+      "Bash(\"/c/Users/csi/AppData/Local/Autodesk/webdeploy/production/6f81bda0bb0ebef0ea118cf2bd48cba17061ffb5/Python/python.exe\" -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(/c/Users/csi/AppData/Local/Autodesk/webdeploy/production/6f81bda0bb0ebef0ea118cf2bd48cba17061ffb5/Python/python.exe -c 'import openpyxl; print\\('\\\\''openpyxl ok'\\\\''\\)')"
+    ]
+  }
+}

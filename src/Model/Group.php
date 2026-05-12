@@ -96,29 +96,47 @@ class Group
     }
 
     public function create(int $competitionId, string $name, bool $active, string $qrToken,
-                           ?string $registrationDate = null, ?string $kbmArea = null): int
+                           ?string $registrationDate = null, ?string $kbmArea = null,
+                           ?int $feuerwehrId = null): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO `groups`
-                (competition_id, name, active, qr_token, registration_date, kbm_area, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                (competition_id, name, active, qr_token, registration_date, kbm_area, feuerwehr_id, created_at, updated_at)
+             VALUES (:competition_id, :name, :active, :qr_token, :registration_date, :kbm_area, :feuerwehr_id, NOW(), NOW())'
         );
-        $stmt->execute([$competitionId, $name, $active ? 1 : 0, $qrToken,
-                        $registrationDate ?: null, $kbmArea ?: null]);
+        $stmt->execute([
+            ':competition_id'    => $competitionId,
+            ':name'              => $name,
+            ':active'            => $active ? 1 : 0,
+            ':qr_token'          => $qrToken,
+            ':registration_date' => $registrationDate,
+            ':kbm_area'          => $kbmArea,
+            ':feuerwehr_id'      => $feuerwehrId,
+        ]);
         return (int)$this->db->lastInsertId();
     }
 
     public function update(int $id, int $competitionId, string $name, bool $active, string $qrToken,
-                           ?string $registrationDate = null, ?string $kbmArea = null): void
+                           ?string $registrationDate = null, ?string $kbmArea = null,
+                           ?int $feuerwehrId = null): void
     {
         $stmt = $this->db->prepare(
             'UPDATE `groups`
-             SET competition_id=?, name=?, active=?, qr_token=?,
-                 registration_date=?, kbm_area=?, updated_at=NOW()
-             WHERE id=?'
+             SET competition_id=:competition_id, name=:name, active=:active, qr_token=:qr_token,
+                 registration_date=:registration_date, kbm_area=:kbm_area,
+                 feuerwehr_id=:feuerwehr_id, updated_at=NOW()
+             WHERE id=:id'
         );
-        $stmt->execute([$competitionId, $name, $active ? 1 : 0, $qrToken,
-                        $registrationDate ?: null, $kbmArea ?: null, $id]);
+        $stmt->execute([
+            ':competition_id'    => $competitionId,
+            ':name'              => $name,
+            ':active'            => $active ? 1 : 0,
+            ':qr_token'          => $qrToken,
+            ':registration_date' => $registrationDate,
+            ':kbm_area'          => $kbmArea,
+            ':feuerwehr_id'      => $feuerwehrId,
+            ':id'                => $id,
+        ]);
     }
 
     public function delete(int $id): void
