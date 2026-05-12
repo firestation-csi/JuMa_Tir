@@ -47,6 +47,7 @@ return [
         '/api/judge/login'               => ['App\Controller\JudgeController', 'login'],
         '/api/group/verify'              => ['App\Controller\GroupController', 'verify'],
         '/api/group/info'                => ['App\Controller\GroupInfoController', 'info'],
+        '/api/group/location'            => ['App\Controller\GroupInfoController', 'location'],
         '/api/group/help'                => ['App\Controller\GroupInfoController', 'help'],
         '/api/score'                     => ['App\Controller\JudgeController', 'saveScore'],
         '/api/score/{id}/delete'         => ['App\Controller\JudgeController', 'deleteScore'],

@@ -173,6 +173,29 @@ class GroupInfoController
         ]);
     }
 
+    /** POST /api/group/location — GPS-Position speichern */
+    public function location(): void
+    {
+        $data  = $this->request->json();
+        $token = trim((string)($data['token'] ?? ''));
+        $lat   = isset($data['lat']) && is_numeric($data['lat']) ? (float)$data['lat'] : null;
+        $lng   = isset($data['lng']) && is_numeric($data['lng']) ? (float)$data['lng'] : null;
+
+        if (!$token || $lat === null || $lng === null) {
+            Response::error('Ungültige Parameter');
+        }
+
+        $group = (new Group())->findByToken($token);
+        if (!$group) Response::error('Gruppe nicht gefunden', 404);
+
+        $acc  = isset($data['accuracy']) && is_numeric($data['accuracy']) ? (float)$data['accuracy'] : null;
+        $stmt = \App\Core\Database::getInstance()->prepare(
+            'INSERT INTO group_locations (group_id, lat, lng, accuracy) VALUES (:g, :lat, :lng, :acc)'
+        );
+        $stmt->execute([':g' => (int)$group['id'], ':lat' => $lat, ':lng' => $lng, ':acc' => $acc]);
+        Response::json(null);
+    }
+
     /** POST /api/group/help — Hilfeanfrage an Admin-Messageboard */
     public function help(): void
     {
