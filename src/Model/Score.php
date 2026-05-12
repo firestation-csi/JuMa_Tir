@@ -159,6 +159,133 @@ class Score
         return $stmt->fetchAll();
     }
 
+    /** Rangliste mit Eindruck-Gewichtung (Sehr gut=0, Gut=1, Befriedigend=2) */
+    public function getFullRankingWithImpression(int $competitionId, int $totalStations): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT g.id AS group_id, g.num AS group_num, g.name AS group_name,
+                    g.kreis, g.altersgruppe,
+                    f.name AS feuerwehr_name, f.bereich, f.kbi_bereich,
+                    COALESCE(SUM(s.total_fp), 0) AS total_fp,
+                    COUNT(DISTINCT s.station_id) AS stations_completed,
+                    ROUND(AVG(CASE s.impression
+                        WHEN \'sehr_gut\'    THEN 0
+                        WHEN \'gut\'         THEN 1
+                        WHEN \'befriedigend\' THEN 2
+                        ELSE 1 END), 2) AS avg_impression,
+                    COALESCE(SUM(s.total_fp), 0)
+                        + COALESCE(AVG(CASE s.impression
+                            WHEN \'sehr_gut\'    THEN 0
+                            WHEN \'gut\'         THEN 1
+                            WHEN \'befriedigend\' THEN 2
+                            ELSE 1 END), 0) AS combined_score
+             FROM `groups` g
+             LEFT JOIN scores s ON s.group_id = g.id
+             LEFT JOIN feuerwehren f ON f.id = g.feuerwehr_id
+             WHERE g.competition_id = :comp AND g.active = 1
+             GROUP BY g.id, g.num, g.name, g.kreis, g.altersgruppe,
+                      f.name, f.bereich, f.kbi_bereich
+             ORDER BY stations_completed DESC, combined_score ASC, total_fp ASC'
+        );
+        $stmt->execute([':comp' => $competitionId]);
+        $rows = $stmt->fetchAll();
+        $rank = 1;
+        foreach ($rows as &$r) {
+            $r['stations_total']  = $totalStations;
+            $r['completion_pct']  = $totalStations > 0
+                ? (int)round((int)$r['stations_completed'] / $totalStations * 100) : 0;
+            $r['is_complete']     = (int)$r['stations_completed'] >= $totalStations && $totalStations > 0;
+            $r['rank']            = $rank++;
+        }
+        unset($r);
+        return $rows;
+    }
+
+    /** Alle Bewertungen eines Wettbewerbs, gruppiert nach Station für Accordions */
+    public function getStationScoresGrouped(int $competitionId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT s.station_id, st.code AS station_code, st.name AS station_name,
+                    g.id AS group_id, g.num AS group_num, g.name AS group_name,
+                    f.name AS feuerwehr_name, f.bereich,
+                    s.total_fp, s.impression, s.created_at, j.name AS judge_name
+             FROM scores s
+             JOIN `groups` g   ON g.id  = s.group_id
+             JOIN stations st  ON st.id = s.station_id
+             JOIN judges j     ON j.id  = s.judge_id
+             LEFT JOIN feuerwehren f ON f.id = g.feuerwehr_id
+             WHERE g.competition_id = :comp
+             ORDER BY s.station_id ASC, s.total_fp ASC'
+        );
+        $stmt->execute([':comp' => $competitionId]);
+        $rows = $stmt->fetchAll();
+        $grouped = [];
+        foreach ($rows as $r) {
+            $sid = (int)$r['station_id'];
+            if (!isset($grouped[$sid])) {
+                $grouped[$sid] = [
+                    'station_id'   => $sid,
+                    'station_code' => $r['station_code'],
+                    'station_name' => $r['station_name'],
+                    'scores'       => [],
+                ];
+            }
+            $grouped[$sid]['scores'][] = $r;
+        }
+        return array_values($grouped);
+    }
+
+    /** Live-Ticker: letzte N Bewertungen */
+    public function getRecentScores(int $competitionId, int $limit = 20): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT s.id, s.total_fp, s.impression, s.created_at,
+                    g.num AS group_num, g.name AS group_name,
+                    st.code AS station_code, st.name AS station_name,
+                    j.name AS judge_name
+             FROM scores s
+             JOIN `groups` g  ON g.id  = s.group_id
+             JOIN stations st ON st.id = s.station_id
+             JOIN judges j    ON j.id  = s.judge_id
+             WHERE g.competition_id = :comp
+             ORDER BY s.created_at DESC
+             LIMIT :lim'
+        );
+        $stmt->execute([':comp' => $competitionId, ':lim' => $limit]);
+        return $stmt->fetchAll();
+    }
+
+    /** Stations-Stationen mit Stationen-Stationen-Stationen-Stationen-Stationen-Stationen-Stationen-Stationen */
+    public function getCompletionMatrix(int $competitionId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT g.id AS group_id, g.num AS group_num, g.name AS group_name,
+                    s.station_id, s.total_fp
+             FROM `groups` g
+             LEFT JOIN scores s ON s.group_id = g.id
+             WHERE g.competition_id = :comp AND g.active = 1
+             ORDER BY g.num ASC'
+        );
+        $stmt->execute([':comp' => $competitionId]);
+        $rows  = $stmt->fetchAll();
+        $matrix = [];
+        foreach ($rows as $r) {
+            $gid = (int)$r['group_id'];
+            if (!isset($matrix[$gid])) {
+                $matrix[$gid] = [
+                    'group_id'   => $gid,
+                    'group_num'  => $r['group_num'],
+                    'group_name' => $r['group_name'],
+                    'stations'   => [],
+                ];
+            }
+            if ($r['station_id'] !== null) {
+                $matrix[$gid]['stations'][(int)$r['station_id']] = (int)$r['total_fp'];
+            }
+        }
+        return array_values($matrix);
+    }
+
     /** Stationen mit Bewertungsfortschritt für Dashboard */
     public function getDashboardStationStats(int $competitionId, int $totalGroups): array
     {

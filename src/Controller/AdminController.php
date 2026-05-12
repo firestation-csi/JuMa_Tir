@@ -152,29 +152,45 @@ class AdminController
 
         if (!$competition) {
             Response::view('pages/admin/results', [
-                'title'   => 'Ergebnisse',
-                'ranking' => [],
-                'stations' => [],
+                'title'        => 'Ergebnisse',
+                'competition'  => null,
+                'ranking'      => [],
+                'stationScores'=> [],
+                'recentScores' => [],
+                'matrix'       => [],
+                'stations'     => [],
             ]);
         }
 
         $competitionId = (int)$competition['id'];
-        $ranking       = $this->scoringService->getRanking($competitionId);
+        $scoreModel    = new \App\Model\Score();
         $stations      = $this->stationModel->findByCompetition($competitionId);
+        $totalStations = count(array_filter($stations, fn($s) => $s['active']));
 
-        // Bei JSON-Anfrage direkt Daten liefern
+        $ranking       = $scoreModel->getFullRankingWithImpression($competitionId, $totalStations);
+        $stationScores = $scoreModel->getStationScoresGrouped($competitionId);
+        $recentScores  = $scoreModel->getRecentScores($competitionId, 25);
+        $matrix        = $scoreModel->getCompletionMatrix($competitionId);
+
+        // Bei JSON-Anfrage (Live-Polling) nur Ticker + Ranking zurückgeben
         if ($this->request->isJson()) {
             Response::json([
-                'ranking'  => $ranking,
-                'stations' => $stations,
+                'ranking'      => array_slice($ranking, 0, 20),
+                'recentScores' => $recentScores,
+                'ts'           => date('H:i:s'),
             ]);
         }
 
         Response::view('pages/admin/results', [
-            'title'       => 'Ergebnisse – ' . $competition['name'],
-            'competition' => $competition,
-            'ranking'     => $ranking,
-            'stations'    => $stations,
+            'title'        => 'Ergebnisse – ' . $competition['name'],
+            'competition'  => $competition,
+            'ranking'      => $ranking,
+            'stationScores'=> $stationScores,
+            'recentScores' => $recentScores,
+            'matrix'       => $matrix,
+            'stations'     => $stations,
+            'totalStations'=> $totalStations,
+            'csrf'         => Auth::getCsrfToken(),
         ]);
     }
 

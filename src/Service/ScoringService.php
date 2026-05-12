@@ -24,24 +24,12 @@ class ScoringService
         $this->groupModel   = new Group();
     }
 
-    /** Gesamtrangliste für einen Wettbewerb */
+    /** Gesamtrangliste mit Eindruck-Gewichtung */
     public function getRanking(int $competitionId): array
     {
-        $totals   = $this->scoreModel->getTotalsByCompetition($competitionId);
         $stations = $this->stationModel->findByCompetition($competitionId);
-        $total    = count($stations);
-
-        $rank = 1;
-        foreach ($totals as &$entry) {
-            $entry['rank']              = $rank++;
-            $entry['stations_total']    = $total;
-            $entry['completion_pct']    = $total > 0
-                ? round(($entry['stations_completed'] / $total) * 100)
-                : 0;
-        }
-        unset($entry);
-
-        return $totals;
+        $total    = count(array_filter($stations, fn($s) => $s['active']));
+        return $this->scoreModel->getFullRankingWithImpression($competitionId, $total);
     }
 
     /** Detailauswertung pro Station */
