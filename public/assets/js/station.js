@@ -199,7 +199,8 @@ function allScored(taskValues) {
     return tasks.filter(t => t.type === 'boolean').every(t => taskValues[t.id]);
 }
 
-const hasTimeComponent = hasTime || tasks.some(t => t.time);
+const hasTimeComponent  = hasTime || tasks.some(t => t.time);
+const hasSingleTimeTask = hasTime || tasks.some(t => t.type === 'time' && (t.time?.zeit_felder ?? 1) === 1);
 
 /** Gibt {ok, hints} zurück — hints ist ein Array mit Beschreibungen was noch fehlt */
 function readyCheck(taskValues, impression) {
@@ -210,8 +211,9 @@ function readyCheck(taskValues, impression) {
         if (t.type !== 'time' || !t.time) continue;
         const felder = t.time.zeit_felder ?? 1;
         if (felder > 1) {
-            const arr = multiSw[t.id] || [];
-            if (arr.some(sw => sw.running)) hints.push('Alle Zeiten anhalten');
+            const arr = mswGet(t.id, felder);
+            if (arr.some(sw => sw.running))       hints.push('Alle Zeiten anhalten');
+            else if (arr.every(sw => sw.ms === 0)) hints.push('Zeiten erfassen (T1–T' + felder + ')');
         } else {
             if (swMs === 0)     hints.push('Zeit stoppen');
             else if (swRunning) hints.push('Stoppuhr anhalten');
@@ -574,8 +576,17 @@ function renderConfirm() {
     const tv = state.scoring.taskValues;
     const fp = calcFp(tv);
 
-    const fails = tasks.filter(t => t.type==='boolean' && tv[t.id]==='fail');
-    const imp   = { sehr_gut:'Sehr gut', gut:'Gut', befriedigend:'Befriedigend' }[state.scoring.impression] || '–';
+    const failItems = tasks.flatMap(t => {
+        if (t.type === 'boolean' && tv[t.id] === 'fail') {
+            return [{ label: t.label, fp: t.points, sub: null }];
+        }
+        if (t.type === 'count' && (tv[t.id] ?? 0) > 0) {
+            const count   = t.max_count !== null ? Math.min(tv[t.id], t.max_count) : tv[t.id];
+            return [{ label: t.label, fp: count * t.points, sub: `${count} × ${t.points} FP` }];
+        }
+        return [];
+    });
+    const imp = { sehr_gut:'Sehr gut', gut:'Gut', befriedigend:'Befriedigend' }[state.scoring.impression] || '–';
 
     const submitting = state.submitting;
     const done       = state.submitted;
@@ -605,11 +616,15 @@ function renderConfirm() {
                         <span class="wt_summary-row__label">Zeit</span>
                         <span class="wt_summary-row__value wt_mono">${swFmt(swMs).main}</span>
                     </div>` : ''}
-                    ${fails.length > 0 ? `
+                    ${failItems.length > 0 ? `
                     <div style="height:1px;background:var(--wt-border);margin:16px 0;"></div>
-                    <div class="wt_eyebrow" style="margin-bottom:10px;color:var(--wt-red);">Fehler (${fails.length})</div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                        ${fails.map(f => `<span class="wt_total-pill">${esc(f.label)} +${f.points}</span>`).join('')}
+                    <div class="wt_eyebrow" style="margin-bottom:10px;color:var(--wt-red);">Fehler (${failItems.length})</div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                        ${failItems.map(f => `
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                            <span style="font-size:13px;color:var(--wt-text);">${esc(f.label)}</span>
+                            <span class="wt_total-pill" style="white-space:nowrap;flex-shrink:0;">${f.sub ? esc(f.sub) + ' = ' : ''}+${f.fp} FP</span>
+                        </div>`).join('')}
                     </div>` : ''}
                     <div style="height:1px;background:var(--wt-border);margin:16px 0;"></div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1143,7 +1158,7 @@ async function transmit() {
         }),
         impression: state.scoring.impression,
         // Globale Stoppuhr nur wenn Single-Time-Tasks oder station has_time vorhanden
-        time_ms:    (hasTime || singleTimeTasks.length > 0) ? Math.round(swMs) : null,
+        time_ms:    hasSingleTimeTask ? Math.round(swMs) : null,
         notes:      null,
     };
 
@@ -1168,7 +1183,7 @@ async function transmit() {
                 synced:       true,
                 timestamp:    new Date().toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }),
                 impression:   state.scoring.impression,
-                time_ms:      (hasTime || singleTimeTasks.length > 0) ? Math.round(swMs) : null,
+                time_ms:      hasSingleTimeTask ? Math.round(swMs) : null,
                 notes:        null,
                 task_results: payload.tasks,
             };
