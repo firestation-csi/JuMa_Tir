@@ -28,10 +28,13 @@
                     <span id="msgBadge" class="adm_nav-badge" style="display:none;"></span>
                 </a>
             </li>
+            <li><a href="/admin/users" class="adm_nav__link">Benutzer</a></li>
             <li>
                 <form action="/admin/logout" method="POST" style="display:inline">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
-                    <button type="submit" class="adm_nav__logout">Abmelden</button>
+                    <button type="submit" class="adm_nav__logout" title="Angemeldet als <?= htmlspecialchars(\App\Core\Auth::getAdminUsername()) ?>">
+                        <?= htmlspecialchars(\App\Core\Auth::getAdminUsername()) ?> · Abmelden
+                    </button>
                 </form>
             </li>
         </ul>

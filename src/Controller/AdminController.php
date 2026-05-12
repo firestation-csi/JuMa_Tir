@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
+use App\Model\AdminUser;
 use App\Model\Competition;
 use App\Model\Station;
 use App\Model\Group;
@@ -47,13 +48,31 @@ class AdminController
     {
         $username = trim((string)$this->request->post('username', ''));
         $password = (string)$this->request->post('password', '');
-        $adminUser = $_ENV['ADMIN_USER']     ?? 'admin';
-        $adminPw   = $_ENV['ADMIN_PASSWORD'] ?? '';
 
-        $userOk = hash_equals($adminUser, $username);
-        $passOk = !empty($adminPw) && hash_equals($adminPw, $password);
+        $userId       = null;
+        $authenticated = false;
 
-        if (!$userOk || !$passOk) {
+        // 1. DB-Benutzer prüfen (bcrypt)
+        $userModel = new AdminUser();
+        $dbUser    = $userModel->findByUsername($username);
+        if ($dbUser && $userModel->verifyPassword($dbUser, $password)) {
+            $userId        = (int)$dbUser['id'];
+            $authenticated = true;
+        }
+
+        // 2. Fallback: .env-Admin (plain hash_equals)
+        if (!$authenticated) {
+            $envUser = $_ENV['ADMIN_USER']     ?? 'admin';
+            $envPw   = $_ENV['ADMIN_PASSWORD'] ?? '';
+            if (!empty($envPw)
+                && hash_equals($envUser, $username)
+                && hash_equals($envPw, $password)
+            ) {
+                $authenticated = true;
+            }
+        }
+
+        if (!$authenticated) {
             Response::view('pages/admin/login', [
                 'title'    => 'Admin-Login',
                 'extraCss' => 'admin',
@@ -61,10 +80,10 @@ class AdminController
             ]);
         }
 
-        $competition = $this->competitionModel->findActive();
+        $competition   = $this->competitionModel->findActive();
         $competitionId = $competition ? (int)$competition['id'] : 0;
 
-        Auth::loginAdmin($competitionId);
+        Auth::loginAdmin($competitionId, $userId, $username);
         Response::redirect('/admin');
     }
 

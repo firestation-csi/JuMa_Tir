@@ -17,11 +17,13 @@ class Auth
     }
 
     /** Admin-Session setzen */
-    public static function loginAdmin(int $competitionId): void
+    public static function loginAdmin(int $competitionId, ?int $userId = null, string $username = ''): void
     {
         session_regenerate_id(true);
         $_SESSION['admin']          = true;
         $_SESSION['competition_id'] = $competitionId;
+        $_SESSION['admin_user_id']  = $userId;
+        $_SESSION['admin_username'] = $username;
         $_SESSION['csrf_token']     = self::generateCsrfToken();
     }
 
@@ -65,6 +67,18 @@ class Auth
     public static function getCompetitionId(): ?int
     {
         return isset($_SESSION['competition_id']) ? (int)$_SESSION['competition_id'] : null;
+    }
+
+    /** Admin-User-ID (null = .env-Admin) */
+    public static function getAdminUserId(): ?int
+    {
+        return isset($_SESSION['admin_user_id']) ? (int)$_SESSION['admin_user_id'] : null;
+    }
+
+    /** Angezeigter Admin-Benutzername */
+    public static function getAdminUsername(): string
+    {
+        return (string)($_SESSION['admin_username'] ?? '');
     }
 
     /** Session beenden */
