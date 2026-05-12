@@ -286,6 +286,54 @@ class Score
         return array_values($matrix);
     }
 
+    /** Durchschnittliche Aufenthaltsdauer je Station (aus group_station_log) */
+    public function getStationDurations(int $competitionId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT st.id AS station_id,
+                    COUNT(CASE WHEN l.checked_out IS NOT NULL THEN 1 END)    AS visits,
+                    AVG(CASE WHEN l.checked_out IS NOT NULL
+                        THEN TIMESTAMPDIFF(SECOND, l.checked_in, l.checked_out) END) AS avg_sek,
+                    MIN(CASE WHEN l.checked_out IS NOT NULL
+                        THEN TIMESTAMPDIFF(SECOND, l.checked_in, l.checked_out) END) AS min_sek,
+                    MAX(CASE WHEN l.checked_out IS NOT NULL
+                        THEN TIMESTAMPDIFF(SECOND, l.checked_in, l.checked_out) END) AS max_sek
+             FROM stations st
+             LEFT JOIN group_station_log l ON l.station_id = st.id
+             WHERE st.competition_id = :comp AND st.active = 1
+             GROUP BY st.id'
+        );
+        $stmt->execute([':comp' => $competitionId]);
+        $rows = $stmt->fetchAll();
+        $map  = [];
+        foreach ($rows as $r) {
+            $map[(int)$r['station_id']] = [
+                'visits'  => (int)$r['visits'],
+                'avg_sek' => $r['avg_sek'] !== null ? (int)round((float)$r['avg_sek']) : null,
+                'min_sek' => $r['min_sek'] !== null ? (int)$r['min_sek'] : null,
+                'max_sek' => $r['max_sek'] !== null ? (int)$r['max_sek'] : null,
+            ];
+        }
+        return $map;
+    }
+
+    /** Gruppen-Verteilung nach KBM-Bereich (feingranular) */
+    public function getKbmDistribution(int $competitionId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COALESCE(f.bereich, "–")     AS bereich,
+                    COALESCE(f.kbi_bereich, "–") AS kbi_bereich,
+                    COUNT(DISTINCT g.id)          AS group_count
+             FROM `groups` g
+             LEFT JOIN feuerwehren f ON f.id = g.feuerwehr_id
+             WHERE g.competition_id = :comp AND g.active = 1
+             GROUP BY f.bereich, f.kbi_bereich
+             ORDER BY f.kbi_bereich, f.bereich ASC'
+        );
+        $stmt->execute([':comp' => $competitionId]);
+        return $stmt->fetchAll();
+    }
+
     /** Stationen mit Bewertungsfortschritt für Dashboard */
     public function getDashboardStationStats(int $competitionId, int $totalGroups): array
     {

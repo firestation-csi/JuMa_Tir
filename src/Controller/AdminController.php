@@ -119,7 +119,9 @@ class AdminController
         $totalStations = count(array_filter($stations, fn($s) => $s['active']));
 
         $stationStats       = $scoreModel->getDashboardStationStats($compId, $totalGroups);
+        $stationDurations   = $scoreModel->getStationDurations($compId);
         $kbiDistribution    = $scoreModel->getKbiDistribution($compId);
+        $kbmDistribution    = $scoreModel->getKbmDistribution($compId);
         $ranking            = $scoreModel->getTotalsByCompetition($compId);
         $scoresByStation    = $scoreModel->getAllScoresByStation($compId);
         $completedGroups    = $scoreModel->getCompletedGroupsCount($compId, $totalStations);
@@ -134,7 +136,9 @@ class AdminController
             'competition'      => $competition,
             'competitions'     => $competitions,
             'stationStats'     => $stationStats,
+            'stationDurations' => $stationDurations,
             'kbiDistribution'  => $kbiDistribution,
+            'kbmDistribution'  => $kbmDistribution,
             'ranking'          => $ranking,
             'scoresByStation'  => $scoresByStation,
             'totalGroups'      => $totalGroups,

@@ -868,6 +868,32 @@
 }
 .dash_progress-bar__fill--done { background: var(--wt-ok); }
 
+.dash_duration-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.dash_duration-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--wt-text);
+    background: var(--wt-surface-alt);
+    border: 1px solid var(--wt-border);
+    border-radius: 6px;
+    padding: 2px 7px;
+}
+.dash_duration-chip--muted {
+    color: var(--wt-text-muted);
+    font-weight: 400;
+    background: transparent;
+    border-color: transparent;
+}
+
 /* Leaflet fix: map tiles above other content */
 .leaflet-container { z-index: 1; }
 

@@ -2,7 +2,9 @@
 $competition       = $competition       ?? null;
 $competitions      = $competitions      ?? [];
 $stationStats      = $stationStats      ?? [];
+$stationDurations  = $stationDurations  ?? [];
 $kbiDistribution   = $kbiDistribution   ?? [];
+$kbmDistribution   = $kbmDistribution   ?? [];
 $ranking           = $ranking           ?? [];
 $scoresByStation   = $scoresByStation   ?? [];
 $totalGroups       = $totalGroups       ?? 0;
@@ -11,6 +13,12 @@ $totalScores       = $totalScores       ?? 0;
 $completedGroups   = $completedGroups   ?? 0;
 $uniqueFeuerwehren = $uniqueFeuerwehren ?? 0;
 $csrf              = $csrf              ?? '';
+
+// Hilfsfunktion: Sekunden → "M:SS min"
+$fmtDur = function (?int $sek): string {
+    if ($sek === null) return '–';
+    return sprintf('%d:%02d min', intdiv($sek, 60), $sek % 60);
+};
 ob_start();
 
 $extraHead = '
@@ -89,18 +97,37 @@ $overallPct   = $totalGroups > 0 && $totalStations > 0
         </div>
     </div>
 
-    <!-- ── Station-Fortschritt ────────────────────────── -->
+    <!-- ── Station-Fortschritt + Dauer ──────────────────── -->
     <div class="adm_card dash_station-progress">
-        <div class="adm_eyebrow" style="margin-bottom:14px;">Stationsfortschritt</div>
-        <?php foreach ($stationStats as $st): ?>
-        <div style="margin-bottom:12px;">
-            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:4px;">
+        <div class="adm_eyebrow" style="margin-bottom:14px;">Stationsfortschritt &amp; Aufenthaltsdauer</div>
+        <?php foreach ($stationStats as $st):
+            $dur = $stationDurations[(int)$st['id']] ?? null;
+        ?>
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--wt-border);">
+            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:5px;">
                 <span><?= htmlspecialchars($st['code']) ?> · <?= htmlspecialchars($st['name']) ?></span>
                 <span class="adm_mono" style="color:var(--wt-text-muted);font-size:12px;"><?= (int)$st['scored_count'] ?>/<?= $st['total_groups'] ?></span>
             </div>
-            <div class="dash_progress-bar dash_progress-bar--sm">
+            <div class="dash_progress-bar dash_progress-bar--sm" style="margin-bottom:7px;">
                 <div class="dash_progress-bar__fill <?= $st['pct'] === 100 ? 'dash_progress-bar__fill--done' : '' ?>" style="width:<?= $st['pct'] ?>%;"></div>
             </div>
+            <?php if ($dur && $dur['visits'] > 0): ?>
+            <div class="dash_duration-row">
+                <span class="dash_duration-chip" title="Durchschnitt">
+                    <svg width="11" height="11" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M7 4.5V7l1.5 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                    Ø <?= $fmtDur($dur['avg_sek']) ?>
+                </span>
+                <span class="dash_duration-chip dash_duration-chip--muted" title="Minimum">
+                    ↓ <?= $fmtDur($dur['min_sek']) ?>
+                </span>
+                <span class="dash_duration-chip dash_duration-chip--muted" title="Maximum">
+                    ↑ <?= $fmtDur($dur['max_sek']) ?>
+                </span>
+                <span style="font-size:11px;color:var(--wt-text-subtle);margin-left:auto;"><?= $dur['visits'] ?> Besuche</span>
+            </div>
+            <?php else: ?>
+            <div style="font-size:11px;color:var(--wt-text-subtle);">Noch keine Aufenthaltsdaten</div>
+            <?php endif; ?>
         </div>
         <?php endforeach; ?>
         <?php if (empty($stationStats)): ?>
@@ -184,28 +211,67 @@ $overallPct   = $totalGroups > 0 && $totalStations > 0
         <?php endif; ?>
     </div>
 
-    <!-- KBM-Verteilung Chart -->
-    <div class="adm_card" style="flex:2;min-width:0;">
-        <div class="adm_eyebrow" style="margin-bottom:14px;">KBI-Bereich Verteilung</div>
-        <?php if (empty($kbiDistribution)): ?>
-            <div class="adm_table__muted" style="font-size:13px;">Keine Bereichsdaten vorhanden.</div>
-        <?php else: ?>
-        <div style="position:relative;height:220px;">
-            <canvas id="kbiChart"></canvas>
-        </div>
-        <div style="margin-top:16px;display:flex;flex-direction:column;gap:7px;">
-            <?php
-            $chartColors = ['#8B1A1A','#C0392B','#E74C3C','#F39C12','#E67E22','#2C3E50','#7F8C8D','#BDC3C7'];
-            foreach ($kbiDistribution as $i => $row): ?>
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
-                <span style="width:12px;height:12px;border-radius:3px;background:<?= $chartColors[$i % count($chartColors)] ?>;flex-shrink:0;"></span>
-                <span style="flex:1;"><?= htmlspecialchars($row['kbi_bereich']) ?></span>
-                <span class="adm_mono" style="font-weight:700;"><?= (int)$row['group_count'] ?></span>
+    <!-- Charts: KBI + KBM -->
+    <div style="flex:2;min-width:0;display:flex;flex-direction:column;gap:16px;">
+
+        <!-- KBI-Bereich Donut -->
+        <div class="adm_card">
+            <div class="adm_eyebrow" style="margin-bottom:12px;">KBI-Bereich Verteilung</div>
+            <?php if (empty($kbiDistribution)): ?>
+                <div class="adm_table__muted" style="font-size:13px;">Keine Daten vorhanden.</div>
+            <?php else:
+            $chartColors = ['#8B1A1A','#C0392B','#E74C3C','#F39C12','#E67E22','#2C3E50','#7F8C8D','#BDC3C7']; ?>
+            <div style="position:relative;height:180px;">
+                <canvas id="kbiChart"></canvas>
             </div>
-            <?php endforeach; ?>
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+                <?php foreach ($kbiDistribution as $i => $row): ?>
+                <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                    <span style="width:11px;height:11px;border-radius:3px;background:<?= $chartColors[$i % count($chartColors)] ?>;flex-shrink:0;"></span>
+                    <span style="flex:1;"><?= htmlspecialchars($row['kbi_bereich']) ?></span>
+                    <span class="adm_mono" style="font-weight:700;"><?= (int)$row['group_count'] ?></span>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
-    </div>
+
+        <!-- KBM-Bereich Horizontale Balken -->
+        <div class="adm_card">
+            <div class="adm_eyebrow" style="margin-bottom:12px;">KBM-Bereich Verteilung</div>
+            <?php if (empty($kbmDistribution)): ?>
+                <div class="adm_table__muted" style="font-size:13px;">Keine Daten vorhanden.</div>
+            <?php else:
+                $kbmMax = max(array_column($kbmDistribution, 'group_count')) ?: 1;
+                // Farben je KBI-Bereich vergeben
+                $kbiColorMap = [];
+                foreach ($kbmDistribution as $i => $row) {
+                    $kbi = $row['kbi_bereich'];
+                    if (!isset($kbiColorMap[$kbi])) {
+                        $kbiColorMap[$kbi] = $chartColors[count($kbiColorMap) % count($chartColors)];
+                    }
+                }
+            ?>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <?php foreach ($kbmDistribution as $row):
+                    $pct   = (int)round((int)$row['group_count'] / $kbmMax * 100);
+                    $color = $kbiColorMap[$row['kbi_bereich']] ?? '#aaa';
+                ?>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px;">
+                        <span style="font-weight:600;"><?= htmlspecialchars($row['bereich']) ?></span>
+                        <span class="adm_mono" style="color:var(--wt-text-muted);"><?= (int)$row['group_count'] ?></span>
+                    </div>
+                    <div style="background:var(--wt-surface-alt);border-radius:4px;height:7px;overflow:hidden;">
+                        <div style="background:<?= $color ?>;width:<?= $pct ?>%;height:100%;border-radius:4px;"></div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+
+    </div><!-- /Charts -->
 </div>
 
 <?php endif; ?>
