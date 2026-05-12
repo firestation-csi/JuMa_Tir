@@ -15,9 +15,33 @@ $fmtDur = function (?int $sek): string {
     if ($sek < 60) return $sek . 's';
     return sprintf('%d:%02d min', intdiv($sek, 60), $sek % 60);
 };
-$statusIcon  = ['ok' => '✓', 'warn' => '⚠', 'lost' => '✗', 'no_data' => '–'];
-$statusColor = ['ok' => 'var(--wt-ok)', 'warn' => 'var(--wt-warn)', 'lost' => 'var(--wt-red)', 'no_data' => 'var(--wt-text-subtle)'];
-$statusLabel = ['ok' => 'Planmäßig', 'warn' => 'Verzögert', 'lost' => 'Verlaufen?', 'no_data' => 'Keine Daten'];
+$statusIcon  = [
+    'ok'          => '✓',
+    'warn'        => '⚠',
+    'lost'        => '✗',
+    'pending'     => '→',   // Bewertet an A, noch nicht bei B angekommen
+    'scoring'     => '…',   // An A, noch nicht bewertet
+    'not_started' => '○',   // Noch nicht an Startstation
+    'no_data'     => '–',
+];
+$statusColor = [
+    'ok'          => 'var(--wt-ok)',
+    'warn'        => 'var(--wt-warn)',
+    'lost'        => 'var(--wt-red)',
+    'pending'     => '#2980B9',
+    'scoring'     => 'var(--wt-text-muted)',
+    'not_started' => 'var(--wt-text-subtle)',
+    'no_data'     => 'var(--wt-text-subtle)',
+];
+$statusLabel = [
+    'ok'          => 'Planmäßig',
+    'warn'        => 'Verzögert',
+    'lost'        => 'Verlaufen?',
+    'pending'     => 'Unterwegs (bewertet, noch nicht angekommen)',
+    'scoring'     => 'An Station, noch nicht bewertet',
+    'not_started' => 'Noch nicht an Startstation',
+    'no_data'     => 'Keine Daten',
+];
 
 // Abschnitte nach Laufweg gruppieren
 $routesByLaufweg = [];   // laufweg_id (or 0=unzugeordnet) → [routes]
@@ -275,13 +299,25 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
             <div style="font-weight:700;font-size:14px;">Reisezeiten-Analyse</div>
             <div style="font-size:11px;color:var(--wt-text-subtle);margin-top:2px;">Ist- vs. Schätzzeit je Gruppe</div>
         </div>
-        <div style="padding:8px 14px;border-bottom:1px solid var(--wt-border);display:flex;gap:12px;flex-wrap:wrap;">
-            <?php foreach (['ok' => '≤1,5×', 'warn' => '≤3×', 'lost' => '>3×'] as $s => $lbl): ?>
-            <span style="display:flex;align-items:center;gap:4px;font-size:11px;">
+        <div style="padding:8px 14px;border-bottom:1px solid var(--wt-border);display:flex;gap:10px;flex-wrap:wrap;">
+            <?php foreach ([
+                'ok'          => 'Planmäßig',
+                'warn'        => 'Verzögert',
+                'lost'        => 'Verlaufen?',
+                'pending'     => 'Unterwegs',
+                'scoring'     => 'Bewertet',
+                'not_started' => 'Ausstehend',
+            ] as $s => $lbl): ?>
+            <span style="display:flex;align-items:center;gap:3px;font-size:11px;">
                 <b style="color:<?= $statusColor[$s] ?>;"><?= $statusIcon[$s] ?></b>
                 <span style="color:var(--wt-text-muted);"><?= $lbl ?></span>
             </span>
             <?php endforeach; ?>
+        </div>
+
+        <!-- Erklärung wann Daten erscheinen -->
+        <div style="padding:8px 14px;border-bottom:1px solid var(--wt-border);background:var(--wt-surface-alt);font-size:11px;color:var(--wt-text-muted);line-height:1.5;">
+            <strong>Reisezeit</strong> = Bewertung gespeichert (Abgang) → QR-Scan nächste Station (Ankunft)
         </div>
 
         <?php if (empty($analysis)): ?>
@@ -322,18 +358,26 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
                         <?= $seg['est_time_min'] ? '~' . $seg['est_time_min'] . ' min' : '' ?>
                     </span>
                 </div>
-                <?php if (empty($hasData)): ?>
-                <div style="padding:7px 14px;font-size:11px;color:var(--wt-text-subtle);">Keine Daten</div>
-                <?php else: ?>
                 <?php foreach ($seg['groups'] as $g):
-                    if (($g['actual_sek'] ?? 0) <= 0) continue; ?>
+                    $sc = $g['status'];
+                    $hasTime = $g['actual_sek'] !== null && $g['actual_sek'] >= 0;
+                ?>
                 <div class="rte_seg__row">
                     <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">#<?= htmlspecialchars($g['group_num']) ?> <?= htmlspecialchars($g['group_name']) ?></span>
-                    <span class="adm_mono" style="font-size:12px;font-weight:700;color:<?= $statusColor[$g['status']] ?>;flex-shrink:0;"><?= $fmtDur($g['actual_sek']) ?></span>
-                    <span style="font-size:13px;color:<?= $statusColor[$g['status']] ?>;width:14px;text-align:center;flex-shrink:0;" title="<?= $statusLabel[$g['status']] ?>"><?= $statusIcon[$g['status']] ?></span>
+
+                    <?php if ($hasTime): ?>
+                        <span class="adm_mono" style="font-size:12px;font-weight:700;color:<?= $statusColor[$sc] ?>;flex-shrink:0;"><?= $fmtDur($g['actual_sek']) ?></span>
+                    <?php elseif ($sc === 'pending'): ?>
+                        <span style="font-size:11px;color:<?= $statusColor[$sc] ?>;flex-shrink:0;">Abgegangen <?= $g['departed'] ? date('H:i', strtotime($g['departed'])) : '' ?></span>
+                    <?php elseif ($sc === 'scoring'): ?>
+                        <span style="font-size:11px;color:<?= $statusColor[$sc] ?>;flex-shrink:0;">An Stn. <?= htmlspecialchars($seg['from_code']) ?></span>
+                    <?php else: ?>
+                        <span style="font-size:11px;color:<?= $statusColor[$sc] ?>;flex-shrink:0;">–</span>
+                    <?php endif; ?>
+
+                    <span style="font-size:12px;color:<?= $statusColor[$sc] ?>;width:16px;text-align:center;flex-shrink:0;" title="<?= htmlspecialchars($statusLabel[$sc]) ?>"><?= $statusIcon[$sc] ?></span>
                 </div>
                 <?php endforeach; ?>
-                <?php endif; ?>
             </div>
             <?php endforeach; ?>
         </div>

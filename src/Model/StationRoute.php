@@ -84,46 +84,67 @@ class StationRoute
     }
 
     /**
-     * Analyse: tatsächliche Reisezeit (aus group_station_log) vs. Schätzzeit je Gruppe und Streckenabschnitt.
-     * Gibt nur Abschnitte zurück bei denen Daten aus dem Log vorhanden sind.
+     * Analyse: Reisezeit je Gruppe und Abschnitt aus group_station_log.
+     * Zeigt alle Gruppen mit ihrem aktuellen Status (nicht gestartet / unterwegs / abgeschlossen).
+     * Subqueries vermeiden JOIN-Duplikate bei mehreren Log-Einträgen.
      */
     public function getTravelAnalysis(int $competitionId): array
     {
         $stmt = $this->db->prepare(
             'SELECT
-                r.id         AS route_id,
+                r.id          AS route_id,
                 r.sort_order,
                 r.distance_m,
                 r.est_time_min,
                 r.notes,
                 r.laufweg_id,
-                lw.name      AS laufweg_name,
-                lw.color     AS laufweg_color,
-                sf.code      AS from_code,
-                sf.name      AS from_name,
-                st.code      AS to_code,
-                st.name      AS to_name,
-                g.id         AS group_id,
-                g.num        AS group_num,
-                g.name       AS group_name,
-                log_out.checked_out                                               AS departed,
-                log_in.checked_in                                                 AS arrived,
-                TIMESTAMPDIFF(SECOND, log_out.checked_out, log_in.checked_in)    AS actual_sek
+                lw.name       AS laufweg_name,
+                lw.color      AS laufweg_color,
+                sf.code       AS from_code,
+                sf.name       AS from_name,
+                st.code       AS to_code,
+                st.name       AS to_name,
+                g.id          AS group_id,
+                g.num         AS group_num,
+                g.name        AS group_name,
+
+                -- Neuestes Check-out an der Startstation (= Abgang nach Bewertung)
+                (SELECT MAX(lo.checked_out)
+                 FROM group_station_log lo
+                 WHERE lo.station_id = r.from_station_id
+                   AND lo.group_id   = g.id
+                   AND lo.checked_out IS NOT NULL)  AS departed,
+
+                -- Erster Check-in an der Zielstation NACH dem Abgang
+                (SELECT MIN(li.checked_in)
+                 FROM group_station_log li
+                 WHERE li.station_id = r.to_station_id
+                   AND li.group_id   = g.id
+                   AND li.checked_in >= COALESCE(
+                       (SELECT MAX(lo2.checked_out)
+                        FROM group_station_log lo2
+                        WHERE lo2.station_id = r.from_station_id
+                          AND lo2.group_id   = g.id
+                          AND lo2.checked_out IS NOT NULL),
+                       NOW()
+                   ))  AS arrived,
+
+                -- War die Gruppe überhaupt an der Startstation?
+                (SELECT COUNT(*) FROM group_station_log lc
+                 WHERE lc.station_id = r.from_station_id
+                   AND lc.group_id   = g.id) AS visited_from,
+
+                -- Wurde die Gruppe an der Startstation bewertet (checkout vorhanden)?
+                (SELECT COUNT(*) FROM group_station_log lc
+                 WHERE lc.station_id = r.from_station_id
+                   AND lc.group_id   = g.id
+                   AND lc.checked_out IS NOT NULL) AS scored_from
+
              FROM station_routes r
-             JOIN stations sf  ON sf.id = r.from_station_id
-             JOIN stations st  ON st.id = r.to_station_id
+             JOIN stations sf ON sf.id = r.from_station_id
+             JOIN stations st ON st.id = r.to_station_id
              LEFT JOIN laufwege lw ON lw.id = r.laufweg_id
-             JOIN `groups` g   ON g.competition_id = r.competition_id AND g.active = 1
-             -- letztes Check-out an der Startstation dieser Gruppe
-             LEFT JOIN group_station_log log_out
-                ON  log_out.station_id = r.from_station_id
-                AND log_out.group_id   = g.id
-                AND log_out.checked_out IS NOT NULL
-             -- erstes Check-in an der Zielstation nach dem Abgang
-             LEFT JOIN group_station_log log_in
-                ON  log_in.station_id = r.to_station_id
-                AND log_in.group_id   = g.id
-                AND (log_out.checked_out IS NULL OR log_in.checked_in >= log_out.checked_out)
+             JOIN `groups` g  ON g.competition_id = r.competition_id AND g.active = 1
              WHERE r.competition_id = :comp
              ORDER BY r.sort_order, g.num'
         );
@@ -151,25 +172,40 @@ class StationRoute
                     'groups'       => [],
                 ];
             }
-            $actualSek = $row['actual_sek'] !== null ? (int)$row['actual_sek'] : null;
-            $estSek    = $row['est_time_min'] ? (int)$row['est_time_min'] * 60 : null;
+            $actualSek   = $row['departed'] && $row['arrived']
+                ? max(0, (int)(strtotime($row['arrived']) - strtotime($row['departed'])))
+                : null;
+            $estSek      = $row['est_time_min'] ? (int)$row['est_time_min'] * 60 : null;
+            $visitedFrom = (int)$row['visited_from'] > 0;
+            $scoredFrom  = (int)$row['scored_from']  > 0;
 
-            $status = 'no_data';
-            if ($actualSek !== null && $actualSek > 0 && $estSek) {
-                $ratio = $actualSek / $estSek;
-                $status = $ratio <= 1.5 ? 'ok' : ($ratio <= 3.0 ? 'warn' : 'lost');
-            } elseif ($actualSek !== null && $actualSek > 0) {
-                $status = 'ok'; // Keine Schätzzeit → kein Vergleich möglich
+            // Status-Hierarchie:
+            if ($actualSek !== null && $actualSek >= 0) {
+                // Reisezeit vollständig berechnet
+                if ($estSek) {
+                    $ratio  = $actualSek / max(1, $estSek);
+                    $status = $ratio <= 1.5 ? 'ok' : ($ratio <= 3.0 ? 'warn' : 'lost');
+                } else {
+                    $status = 'ok'; // keine Schätzzeit → kein Vergleich
+                }
+            } elseif ($scoredFrom) {
+                $status = 'pending';   // Bewertet an A, noch nicht angekommen an B
+            } elseif ($visitedFrom) {
+                $status = 'scoring';   // An A angekommen, noch nicht bewertet
+            } else {
+                $status = 'not_started'; // Noch nicht an A
             }
 
             $grouped[$rid]['groups'][] = [
-                'group_id'   => (int)$row['group_id'],
-                'group_num'  => $row['group_num'],
-                'group_name' => $row['group_name'],
-                'departed'   => $row['departed'],
-                'arrived'    => $row['arrived'],
-                'actual_sek' => $actualSek,
-                'status'     => $status,
+                'group_id'    => (int)$row['group_id'],
+                'group_num'   => $row['group_num'],
+                'group_name'  => $row['group_name'],
+                'departed'    => $row['departed'],
+                'arrived'     => $row['arrived'],
+                'actual_sek'  => $actualSek,
+                'visited_from'=> $visitedFrom,
+                'scored_from' => $scoredFrom,
+                'status'      => $status,
             ];
         }
         return array_values($grouped);
