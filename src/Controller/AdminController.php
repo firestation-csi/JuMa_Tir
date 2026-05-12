@@ -99,14 +99,16 @@ class AdminController
     {
         $this->requireAdmin();
 
-        $competition = $this->competitionModel->findActive();
-        $scoreModel  = new \App\Model\Score();
+        $competition  = $this->getSelectedCompetition();
+        $competitions = $this->competitionModel->findAll();
+        $scoreModel   = new \App\Model\Score();
 
         if (!$competition) {
             Response::view('pages/admin/dashboard', [
-                'title'       => 'Wertungsbüro',
-                'competition' => null,
-                'csrf'        => Auth::getCsrfToken(),
+                'title'        => 'Wertungsbüro',
+                'competition'  => null,
+                'competitions' => $competitions,
+                'csrf'         => Auth::getCsrfToken(),
             ]);
         }
 
@@ -130,6 +132,7 @@ class AdminController
         Response::view('pages/admin/dashboard', [
             'title'            => 'Wertungsbüro',
             'competition'      => $competition,
+            'competitions'     => $competitions,
             'stationStats'     => $stationStats,
             'kbiDistribution'  => $kbiDistribution,
             'ranking'          => $ranking,
@@ -148,17 +151,21 @@ class AdminController
     {
         $this->requireAdmin();
 
-        $competition = $this->competitionModel->findActive();
+        $competition  = $this->getSelectedCompetition();
+        $competitions = $this->competitionModel->findAll();
 
         if (!$competition) {
             Response::view('pages/admin/results', [
                 'title'        => 'Ergebnisse',
                 'competition'  => null,
+                'competitions' => $competitions,
                 'ranking'      => [],
                 'stationScores'=> [],
                 'recentScores' => [],
                 'matrix'       => [],
                 'stations'     => [],
+                'totalStations'=> 0,
+                'csrf'         => Auth::getCsrfToken(),
             ]);
         }
 
@@ -184,6 +191,7 @@ class AdminController
         Response::view('pages/admin/results', [
             'title'        => 'Ergebnisse – ' . $competition['name'],
             'competition'  => $competition,
+            'competitions' => $competitions,
             'ranking'      => $ranking,
             'stationScores'=> $stationScores,
             'recentScores' => $recentScores,
@@ -231,6 +239,41 @@ class AdminController
             'judges'      => $judges,
             'groups'      => $groups,
         ]);
+    }
+
+    /** Wettbewerb aus Session laden — Fallback auf ersten aktiven */
+    private function getSelectedCompetition(): ?array
+    {
+        $sessionId = Auth::getCompetitionId();
+        if ($sessionId) {
+            $comp = $this->competitionModel->findById($sessionId);
+            if ($comp) return $comp;
+        }
+        $comp = $this->competitionModel->findActive();
+        if ($comp) {
+            Auth::setCompetitionId((int)$comp['id']);
+        }
+        return $comp;
+    }
+
+    /** POST: Wettbewerb in Session wechseln */
+    public function selectCompetition(): void
+    {
+        $this->requireAdmin();
+        if (!Auth::validateCsrf((string)$this->request->post('csrf_token', ''))) {
+            Response::error('Ungültiges CSRF-Token', 403);
+        }
+        $id = (int)$this->request->post('competition_id', 0);
+        if ($id > 0) {
+            $comp = $this->competitionModel->findById($id);
+            if ($comp) {
+                Auth::setCompetitionId($id);
+            }
+        }
+        $redirect = trim((string)$this->request->post('redirect', '/admin'));
+        // Nur interne Weiterleitungen erlauben
+        if (!str_starts_with($redirect, '/')) $redirect = '/admin';
+        Response::redirect($redirect);
     }
 
     private function requireAdmin(): void

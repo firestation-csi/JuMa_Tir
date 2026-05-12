@@ -69,6 +69,12 @@ class Auth
         return isset($_SESSION['competition_id']) ? (int)$_SESSION['competition_id'] : null;
     }
 
+    /** Ausgewählten Wettbewerb in Session setzen */
+    public static function setCompetitionId(int $id): void
+    {
+        $_SESSION['competition_id'] = $id;
+    }
+
     /** Admin-User-ID (null = .env-Admin) */
     public static function getAdminUserId(): ?int
     {

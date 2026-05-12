@@ -1,6 +1,6 @@
 <?php
-// Variablen-Defaults (werden vom View-System per extract() befüllt)
 $competition       = $competition       ?? null;
+$competitions      = $competitions      ?? [];
 $stationStats      = $stationStats      ?? [];
 $kbiDistribution   = $kbiDistribution   ?? [];
 $ranking           = $ranking           ?? [];
@@ -10,6 +10,7 @@ $totalStations     = $totalStations     ?? 0;
 $totalScores       = $totalScores       ?? 0;
 $completedGroups   = $completedGroups   ?? 0;
 $uniqueFeuerwehren = $uniqueFeuerwehren ?? 0;
+$csrf              = $csrf              ?? '';
 ob_start();
 
 $extraHead = '
@@ -19,6 +20,13 @@ $extraScripts = '
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 ';
+
+// Selector immer anzeigen wenn Wettbewerbe vorhanden
+if (!empty($competitions)): ?>
+<div style="margin-bottom:20px;">
+    <?php $redirectUrl = '/admin'; include dirname(__DIR__, 2) . '/partials/admin/competition-selector.php'; ?>
+</div>
+<?php endif;
 
 if (!$competition): ?>
 <div class="adm_empty">

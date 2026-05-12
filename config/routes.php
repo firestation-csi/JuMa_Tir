@@ -49,6 +49,7 @@ return [
         '/admin/messages/{stationId}/send'=> ['App\Controller\AdminMessageController', 'send'],
         '/admin/login'                   => ['App\Controller\AdminController', 'login'],
         '/admin/logout'                  => ['App\Controller\AdminController', 'logout'],
+        '/admin/competition/select'      => ['App\Controller\AdminController', 'selectCompetition'],
         '/admin/competitions'            => ['App\Controller\AdminCompetitionController', 'store'],
         '/admin/competitions/{id}/edit'  => ['App\Controller\AdminCompetitionController', 'update'],
         '/admin/competitions/{id}/delete'=> ['App\Controller\AdminCompetitionController', 'delete'],

@@ -1,11 +1,13 @@
 <?php
 $competition   = $competition   ?? null;
+$competitions  = $competitions  ?? [];
 $ranking       = $ranking       ?? [];
 $stationScores = $stationScores ?? [];
 $recentScores  = $recentScores  ?? [];
 $matrix        = $matrix        ?? [];
 $stations      = $stations      ?? [];
 $totalStations = $totalStations ?? 0;
+$csrf          = $csrf          ?? '';
 
 ob_start();
 
@@ -15,6 +17,12 @@ $impColor = ['sehr_gut' => 'var(--wt-ok)', 'gut' => 'var(--wt-text-muted)', 'bef
 
 $extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>';
 ?>
+
+<?php if (!empty($competitions)): ?>
+<div style="margin-bottom:20px;">
+    <?php $redirectUrl = '/admin/results'; include dirname(__DIR__, 2) . '/partials/admin/competition-selector.php'; ?>
+</div>
+<?php endif; ?>
 
 <?php if (!$competition): ?>
 <div class="adm_empty">
