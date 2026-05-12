@@ -22,7 +22,6 @@
             <li><a href="/admin/stations" class="adm_nav__link">Stationen</a></li>
             <li><a href="/admin/groups" class="adm_nav__link">Gruppen</a></li>
             <li><a href="/admin/results" class="adm_nav__link">Ergebnisse</a></li>
-            <li><a href="/admin/qrcodes" class="adm_nav__link">QR-Codes</a></li>
             <li>
                 <a href="/admin/messages" class="adm_nav__link">
                     Nachrichten

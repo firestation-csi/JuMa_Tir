@@ -57,6 +57,13 @@ ob_start();
                         <td class="adm_table__actions">
                             <a href="/admin/groups/<?= (int)$g['id'] ?>/members"
                                class="adm_btn adm_btn--sm adm_btn--ghost">Mitglieder</a>
+                            <a href="/admin/print/qr/group/<?= (int)$g['id'] ?>"
+                               class="adm_btn adm_btn--sm adm_btn--ghost"
+                               onclick="window.open(this.href,'_blank','width=680,height=540,resizable=yes'); return false;"
+                               title="QR-Code drucken">
+                                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="7" rx="1.2" stroke="currentColor" stroke-width="1.4"/><path d="M4 5V3h8v2M4 12H2v-5h12v5h-2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="5" y="8.5" width="6" height="1.2" rx=".6" fill="currentColor"/></svg>
+                                Drucken
+                            </a>
                             <a href="/admin/groups/<?= (int)$g['id'] ?>/edit"
                                class="adm_btn adm_btn--sm adm_btn--ghost">Bearbeiten</a>
                             <form method="POST" action="/admin/groups/<?= (int)$g['id'] ?>/delete"
