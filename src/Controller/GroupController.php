@@ -47,6 +47,11 @@ class GroupController
         }
         $existing = $this->scoreModel->findExistingAtStation((int)$group['id'], $stationId);
 
+        // Check-in protokollieren (nur wenn noch keine Bewertung vorliegt)
+        if (!$existing) {
+            $this->groupModel->checkIn((int)$group['id'], $stationId);
+        }
+
         $members = $this->groupModel->getMembers((int)$group['id']);
 
         Response::json([

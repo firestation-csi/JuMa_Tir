@@ -127,6 +127,42 @@ class Group
         $stmt->execute([$id]);
     }
 
+    /** Check-in ins Stationsprotokoll eintragen */
+    public function checkIn(int $groupId, int $stationId): int
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO group_station_log (group_id, station_id, checked_in)
+             VALUES (:group_id, :station_id, NOW())'
+        );
+        $stmt->execute([':group_id' => $groupId, ':station_id' => $stationId]);
+        return (int)$this->db->lastInsertId();
+    }
+
+    /** Log-Eintrag entfernen wenn Bewertung gelöscht wird */
+    public function removeLog(int $groupId, int $stationId): void
+    {
+        $stmt = $this->db->prepare(
+            'DELETE FROM group_station_log
+             WHERE group_id = :group_id AND station_id = :station_id
+             ORDER BY checked_in DESC
+             LIMIT 1'
+        );
+        $stmt->execute([':group_id' => $groupId, ':station_id' => $stationId]);
+    }
+
+    /** Check-out: offenen Eintrag für diese Gruppe+Station abschließen */
+    public function checkOut(int $groupId, int $stationId): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE group_station_log
+             SET checked_out = NOW()
+             WHERE group_id = :group_id AND station_id = :station_id AND checked_out IS NULL
+             ORDER BY checked_in DESC
+             LIMIT 1'
+        );
+        $stmt->execute([':group_id' => $groupId, ':station_id' => $stationId]);
+    }
+
     /** Letzte Station aktualisieren (wird von der App beim Check-in gesetzt) */
     public function updateLastStation(int $groupId, int $stationId): void
     {

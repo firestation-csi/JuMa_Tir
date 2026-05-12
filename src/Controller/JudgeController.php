@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
+use App\Model\Group;
 use App\Model\Judge;
 use App\Model\Message;
 use App\Model\Score;
@@ -16,6 +17,7 @@ use App\Service\SyncService;
 
 class JudgeController
 {
+    private Group       $groupModel;
     private Judge       $judgeModel;
     private Score       $scoreModel;
     private Station     $stationModel;
@@ -24,6 +26,7 @@ class JudgeController
 
     public function __construct(private Request $request)
     {
+        $this->groupModel   = new Group();
         $this->judgeModel   = new Judge();
         $this->scoreModel   = new Score();
         $this->stationModel = new Station();
@@ -248,6 +251,9 @@ class JudgeController
             $taskResults, $impression, $totalFp, $timeMs, $notes
         );
 
+        // Check-out protokollieren
+        $this->groupModel->checkOut($groupId, $stationId);
+
         Response::json(['score_id' => $scoreId, 'total_fp' => $totalFp]);
     }
 
@@ -268,6 +274,7 @@ class JudgeController
         }
 
         $this->scoreModel->delete((int)$scoreId);
+        $this->groupModel->removeLog((int)$score['group_id'], (int)$score['station_id']);
         Response::json(['success' => true]);
     }
 
