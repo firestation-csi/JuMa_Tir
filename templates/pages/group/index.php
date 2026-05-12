@@ -42,6 +42,28 @@
 /* Tracking-Button */
 .gi_tracking-btn { transition: background .2s; }
 .gi_tracking-btn--active { background: var(--wt-ok) !important; color: #fff !important; }
+
+/* Toast-Benachrichtigung */
+.gi_toast {
+    position: fixed;
+    bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    z-index: 9999;
+    background: var(--wt-ok);
+    color: #fff;
+    font-size: 14px; font-weight: 700;
+    padding: 12px 22px;
+    border-radius: var(--wt-r-pill);
+    box-shadow: var(--wt-shadow-lg);
+    white-space: nowrap;
+    opacity: 0;
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .25s;
+    pointer-events: none;
+}
+.gi_toast--show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* Karte bei Update kurz aufleuchten */
+@keyframes gi-flash { 0%,100%{opacity:1} 50%{opacity:.4} }
+.gi_map--flash { animation: gi-flash .6s ease; }
 </style>
 
 <!-- Sticky Header -->
@@ -151,18 +173,23 @@
     </div>
 </main>
 
+<div class="gi_toast" id="gi-toast"></div>
+
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 'use strict';
 
-let scanner       = null;
-let groupToken    = null;
-let mapInstance   = null;
-let gpsWatchId    = null;
-let gpsMarker     = null;
-let trackingTimer = null;
-let lastGpsPos    = null;
-let trackingOn    = false;
+let scanner          = null;
+let groupToken       = null;
+let mapInstance      = null;
+let gpsWatchId       = null;
+let gpsMarker        = null;
+let trackingTimer    = null;
+let lastGpsPos       = null;
+let trackingOn       = false;
+let pollTimer        = null;
+let lastCheckedOut   = null;  // checked_out der letzten Station beim letzten Poll
+let lastStationId    = null;  // station_id der letzten Station beim letzten Poll
 
 // ── Formatierung ──────────────────────────────────────
 const fmtDist = m => !m ? '–' : m >= 1000 ? (m/1000).toFixed(1)+' km' : m+' m';
@@ -223,6 +250,7 @@ function resetScanner() {
     if (mapInstance) { mapInstance.remove(); mapInstance = null; }
     stopGps();
     stopTracking();
+    stopPolling();
     document.getElementById('gi-result').style.display      = 'none';
     document.getElementById('gi-scanner-card').style.display = 'block';
     document.getElementById('gi-scan-error').style.display   = 'none';
@@ -273,6 +301,11 @@ function renderResult(data) {
         document.getElementById('gi-map-card').style.display = 'block';
         setTimeout(() => renderMap(data), 150);
     }
+
+    // Polling-Startzustand merken + Intervall starten
+    lastCheckedOut = data.last_station?.checked_out ?? null;
+    lastStationId  = data.last_station?.id          ?? null;
+    startPolling();
 }
 
 function updateDistDisplay(covered, remaining, total) {
@@ -549,6 +582,91 @@ async function sendHelp() {
         btn.disabled = false; btn.textContent = '🆘 Hilfe anfordern';
         alert('Verbindungsfehler');
     }
+}
+
+// ── Polling: Station-Status überwachen ───────────────
+function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(pollStatus, 15000);
+}
+
+function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+async function pollStatus() {
+    if (!groupToken) return;
+    try {
+        const res  = await fetch('/api/group/info', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ token: groupToken }),
+        });
+        const json = await res.json();
+        if (!json.success) return;
+        const data = json.data;
+
+        const newCheckout   = data.last_station?.checked_out ?? null;
+        const newStationId  = data.last_station?.id          ?? null;
+
+        // Fall 1: Bewertung abgeschlossen (checked_out gesetzt) → Navigation aktualisieren
+        if (newCheckout && !lastCheckedOut && newStationId === lastStationId) {
+            lastCheckedOut = newCheckout;
+            onStationCompleted(data);
+            return;
+        }
+
+        // Fall 2: Gruppe ist bereits an nächster Station angekommen (neue station_id)
+        if (newStationId !== lastStationId && newStationId !== null) {
+            lastStationId  = newStationId;
+            lastCheckedOut = newCheckout;
+            onStationChanged(data);
+        }
+    } catch {}
+}
+
+function onStationCompleted(data) {
+    showToast('✓ Station abgeschlossen — Navigation wird aktualisiert');
+    updateNavigation(data);
+}
+
+function onStationChanged(data) {
+    showToast('📍 Neue Station erkannt');
+    updateNavigation(data);
+}
+
+function updateNavigation(data) {
+    // Streckenverlauf aktualisieren
+    updateDistDisplay(data.covered_m, data.remaining_m, data.total_m);
+    if (data.all_segments?.length) calcOsrmDistances(data);
+
+    // Stationsliste neu rendern
+    renderStations(data);
+
+    // Karte: aufleuchten + neu zeichnen wenn neue Next-Station vorhanden
+    const mapCard = document.getElementById('gi-map-card');
+    if (data.next_station?.lat) {
+        mapCard.style.display = 'block';
+        const mapEl = document.getElementById('gi-map');
+        mapEl.classList.remove('gi_map--flash');
+        // Reflow erzwingen damit Animation neu startet
+        void mapEl.offsetWidth;
+        mapEl.classList.add('gi_map--flash');
+        setTimeout(() => renderMap(data), 300);
+    } else if (!data.next_station) {
+        // Alle Stationen absolviert
+        mapCard.style.display = 'none';
+        showToast('🏁 Alle Stationen abgeschlossen!');
+        stopPolling();
+    }
+}
+
+// ── Toast ─────────────────────────────────────────────
+function showToast(msg) {
+    const el = document.getElementById('gi-toast');
+    el.textContent = msg;
+    el.classList.add('gi_toast--show');
+    setTimeout(() => el.classList.remove('gi_toast--show'), 3500);
 }
 
 startScanner();
