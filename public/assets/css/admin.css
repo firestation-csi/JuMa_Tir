@@ -598,3 +598,84 @@
     .adm_msg-bubble { max-width: 88%; }
     .adm_msg-form-actions { flex-direction: column; align-items: stretch; }
 }
+
+/* ---- Login-Seite ---- */
+.adm_login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wt-surface-alt, #f5f3f0);
+    padding: 24px 16px;
+}
+
+.adm_login-card {
+    background: var(--wt-surface, #fff);
+    border: 1px solid var(--wt-border, #e5e3df);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.10);
+    padding: 36px 36px 32px;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.adm_login-logo {
+    text-align: center;
+}
+.adm_login-logo img {
+    max-width: 280px;
+    width: 100%;
+    height: auto;
+}
+
+.adm_login-divider {
+    height: 1px;
+    background: var(--wt-border, #e5e3df);
+    margin: 0 -4px;
+}
+
+.adm_login-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.adm_login-title__main {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--wt-text, #1a1a1a);
+    letter-spacing: -.02em;
+}
+.adm_login-title__sub {
+    font-size: 12.5px;
+    color: var(--wt-text-muted, #888);
+    font-weight: 500;
+}
+
+.adm_login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.adm_input-icon-wrap {
+    position: relative;
+}
+.adm_input-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--wt-text-muted, #aaa);
+    pointer-events: none;
+}
+.adm_input--icon {
+    padding-left: 40px;
+}
+
+@media (max-width: 440px) {
+    .adm_login-card { padding: 28px 20px 24px; }
+    .adm_login-logo img { max-width: 220px; }
+}

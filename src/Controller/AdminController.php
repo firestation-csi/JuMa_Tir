@@ -39,19 +39,25 @@ class AdminController
         if (Auth::isAdmin()) {
             Response::redirect('/admin');
         }
-        Response::view('pages/admin/login', ['title' => 'Admin-Login']);
+        Response::view('pages/admin/login', ['title' => 'Admin-Login', 'extraCss' => 'admin']);
     }
 
     /** Login verarbeiten */
     public function login(): void
     {
-        $password = $this->request->post('password', '');
-        $adminPw  = $_ENV['ADMIN_PASSWORD'] ?? '';
+        $username = trim((string)$this->request->post('username', ''));
+        $password = (string)$this->request->post('password', '');
+        $adminUser = $_ENV['ADMIN_USER']     ?? 'admin';
+        $adminPw   = $_ENV['ADMIN_PASSWORD'] ?? '';
 
-        if (empty($adminPw) || !hash_equals($adminPw, (string)$password)) {
+        $userOk = hash_equals($adminUser, $username);
+        $passOk = !empty($adminPw) && hash_equals($adminPw, $password);
+
+        if (!$userOk || !$passOk) {
             Response::view('pages/admin/login', [
-                'title' => 'Admin-Login',
-                'error' => 'Falsches Passwort.',
+                'title'    => 'Admin-Login',
+                'extraCss' => 'admin',
+                'error'    => 'Benutzername oder Passwort falsch.',
             ]);
         }
 
