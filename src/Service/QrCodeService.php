@@ -10,7 +10,8 @@ use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
 
 /**
- * Generiert QR-Codes als PNG-Datei oder Data-URL (endroid/qr-code v5/v6 API)
+ * Generiert QR-Codes als PNG-Datei oder Data-URL.
+ * Kompatibel mit endroid/qr-code ^6.x (kein Builder::create(), sondern new Builder()).
  */
 class QrCodeService
 {
@@ -38,7 +39,7 @@ class QrCodeService
 
     private function build(string $content): \Endroid\QrCode\Writer\Result\ResultInterface
     {
-        return Builder::create()
+        return (new Builder())
             ->writer(new PngWriter())
             ->data($content)
             ->encoding(new Encoding('UTF-8'))
