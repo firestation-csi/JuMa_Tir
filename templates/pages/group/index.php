@@ -1,84 +1,112 @@
-<?php
-ob_start();
-?>
-<div class="gi_main" id="gi-app">
+<?php ob_start(); ?>
 
-    <!-- ── QR-Scanner-Bereich ─────────────────────────── -->
-    <div class="gi_card" id="gi-scanner-card">
-        <div class="gi_card__head">QR-Code scannen</div>
-        <div class="gi_card__body">
-            <p class="gi_hint" style="margin-bottom:12px;">Scannt euren Gruppen-QR-Code ein.</p>
+<style>
+/* Gruppeninfo-spezifische Ergänzungen — nur was wt_ nicht abdeckt */
+.gi_scanner-wrap { border-radius: var(--wt-r-lg); overflow: hidden; background: #000; }
+#gi-qr-reader video { border-radius: 0 !important; }
+
+.gi_map { height: 260px; }
+
+.gi_dist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gi_dist-card { text-align: center; padding: 14px; }
+.gi_dist-val  { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 800; }
+.gi_dist-lbl  { font-size: 11px; color: var(--wt-text-subtle); margin-top: 3px; }
+
+.gi_bar-track { height: 8px; background: var(--wt-border-strong); border-radius: var(--wt-r-pill); overflow: hidden; margin-top: 10px; }
+.gi_bar-fill  { height: 100%; border-radius: var(--wt-r-pill); background: var(--wt-ok); transition: width .4s; }
+
+.gi_stn-dot {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 800;
+}
+</style>
+
+<!-- Header -->
+<div class="wt_top-header">
+    <span style="font-size:20px;font-weight:900;letter-spacing:-1px;color:var(--wt-red);">JuMa</span>
+    <span class="wt_eyebrow">Gruppeninfo</span>
+    <div style="width:60px;"></div>
+</div>
+
+<div class="wt_scroll wt_scroll--no-tabbar" style="padding:16px;display:flex;flex-direction:column;gap:14px;" id="gi-app">
+
+    <!-- QR-Scanner -->
+    <div class="wt_card" id="gi-scanner-card">
+        <div style="padding:12px 16px 0;" class="wt_eyebrow">QR-Code scannen</div>
+        <div style="padding:12px 16px 16px;">
+            <p class="wt_caption" style="margin-bottom:12px;text-align:center;">
+                Scannt euren Gruppen-QR-Code ein.
+            </p>
             <div class="gi_scanner-wrap">
                 <div id="gi-qr-reader"></div>
             </div>
-            <div id="gi-scan-error" class="gi_error" style="display:none;margin-top:10px;"></div>
+            <div id="gi-scan-error" class="wt_alert wt_alert--error" style="display:none;margin-top:12px;"></div>
         </div>
     </div>
 
-    <!-- ── Ergebnis-Bereich (initial versteckt) ──────── -->
-    <div id="gi-result" style="display:none;">
+    <!-- Ergebnis (initial versteckt) -->
+    <div id="gi-result" style="display:none;display:flex;flex-direction:column;gap:14px;">
 
         <!-- Gruppe -->
-        <div class="gi_card">
-            <div class="gi_card__body" style="display:flex;align-items:center;gap:12px;">
+        <div class="wt_card">
+            <div class="wt_row">
                 <div style="flex:1;">
-                    <div class="gi_group-name" id="gi-group-name"></div>
-                    <div class="gi_group-num"  id="gi-group-num"></div>
-                    <div id="gi-lw-badge" class="gi_lw-badge" style="display:none;"></div>
+                    <div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;" id="gi-group-name"></div>
+                    <div class="wt_caption" id="gi-group-num" style="margin-top:2px;"></div>
+                    <div id="gi-lw-badge" class="wt_badge" style="display:none;margin-top:8px;"></div>
                 </div>
-                <button class="gi_btn gi_btn--ghost" style="width:auto;padding:8px 14px;font-size:13px;"
-                        onclick="resetScanner()">↩ Neu</button>
+                <button class="wt_btn wt_btn--ghost wt_btn--sm" onclick="resetScanner()">↩ Neu</button>
             </div>
         </div>
 
-        <!-- Distanz-Karten -->
-        <div id="gi-dist-section" class="gi_card" style="display:none;">
-            <div class="gi_card__head">Streckenverlauf</div>
-            <div class="gi_card__body">
-                <div class="gi_dist-row">
-                    <div class="gi_dist-card">
-                        <div class="gi_dist-card__val" id="gi-covered" style="color:var(--c-ok);">–</div>
-                        <div class="gi_dist-card__lbl">Zurückgelegt</div>
+        <!-- Strecke -->
+        <div class="wt_card" id="gi-dist-section" style="display:none;">
+            <div style="padding:12px 16px 0;" class="wt_eyebrow">Streckenverlauf</div>
+            <div style="padding:12px 16px 16px;">
+                <div class="gi_dist-grid">
+                    <div class="wt_card gi_dist-card">
+                        <div class="gi_dist-val" id="gi-covered" style="color:var(--wt-ok);">–</div>
+                        <div class="gi_dist-lbl">Zurückgelegt</div>
                     </div>
-                    <div class="gi_dist-card">
-                        <div class="gi_dist-card__val" id="gi-remaining" style="color:var(--c-warn);">–</div>
-                        <div class="gi_dist-card__lbl">Noch offen</div>
+                    <div class="wt_card gi_dist-card">
+                        <div class="gi_dist-val" id="gi-remaining" style="color:var(--wt-warn);">–</div>
+                        <div class="gi_dist-lbl">Noch offen</div>
                     </div>
                 </div>
-                <div class="gi_progress" style="margin-top:12px;">
-                    <div class="gi_progress__bar" id="gi-progress-bar"
-                         style="background:var(--c-ok);width:0%;"></div>
+                <div class="gi_bar-track">
+                    <div class="gi_bar-fill" id="gi-progress-bar" style="width:0%;"></div>
                 </div>
-                <div id="gi-progress-lbl" style="font-size:11px;color:var(--c-muted);text-align:right;margin-top:4px;"></div>
+                <div class="wt_caption" id="gi-progress-lbl" style="text-align:right;margin-top:4px;"></div>
             </div>
         </div>
 
-        <!-- Karte mit Navigation -->
-        <div class="gi_card" id="gi-map-card" style="display:none;">
-            <div class="gi_card__head">Navigation zur nächsten Station</div>
-            <div id="gi-map"></div>
-            <div id="gi-nav-info" style="padding:10px 16px;font-size:13px;color:var(--c-muted);border-top:1px solid var(--c-border);"></div>
+        <!-- Karte / Navigation -->
+        <div class="wt_card" id="gi-map-card" style="display:none;overflow:hidden;">
+            <div style="padding:12px 16px;" class="wt_eyebrow">Navigation zur nächsten Station</div>
+            <div id="gi-map" class="gi_map"></div>
+            <div id="gi-nav-info" class="wt_caption" style="padding:10px 16px;border-top:1px solid var(--wt-border);"></div>
         </div>
 
-        <!-- Stationsliste -->
-        <div class="gi_card">
-            <div class="gi_card__head">Stationen</div>
-            <div class="gi_card__body" id="gi-stations-list">
-                <div class="gi_hint">Keine Daten</div>
-            </div>
+        <!-- Stationen -->
+        <div class="wt_card">
+            <div style="padding:12px 16px 0;" class="wt_eyebrow">Stationen</div>
+            <div id="gi-stations-list"></div>
         </div>
 
         <!-- Hilfe anfordern -->
-        <div class="gi_card">
-            <div class="gi_card__head">Hilfe anfordern</div>
-            <div class="gi_card__body">
-                <textarea class="gi_help-input" id="gi-help-msg"
-                          placeholder="Optionale Nachricht (z.B. Standort, Art des Problems)…"></textarea>
-                <button class="gi_btn gi_btn--help" id="gi-help-btn" onclick="sendHelp()">
+        <div class="wt_card">
+            <div style="padding:12px 16px 0;" class="wt_eyebrow">Hilfe anfordern</div>
+            <div style="padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px;">
+                <textarea class="wt_textarea" id="gi-help-msg" rows="2"
+                          placeholder="Optionale Nachricht (Standort, Art des Problems…)"></textarea>
+                <button class="wt_btn wt_btn--block" id="gi-help-btn"
+                        onclick="sendHelp()"
+                        style="background:var(--wt-warn);color:#fff;">
                     🆘 Hilfe anfordern
                 </button>
-                <div id="gi-help-result" style="display:none;" class="gi_sent">
-                    ✓ Hilfe wurde angefordert. Ein Betreuer wird sich kümmern.
+                <div id="gi-help-result" class="wt_alert wt_alert--success" style="display:none;">
+                    ✓ Hilfe wurde angefordert. Ein Betreuer kommt zu euch.
                 </div>
             </div>
         </div>
@@ -91,8 +119,8 @@ ob_start();
 <script>
 'use strict';
 
-let scanner    = null;
-let groupToken = null;
+let scanner     = null;
+let groupToken  = null;
 let mapInstance = null;
 
 // ── Hilfsfunktionen ───────────────────────────────────
@@ -100,17 +128,13 @@ function fmtDist(m) {
     if (!m) return '–';
     return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : m + ' m';
 }
-function fmtTime(t) {
-    if (!t) return '';
-    return 'ca. ' + t + ' min';
-}
+function fmtTime(t) { return t ? 'ca. ' + t + ' min' : ''; }
 function fmtTs(ts) {
     if (!ts) return '';
-    const d = new Date(ts.replace(' ', 'T'));
-    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return new Date(ts.replace(' ', 'T')).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 }
 
-// ── Scanner starten ───────────────────────────────────
+// ── Scanner ───────────────────────────────────────────
 function startScanner() {
     scanner = new Html5Qrcode('gi-qr-reader');
     scanner.start(
@@ -119,27 +143,29 @@ function startScanner() {
         onScanSuccess,
         () => {}
     ).catch(err => {
-        document.getElementById('gi-scan-error').textContent = 'Kamera nicht verfügbar: ' + err;
-        document.getElementById('gi-scan-error').style.display = 'block';
+        showScanError('Kamera nicht verfügbar: ' + err);
     });
 }
 
 async function onScanSuccess(raw) {
-    // QR enthält Token oder URL mit ?token=
+    // Kamera sofort stoppen
+    try { await scanner.stop(); } catch {}
+    try { scanner.clear(); } catch {}
+    scanner = null;
+
+    // Token aus URL oder rohem Wert extrahieren
     let token = raw;
     try {
-        const url = new URL(raw);
-        token = url.searchParams.get('token') || raw;
+        const u = new URL(raw);
+        token = u.searchParams.get('token') || raw;
     } catch {}
 
-    await scanner.stop();
-    loadGroupInfo(token);
+    loadGroupInfo(token.trim());
 }
 
 async function loadGroupInfo(token) {
     groupToken = token;
     document.getElementById('gi-scan-error').style.display = 'none';
-
     try {
         const res  = await fetch('/api/group/info', {
             method: 'POST',
@@ -147,39 +173,40 @@ async function loadGroupInfo(token) {
             body: JSON.stringify({ token }),
         });
         const data = await res.json();
-
-        if (!data.success) {
-            showScanError(data.error || 'Unbekannter Fehler');
-            startScanner();
-            return;
-        }
-
+        if (!data.success) { showScanError(data.error || 'Fehler'); restartScanner(); return; }
         renderResult(data);
-    } catch (e) {
-        showScanError('Verbindungsfehler');
-        startScanner();
-    }
+    } catch { showScanError('Verbindungsfehler'); restartScanner(); }
 }
 
 function showScanError(msg) {
-    document.getElementById('gi-scan-error').textContent = msg;
-    document.getElementById('gi-scan-error').style.display = 'block';
+    const el = document.getElementById('gi-scan-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+function restartScanner() {
+    document.getElementById('gi-scanner-card').style.display = 'block';
+    startScanner();
 }
 
 function resetScanner() {
-    document.getElementById('gi-result').style.display = 'none';
-    document.getElementById('gi-scanner-card').style.display = 'block';
-    document.getElementById('gi-help-result').style.display = 'none';
-    document.getElementById('gi-help-btn').disabled = false;
-    groupToken = null;
+    if (scanner) { try { scanner.stop(); } catch {} try { scanner.clear(); } catch {} scanner = null; }
     if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+    document.getElementById('gi-result').style.display    = 'none';
+    document.getElementById('gi-scanner-card').style.display = 'block';
+    document.getElementById('gi-scan-error').style.display  = 'none';
+    document.getElementById('gi-help-result').style.display = 'none';
+    document.getElementById('gi-help-btn').disabled         = false;
+    document.getElementById('gi-help-btn').textContent      = '🆘 Hilfe anfordern';
+    groupToken = null;
     startScanner();
 }
 
 // ── Ergebnis rendern ──────────────────────────────────
 function renderResult(data) {
     document.getElementById('gi-scanner-card').style.display = 'none';
-    document.getElementById('gi-result').style.display = 'block';
+    const result = document.getElementById('gi-result');
+    result.style.display = 'flex';
 
     // Gruppe
     document.getElementById('gi-group-name').textContent = data.group.name;
@@ -188,186 +215,143 @@ function renderResult(data) {
     // Laufweg-Badge
     const badge = document.getElementById('gi-lw-badge');
     if (data.laufweg) {
-        badge.style.display = 'inline-flex';
-        badge.style.background = data.laufweg.color + '33';
-        badge.style.color       = data.laufweg.color;
-        badge.style.border      = '1px solid ' + data.laufweg.color + '88';
-        badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${data.laufweg.color};"></span>${data.laufweg.name}`;
-    } else {
-        badge.style.display = 'none';
+        badge.style.cssText = `display:inline-flex;background:${data.laufweg.color}22;color:${data.laufweg.color};border:1px solid ${data.laufweg.color}66;`;
+        badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${data.laufweg.color};"></span> ${data.laufweg.name}`;
     }
 
-    // Distanzen
+    // Distanz
     if (data.total_m > 0) {
         document.getElementById('gi-dist-section').style.display = 'block';
         document.getElementById('gi-covered').textContent   = fmtDist(data.covered_m);
         document.getElementById('gi-remaining').textContent = fmtDist(data.remaining_m);
-        const pct = data.total_m > 0 ? Math.round(data.covered_m / data.total_m * 100) : 0;
+        const pct = Math.round(data.covered_m / data.total_m * 100);
         document.getElementById('gi-progress-bar').style.width = pct + '%';
-        document.getElementById('gi-progress-lbl').textContent = pct + '% der Gesamtstrecke (' + fmtDist(data.total_m) + ')';
+        document.getElementById('gi-progress-lbl').textContent = pct + '% von ' + fmtDist(data.total_m);
     }
 
-    // Stationsliste
+    // Stationen
     renderStations(data);
 
-    // Karte + Navigation
-    if (data.next_station && data.next_station.lat) {
+    // Karte
+    if (data.next_station?.lat) {
         document.getElementById('gi-map-card').style.display = 'block';
-        setTimeout(() => renderMap(data), 100);
+        setTimeout(() => renderMap(data), 120);
     }
 }
 
 function renderStations(data) {
-    const list = document.getElementById('gi-stations-list');
+    const list   = document.getElementById('gi-stations-list');
+    const lastId = data.last_station?.id;
+    const nextId = data.next_station?.id;
     list.innerHTML = '';
 
-    const lastId = data.last_station ? data.last_station.id : null;
-    const nextId = data.next_station ? data.next_station.id : null;
-    const visitedIds = data.visited.map(v => v.id);
-
-    // Besuchte Stationen
     data.visited.forEach(v => {
         const isCurrent = v.id === lastId && !v.done;
-        const row = document.createElement('div');
-        row.className = 'gi_station-row';
-
-        const dotCls = v.done ? 'gi_station-dot--done' :
-                       isCurrent ? 'gi_station-dot--current' : 'gi_station-dot--pending';
-        const timeStr = v.done
+        const dotBg  = v.done ? 'var(--wt-ok)' : isCurrent ? 'var(--wt-warn)' : 'var(--wt-border-strong)';
+        const dotClr = (v.done || isCurrent) ? '#fff' : 'var(--wt-text-subtle)';
+        const time   = v.done
             ? fmtTs(v.checked_in) + ' – ' + fmtTs(v.checked_out)
             : 'Seit ' + fmtTs(v.checked_in);
-
+        const row = document.createElement('div');
+        row.className = 'wt_row';
         row.innerHTML = `
-            <div class="gi_station-dot ${dotCls}">${v.code}</div>
-            <div class="gi_station-info">
-                <div class="gi_station-info__name">${v.name}</div>
-                <div class="gi_station-info__time">${timeStr}</div>
+            <div class="gi_stn-dot" style="background:${dotBg};color:${dotClr};">${v.code}</div>
+            <div style="flex:1;">
+                <div class="wt_row__label">${v.name}</div>
+                <div class="wt_row__sub">${time}</div>
             </div>
-            ${v.done ? '<span style="font-size:18px;">✓</span>' : ''}`;
+            ${v.done ? '<span style="color:var(--wt-ok);font-size:18px;">✓</span>' : ''}`;
         list.appendChild(row);
     });
 
-    // Nächste Station (noch nicht besucht)
     if (data.next_station) {
-        const ns = data.next_station;
+        const ns  = data.next_station;
+        const sub = [fmtDist(ns.distance_m), fmtTime(ns.est_time_min)].filter(Boolean).join(' · ');
         const row = document.createElement('div');
-        row.className = 'gi_station-row';
-        const distStr = [fmtDist(ns.distance_m), fmtTime(ns.est_time_min)].filter(Boolean).join(' · ');
+        row.className = 'wt_row';
         row.innerHTML = `
-            <div class="gi_station-dot gi_station-dot--next">${ns.code}</div>
-            <div class="gi_station-info">
-                <div class="gi_station-info__name">${ns.name}</div>
-                <div class="gi_station-info__time" style="color:var(--c-blue);">${distStr}</div>
+            <div class="gi_stn-dot" style="background:var(--wt-surface);color:var(--wt-red);border:2.5px solid var(--wt-red);">${ns.code}</div>
+            <div style="flex:1;">
+                <div class="wt_row__label">${ns.name}</div>
+                <div class="wt_row__sub" style="color:var(--wt-red);">${sub}</div>
             </div>
             <span style="font-size:18px;">→</span>`;
         list.appendChild(row);
     }
 }
 
-// ── Leaflet-Karte ─────────────────────────────────────
+// ── Karte ─────────────────────────────────────────────
 function renderMap(data) {
     if (mapInstance) { mapInstance.remove(); mapInstance = null; }
 
     const ns    = data.next_station;
     const last  = data.last_station;
-    const color = data.laufweg ? data.laufweg.color : '#2980B9';
+    const color = data.laufweg?.color ?? 'var(--wt-red)';
 
     mapInstance = L.map('gi-map', { zoomControl: true });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19,
+        attribution: '© OpenStreetMap', maxZoom: 19,
     }).addTo(mapInstance);
 
     const pts = [];
 
-    // Alle besuchten Stationen (grau/grün)
-    data.visited.forEach((v, i) => {
-        // Koordinaten sind nicht im visited-Array → nur wenn last/next
-    });
-
-    // Startpunkt (letzte Station) Marker
     if (ns.from_lat && ns.from_lng) {
         pts.push([ns.from_lat, ns.from_lng]);
-        const fromIcon = L.divIcon({
-            className: '',
-            html: `<div style="background:${color};color:#fff;border-radius:50%;
-                width:36px;height:36px;display:flex;align-items:center;justify-content:center;
-                font-family:monospace;font-size:12px;font-weight:800;
-                box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #fff;">${last ? last.code : '?'}</div>`,
-            iconSize: [36, 36], iconAnchor: [18, 18],
-        });
-        L.marker([ns.from_lat, ns.from_lng], { icon: fromIcon })
+        L.marker([ns.from_lat, ns.from_lng], { icon: stationIcon(last?.code ?? '?', color, true) })
             .addTo(mapInstance)
-            .bindPopup(`<strong>${last ? last.name : 'Startstation'}</strong><br>Ihr seid hier`);
+            .bindPopup(`<strong>${last?.name ?? 'Startstation'}</strong><br>Ihr seid hier`);
     }
 
-    // Zielpunkt (nächste Station)
     pts.push([ns.lat, ns.lng]);
-    const toIcon = L.divIcon({
-        className: '',
-        html: `<div style="background:#fff;color:${color};border:3px solid ${color};border-radius:50%;
-            width:36px;height:36px;display:flex;align-items:center;justify-content:center;
-            font-family:monospace;font-size:12px;font-weight:800;
-            box-shadow:0 2px 8px rgba(0,0,0,.4);">${ns.code}</div>`,
-        iconSize: [36, 36], iconAnchor: [18, 18],
-    });
-    L.marker([ns.lat, ns.lng], { icon: toIcon })
+    L.marker([ns.lat, ns.lng], { icon: stationIcon(ns.code, color, false) })
         .addTo(mapInstance)
         .bindPopup(`<strong>Ziel: ${ns.name}</strong>`);
 
-    // Route zeichnen: gespeicherte Waypoints → OSRM
     if (ns.from_lat && ns.from_lng) {
         drawRoute(data, color);
-    } else if (pts.length > 1) {
-        L.polyline(pts, { color, weight: 5, opacity: .8 }).addTo(mapInstance);
     }
 
-    if (pts.length > 1) {
-        mapInstance.fitBounds(L.latLngBounds(pts), { padding: [40, 40] });
-    } else {
-        mapInstance.setView(pts[0], 16);
-    }
+    if (pts.length > 1) mapInstance.fitBounds(L.latLngBounds(pts), { padding: [40, 40] });
+    else mapInstance.setView(pts[0], 16);
+}
+
+function stationIcon(code, color, filled) {
+    return L.divIcon({
+        className: '',
+        html: `<div style="background:${filled ? color : '#fff'};color:${filled ? '#fff' : color};
+            border:3px solid ${color};border-radius:50%;width:36px;height:36px;
+            display:flex;align-items:center;justify-content:center;
+            font-family:monospace;font-size:12px;font-weight:800;
+            box-shadow:0 2px 8px rgba(0,0,0,.25);">${code}</div>`,
+        iconSize: [36, 36], iconAnchor: [18, 18],
+    });
 }
 
 async function drawRoute(data, color) {
     const ns  = data.next_station;
-    const wps = ns.waypoints || [];
-
+    const wps = ns.waypoints ?? [];
     const coords = [
         [ns.from_lng, ns.from_lat],
         ...wps.map(wp => [wp[1], wp[0]]),
         [ns.lng, ns.lat],
     ];
-    const coordStr = coords.map(c => c[0] + ',' + c[1]).join(';');
-    const url = `https://router.project-osrm.org/route/v1/foot/${coordStr}?overview=full&geometries=geojson`;
-
+    const url = `https://router.project-osrm.org/route/v1/foot/${coords.map(c => c.join(',')).join(';')}?overview=full&geometries=geojson`;
     try {
         const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
         const json = await res.json();
-
         if (json.code === 'Ok' && json.routes?.[0]) {
             const latlngs = json.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
             L.polyline(latlngs, { color, weight: 5, opacity: .85, dashArray: '8,4' }).addTo(mapInstance);
-
-            const dist = Math.round(json.routes[0].distance);
+            const dist    = Math.round(json.routes[0].distance);
             const osrmMin = json.routes[0].duration / 60;
-            const walkMin = dist / 75;
-            const time = Math.max(1, Math.ceil(osrmMin < walkMin * 0.5 ? walkMin : osrmMin));
+            const time    = Math.max(1, Math.ceil(osrmMin < dist / 75 * 0.5 ? dist / 75 : osrmMin));
             document.getElementById('gi-nav-info').innerHTML =
-                `<span style="color:var(--c-blue);font-weight:700;">→ ${ns.name}</span>` +
-                ` &nbsp;·&nbsp; ${fmtDist(dist)} &nbsp;·&nbsp; ca. ${time} min zu Fuß`;
-        } else {
-            fallbackLine(data, color);
+                `<b style="color:var(--wt-red);">→ ${ns.name}</b> &nbsp;·&nbsp; ${fmtDist(dist)} &nbsp;·&nbsp; ca. ${time} min zu Fuß`;
+            return;
         }
-    } catch {
-        fallbackLine(data, color);
-    }
-}
-
-function fallbackLine(data, color) {
-    const ns = data.next_station;
-    if (!ns.from_lat) return;
-    const pts = [[ns.from_lat, ns.from_lng], ...( ns.waypoints || []), [ns.lat, ns.lng]];
+    } catch {}
+    // Fallback: Luftlinie mit Waypoints
+    const pts = [[ns.from_lat, ns.from_lng], ...wps, [ns.lat, ns.lng]];
     L.polyline(pts, { color, weight: 4, opacity: .7, dashArray: '6,4' }).addTo(mapInstance);
 }
 
@@ -375,9 +359,8 @@ function fallbackLine(data, color) {
 async function sendHelp() {
     const btn = document.getElementById('gi-help-btn');
     const msg = document.getElementById('gi-help-msg').value.trim();
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = 'Wird gesendet…';
-
     try {
         const res  = await fetch('/api/group/help', {
             method: 'POST',
@@ -385,23 +368,21 @@ async function sendHelp() {
             body: JSON.stringify({ token: groupToken, message: msg }),
         });
         const data = await res.json();
-
         if (data.success) {
             document.getElementById('gi-help-result').style.display = 'block';
             btn.style.display = 'none';
         } else {
-            btn.disabled = false;
+            btn.disabled    = false;
             btn.textContent = '🆘 Hilfe anfordern';
-            alert(data.error || 'Fehler beim Senden');
+            alert(data.error || 'Fehler');
         }
     } catch {
-        btn.disabled = false;
+        btn.disabled    = false;
         btn.textContent = '🆘 Hilfe anfordern';
         alert('Verbindungsfehler');
     }
 }
 
-// Scanner beim Laden starten
 startScanner();
 </script>
 
