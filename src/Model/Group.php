@@ -155,13 +155,13 @@ class Group
     }
 
     /** Check-in ins Stationsprotokoll eintragen */
-    public function checkIn(int $groupId, int $stationId): int
+    public function checkIn(int $groupId, int $stationId, ?int $laufwegId = null): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO group_station_log (group_id, station_id, checked_in)
-             VALUES (:group_id, :station_id, NOW())'
+            'INSERT INTO group_station_log (group_id, station_id, laufweg_id, checked_in)
+             VALUES (:group_id, :station_id, :laufweg_id, NOW())'
         );
-        $stmt->execute([':group_id' => $groupId, ':station_id' => $stationId]);
+        $stmt->execute([':group_id' => $groupId, ':station_id' => $stationId, ':laufweg_id' => $laufwegId]);
         return (int)$this->db->lastInsertId();
     }
 

@@ -9,16 +9,20 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Model\Group;
 use App\Model\Score;
+use App\Model\Station;
+use App\Model\StationRoute;
 
 class GroupController
 {
-    private Group $groupModel;
-    private Score $scoreModel;
+    private Group        $groupModel;
+    private Score        $scoreModel;
+    private StationRoute $routeModel;
 
     public function __construct(private Request $request)
     {
         $this->groupModel = new Group();
         $this->scoreModel = new Score();
+        $this->routeModel = new StationRoute();
     }
 
     /** Gruppe per QR-Token legitimieren (API) */
@@ -49,7 +53,13 @@ class GroupController
 
         // Check-in protokollieren (nur wenn noch keine Bewertung vorliegt)
         if (!$existing) {
-            $this->groupModel->checkIn((int)$group['id'], $stationId);
+            // Laufweg automatisch ermitteln damit Vor-/Rückwärts-Parcours unterschieden werden
+            $station       = (new Station())->findById($stationId);
+            $competitionId = $station ? (int)$station['competition_id'] : 0;
+            $laufwegId     = $competitionId
+                ? $this->routeModel->detectLaufwegForCheckin((int)$group['id'], $stationId, $competitionId)
+                : null;
+            $this->groupModel->checkIn((int)$group['id'], $stationId, $laufwegId);
         }
 
         $members = $this->groupModel->getMembers((int)$group['id']);

@@ -16,6 +16,79 @@ class StationRoute
         $this->db = Database::getInstance();
     }
 
+    /**
+     * Ermittelt die laufweg_id für einen Check-in an einer Station.
+     * Logik:
+     *   1. Ist diese Station ZIEL einer Route, und hat die Gruppe kürzlich
+     *      die Startstation dieser Route verlassen (checked_out vorhanden,
+     *      aber noch kein neuerer checked_in hier)?
+     *      → Gruppe kommt entlang dieses Parcours an → laufweg_id dieser Route
+     *   2. Ist diese Station START einer Route und die Gruppe war noch nie hier?
+     *      → Gruppe beginnt diesen Parcours → laufweg_id dieser Route
+     *   3. Mehrere Treffer oder kein Treffer → null (kein Laufweg zuweisbar)
+     */
+    public function detectLaufwegForCheckin(int $groupId, int $stationId, int $competitionId): ?int
+    {
+        // Routen wo diese Station ZIEL ist
+        $stmt = $this->db->prepare(
+            'SELECT r.id, r.laufweg_id, r.from_station_id
+             FROM station_routes r
+             WHERE r.competition_id = :comp AND r.to_station_id = :stn AND r.laufweg_id IS NOT NULL'
+        );
+        $stmt->execute([':comp' => $competitionId, ':stn' => $stationId]);
+        $arrivalRoutes = $stmt->fetchAll();
+
+        foreach ($arrivalRoutes as $route) {
+            // Hat die Gruppe die Startstation verlassen (checked_out vorhanden)?
+            $s2 = $this->db->prepare(
+                'SELECT MAX(checked_out) FROM group_station_log
+                 WHERE group_id = :g AND station_id = :s AND laufweg_id = :lw AND checked_out IS NOT NULL'
+            );
+            $s2->execute([':g' => $groupId, ':s' => $route['from_station_id'], ':lw' => $route['laufweg_id']]);
+            $departed = $s2->fetchColumn();
+
+            if (!$departed) {
+                // Auch ohne laufweg_id prüfen (Altdaten)
+                $s3 = $this->db->prepare(
+                    'SELECT MAX(checked_out) FROM group_station_log
+                     WHERE group_id = :g AND station_id = :s AND checked_out IS NOT NULL'
+                );
+                $s3->execute([':g' => $groupId, ':s' => $route['from_station_id']]);
+                $departed = $s3->fetchColumn();
+            }
+
+            if (!$departed) continue;
+
+            // Hat die Gruppe diesen Check-in noch nicht als Ankunft geloggt?
+            $s4 = $this->db->prepare(
+                'SELECT COUNT(*) FROM group_station_log
+                 WHERE group_id = :g AND station_id = :s AND laufweg_id = :lw
+                   AND checked_in > :dep'
+            );
+            $s4->execute([':g' => $groupId, ':s' => $stationId, ':lw' => $route['laufweg_id'], ':dep' => $departed]);
+            if ((int)$s4->fetchColumn() === 0) {
+                return (int)$route['laufweg_id'];
+            }
+        }
+
+        // Routen wo diese Station START ist (Gruppe beginnt Parcours)
+        $stmt2 = $this->db->prepare(
+            'SELECT r.laufweg_id
+             FROM station_routes r
+             WHERE r.competition_id = :comp AND r.from_station_id = :stn AND r.laufweg_id IS NOT NULL
+             GROUP BY r.laufweg_id'
+        );
+        $stmt2->execute([':comp' => $competitionId, ':stn' => $stationId]);
+        $startLaufwege = $stmt2->fetchAll(\PDO::FETCH_COLUMN);
+
+        if (count($startLaufwege) === 1) {
+            // Eindeutig: nur ein Laufweg startet hier
+            return (int)$startLaufwege[0];
+        }
+
+        return null; // Nicht eindeutig zuordenbar
+    }
+
     public function findByCompetition(int $competitionId): array
     {
         $stmt = $this->db->prepare(
@@ -108,37 +181,45 @@ class StationRoute
                 g.num         AS group_num,
                 g.name        AS group_name,
 
-                -- Neuestes Check-out an der Startstation (= Abgang nach Bewertung)
+                -- Abgang von Startstation: bevorzugt mit passendem laufweg_id, sonst ohne
                 (SELECT MAX(lo.checked_out)
                  FROM group_station_log lo
                  WHERE lo.station_id = r.from_station_id
                    AND lo.group_id   = g.id
-                   AND lo.checked_out IS NOT NULL)  AS departed,
+                   AND lo.checked_out IS NOT NULL
+                   AND (r.laufweg_id IS NULL OR lo.laufweg_id IS NULL OR lo.laufweg_id = r.laufweg_id)
+                )  AS departed,
 
-                -- Erster Check-in an der Zielstation NACH dem Abgang
+                -- Ankunft an Zielstation NACH Abgang, mit passendem laufweg_id
                 (SELECT MIN(li.checked_in)
                  FROM group_station_log li
                  WHERE li.station_id = r.to_station_id
                    AND li.group_id   = g.id
+                   AND (r.laufweg_id IS NULL OR li.laufweg_id IS NULL OR li.laufweg_id = r.laufweg_id)
                    AND li.checked_in >= COALESCE(
                        (SELECT MAX(lo2.checked_out)
                         FROM group_station_log lo2
                         WHERE lo2.station_id = r.from_station_id
                           AND lo2.group_id   = g.id
-                          AND lo2.checked_out IS NOT NULL),
+                          AND lo2.checked_out IS NOT NULL
+                          AND (r.laufweg_id IS NULL OR lo2.laufweg_id IS NULL OR lo2.laufweg_id = r.laufweg_id)),
                        NOW()
                    ))  AS arrived,
 
-                -- War die Gruppe überhaupt an der Startstation?
-                (SELECT COUNT(*) FROM group_station_log lc
-                 WHERE lc.station_id = r.from_station_id
-                   AND lc.group_id   = g.id) AS visited_from,
-
-                -- Wurde die Gruppe an der Startstation bewertet (checkout vorhanden)?
+                -- War die Gruppe an der Startstation (passendem Laufweg)?
                 (SELECT COUNT(*) FROM group_station_log lc
                  WHERE lc.station_id = r.from_station_id
                    AND lc.group_id   = g.id
-                   AND lc.checked_out IS NOT NULL) AS scored_from
+                   AND (r.laufweg_id IS NULL OR lc.laufweg_id IS NULL OR lc.laufweg_id = r.laufweg_id)
+                ) AS visited_from,
+
+                -- Wurde die Gruppe an der Startstation bewertet?
+                (SELECT COUNT(*) FROM group_station_log lc
+                 WHERE lc.station_id = r.from_station_id
+                   AND lc.group_id   = g.id
+                   AND lc.checked_out IS NOT NULL
+                   AND (r.laufweg_id IS NULL OR lc.laufweg_id IS NULL OR lc.laufweg_id = r.laufweg_id)
+                ) AS scored_from
 
              FROM station_routes r
              JOIN stations sf ON sf.id = r.from_station_id
