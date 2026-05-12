@@ -19,9 +19,9 @@ $statusIcon  = [
     'ok'          => '✓',
     'warn'        => '⚠',
     'lost'        => '✗',
-    'pending'     => '→',   // Bewertet an A, noch nicht bei B angekommen
-    'scoring'     => '…',   // An A, noch nicht bewertet
-    'not_started' => '○',   // Noch nicht an Startstation
+    'pending'     => '→',
+    'scoring'     => '…',
+    'not_started' => '○',
     'no_data'     => '–',
 ];
 $statusColor = [
@@ -42,6 +42,9 @@ $statusLabel = [
     'not_started' => 'Noch nicht an Startstation',
     'no_data'     => 'Keine Daten',
 ];
+$scIcon  = fn(string $s) => $statusIcon[$s]  ?? '–';
+$scColor = fn(string $s) => $statusColor[$s] ?? 'var(--wt-text-subtle)';
+$scLabel = fn(string $s) => $statusLabel[$s] ?? $s;
 
 // Abschnitte nach Laufweg gruppieren
 $routesByLaufweg = [];   // laufweg_id (or 0=unzugeordnet) → [routes]
@@ -309,7 +312,7 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
                 'not_started' => 'Ausstehend',
             ] as $s => $lbl): ?>
             <span style="display:flex;align-items:center;gap:3px;font-size:11px;">
-                <b style="color:<?= $statusColor[$s] ?>;"><?= $statusIcon[$s] ?></b>
+                <b style="color:<?= $scColor($s) ?>;"><?= $scIcon($s) ?></b>
                 <span style="color:var(--wt-text-muted);"><?= $lbl ?></span>
             </span>
             <?php endforeach; ?>
@@ -366,16 +369,16 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
                     <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">#<?= htmlspecialchars($g['group_num']) ?> <?= htmlspecialchars($g['group_name']) ?></span>
 
                     <?php if ($hasTime): ?>
-                        <span class="adm_mono" style="font-size:12px;font-weight:700;color:<?= $statusColor[$sc] ?>;flex-shrink:0;"><?= $fmtDur($g['actual_sek']) ?></span>
+                        <span class="adm_mono" style="font-size:12px;font-weight:700;color:<?= $scColor($sc) ?>;flex-shrink:0;"><?= $fmtDur($g['actual_sek']) ?></span>
                     <?php elseif ($sc === 'pending'): ?>
-                        <span style="font-size:11px;color:<?= $statusColor[$sc] ?>;flex-shrink:0;">Abgegangen <?= $g['departed'] ? date('H:i', strtotime($g['departed'])) : '' ?></span>
+                        <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">Abgegangen <?= $g['departed'] ? date('H:i', strtotime($g['departed'])) : '' ?></span>
                     <?php elseif ($sc === 'scoring'): ?>
-                        <span style="font-size:11px;color:<?= $statusColor[$sc] ?>;flex-shrink:0;">An Stn. <?= htmlspecialchars($seg['from_code']) ?></span>
+                        <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">An Stn. <?= htmlspecialchars($seg['from_code'] ?? '') ?></span>
                     <?php else: ?>
-                        <span style="font-size:11px;color:<?= $statusColor[$sc] ?>;flex-shrink:0;">–</span>
+                        <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">–</span>
                     <?php endif; ?>
 
-                    <span style="font-size:12px;color:<?= $statusColor[$sc] ?>;width:16px;text-align:center;flex-shrink:0;" title="<?= htmlspecialchars($statusLabel[$sc]) ?>"><?= $statusIcon[$sc] ?></span>
+                    <span style="font-size:12px;color:<?= $scColor($sc) ?>;width:16px;text-align:center;flex-shrink:0;" title="<?= htmlspecialchars($scLabel($sc)) ?>"><?= $scIcon($sc) ?></span>
                 </div>
                 <?php endforeach; ?>
             </div>

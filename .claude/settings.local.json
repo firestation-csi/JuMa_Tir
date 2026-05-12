@@ -16,7 +16,9 @@
       "Bash(find /c/Users/csi -name \"python*.exe\" 2>/dev/null | head -10; find /c/Python* -name \"python.exe\" 2>/dev/null | head -5)",
       "Read(//c/Users/csi/**)",
       "Bash(\"/c/Users/csi/AppData/Local/Autodesk/webdeploy/production/6f81bda0bb0ebef0ea118cf2bd48cba17061ffb5/Python/python.exe\" -c \"import sys; print\\(sys.version\\)\")",
-      "Bash(/c/Users/csi/AppData/Local/Autodesk/webdeploy/production/6f81bda0bb0ebef0ea118cf2bd48cba17061ffb5/Python/python.exe -c 'import openpyxl; print\\('\\\\''openpyxl ok'\\\\''\\)')"
+      "Bash(/c/Users/csi/AppData/Local/Autodesk/webdeploy/production/6f81bda0bb0ebef0ea118cf2bd48cba17061ffb5/Python/python.exe -c 'import openpyxl; print\\('\\\\''openpyxl ok'\\\\''\\)')",
+      "Bash(grep -n \"statusIcon\\\\[\\\\\\\\|statusColor\\\\[\\\\\\\\|statusLabel\\\\[\" d:/05_GIT/JuMa_Tir/templates/pages/admin/station-routes.php)",
+      "Bash(grep -n \"statusColor\\\\[\\\\\\\\|statusIcon\\\\[\\\\\\\\|statusLabel\\\\[\" d:/05_GIT/JuMa_Tir/templates/pages/admin/station-routes.php)"
     ]
   }
 }
