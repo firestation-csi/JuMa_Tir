@@ -346,15 +346,15 @@ $extraScripts .= '
 
         const fmtSek = sek => {
             if (!sek) return null;
-            if (sek < 60) return sek + ' s';
-            return Math.floor(sek / 60) + ':' + String(sek % 60).padStart(2, '0') + ' min';
+            if (sek < 60) return sek + \' s\';
+            return Math.floor(sek / 60) + \':\' + String(sek % 60).padStart(2, \'0\') + \' min\';
         };
         const durFmt  = fmtSek(s.avg_sek);
         const durChip = durFmt
             ? `<span style="display:inline-block;margin-top:6px;padding:3px 8px;border-radius:20px;
                    font-size:11px;font-weight:700;background:${color}22;color:${color};
-                   border:1px solid ${color}55;">⏱ Ø ${durFmt}${s.visits ? ' · ' + s.visits + ' Gr.' : ''}</span>`
-            : '';
+                   border:1px solid ${color}55;">⏱ Ø ${durFmt}${s.visits ? \' · \' + s.visits + \' Gr.\' : \'\'}</span>`
+            : \'\';
 
         const popup = `
             <div style="min-width:180px;">
