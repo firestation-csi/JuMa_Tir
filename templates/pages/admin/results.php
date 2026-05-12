@@ -349,6 +349,19 @@ $rankingJson = json_encode(array_map(fn($r) => [
 
 $impColorJson = json_encode(['sehr_gut' => '#27AE60', 'gut' => '#95A5A6', 'befriedigend' => '#E67E22']);
 
+// Accordion läuft unabhängig – kein Chart.js erforderlich
+$extraScripts .= <<<ACCORDION
+<script>
+(function () {
+    document.querySelectorAll('.res_accordion__head').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            btn.closest('.res_accordion').classList.toggle('res_accordion--open');
+        });
+    });
+})();
+</script>
+ACCORDION;
+
 $extraScripts .= <<<JS
 <script>
 (function () {
@@ -357,7 +370,7 @@ $extraScripts .= <<<JS
 
     // ── FP-Verteilung Bar-Chart ─────────────────────────
     const fpCtx = document.getElementById('fpChart');
-    if (fpCtx && rankingData.length) {
+    if (fpCtx && rankingData.length && typeof Chart !== 'undefined') {
         new Chart(fpCtx, {
             type: 'bar',
             data: {
@@ -381,14 +394,6 @@ $extraScripts .= <<<JS
             },
         });
     }
-
-    // ── Accordion ──────────────────────────────────────
-    document.querySelectorAll('.res_accordion__head').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const acc = btn.closest('.res_accordion');
-            acc.classList.toggle('res_accordion--open');
-        });
-    });
 
     // ── Live-Ticker Polling alle 20s ───────────────────
     const tickerList = document.getElementById('ticker-list');
