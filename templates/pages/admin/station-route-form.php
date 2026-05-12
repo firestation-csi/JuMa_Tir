@@ -1,7 +1,9 @@
 <?php
-$route       = $route       ?? null;
-$stations    = $stations    ?? [];
-$csrf        = $csrf        ?? '';
+$stations = $stations ?? [];
+$csrf     = $csrf     ?? '';
+$route    = $route    ?? ['id' => 0, 'from_station_id' => 0, 'to_station_id' => 0,
+                          'distance_m' => null, 'est_time_min' => null,
+                          'sort_order' => 0, 'notes' => null];
 ob_start();
 ?>
 <div class="adm_form-wrap">
@@ -57,6 +59,8 @@ ob_start();
                    value="<?= htmlspecialchars($route['notes'] ?? '') ?>"
                    placeholder="z.B. Linker Feldweg, dann über Brücke">
         </div>
+
+        <?php include dirname(__DIR__, 2) . '/partials/admin/osrm-route-calc.php'; ?>
 
         <div class="adm_form-actions">
             <a href="/admin/stations/routes" class="adm_btn adm_btn--ghost">Abbrechen</a>

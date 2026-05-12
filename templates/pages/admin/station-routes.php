@@ -181,6 +181,7 @@ $statusLabel = ['ok' => 'Planmäßig', 'warn' => 'Verzögert', 'lost' => 'Verlau
                     <button type="submit" class="adm_btn adm_btn--primary">Abschnitt speichern</button>
                 </div>
             </form>
+            <?php include dirname(__DIR__, 2) . '/partials/admin/osrm-route-calc.php'; ?>
         </div>
     </div>
 
