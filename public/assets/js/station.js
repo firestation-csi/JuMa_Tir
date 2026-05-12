@@ -576,13 +576,38 @@ function renderConfirm() {
     const tv = state.scoring.taskValues;
     const fp = calcFp(tv);
 
+    const fmtMs  = ms => { const m = Math.floor(ms/60000); const s = Math.floor((ms%60000)/1000); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; };
+    const fmtSek = s  => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+
     const failItems = tasks.flatMap(t => {
         if (t.type === 'boolean' && tv[t.id] === 'fail') {
             return [{ label: t.label, fp: t.points, sub: null }];
         }
         if (t.type === 'count' && (tv[t.id] ?? 0) > 0) {
-            const count   = t.max_count !== null ? Math.min(tv[t.id], t.max_count) : tv[t.id];
+            const count = t.max_count !== null ? Math.min(tv[t.id], t.max_count) : tv[t.id];
             return [{ label: t.label, fp: count * t.points, sub: `${count} × ${t.points} FP` }];
+        }
+        if (t.type === 'time' && t.time) {
+            const { sollzeit_sek: soll, hoechstzeit_sek: max, zeitstrafe_fp: fpj, zeiteinheit_sek: einh, zeit_felder: felder = 1 } = t.time;
+            const calcTimeFp = ms => {
+                const sek  = Math.floor(ms / 1000);
+                if (sek <= soll) return 0;
+                const over = (max ? Math.min(sek, max) : sek) - soll;
+                return Math.floor(over / einh) * fpj;
+            };
+            if (felder > 1) {
+                const times  = Array.isArray(tv[t.id]) ? tv[t.id] : [];
+                const totalFp = times.reduce((sum, ms) => sum + calcTimeFp(ms), 0);
+                if (totalFp > 0) {
+                    const sub = times.map((ms, i) => { const p = calcTimeFp(ms); return p > 0 ? `T${i+1}: ${fmtMs(ms)} (+${p})` : null; }).filter(Boolean).join(' · ');
+                    return [{ label: t.label, fp: totalFp, sub }];
+                }
+            } else {
+                const fp = calcTimeFp(swMs);
+                if (fp > 0) {
+                    return [{ label: t.label, fp, sub: `${fmtMs(swMs)} · Soll ${fmtSek(soll)}` }];
+                }
+            }
         }
         return [];
     });
