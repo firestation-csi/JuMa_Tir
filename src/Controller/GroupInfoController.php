@@ -27,15 +27,13 @@ class GroupInfoController
         $token = trim((string)($data['token'] ?? ''));
 
         if (!$token) {
-            Response::json(['success' => false, 'error' => 'Kein Token übermittelt']);
-            return;
+            Response::error('Kein Token übermittelt');
         }
 
         $groupModel = new Group();
         $group = $groupModel->findByToken($token);
         if (!$group || !$group['active']) {
-            Response::json(['success' => false, 'error' => 'Gruppe nicht gefunden']);
-            return;
+            Response::error('Gruppe nicht gefunden', 404);
         }
 
         $groupId = (int)$group['id'];
@@ -130,13 +128,12 @@ class GroupInfoController
         }
 
         Response::json([
-            'success'     => true,
-            'group'       => [
+            'group'        => [
                 'id'   => $groupId,
                 'name' => $group['name'],
                 'num'  => $group['num'] ?? null,
             ],
-            'laufweg'     => $laufwegInfo ? [
+            'laufweg'      => $laufwegInfo ? [
                 'id'    => (int)$laufwegInfo['id'],
                 'name'  => $laufwegInfo['name'],
                 'color' => $laufwegInfo['color'],
@@ -160,14 +157,12 @@ class GroupInfoController
         $groupModel = new Group();
         $group = $groupModel->findByToken($token);
         if (!$group) {
-            Response::json(['success' => false, 'error' => 'Gruppe nicht gefunden']);
-            return;
+            Response::error('Gruppe nicht gefunden', 404);
         }
 
         $log = $groupModel->getStationLog((int)$group['id']);
         if (!$log) {
-            Response::json(['success' => false, 'error' => 'Noch an keiner Station angemeldet']);
-            return;
+            Response::error('Noch an keiner Station angemeldet');
         }
 
         $stationId = (int)$log[0]['station_id'];
@@ -179,6 +174,6 @@ class GroupInfoController
         );
 
         (new Message())->createFromGroup($stationId, (int)$group['id'], $group['name'], $body);
-        Response::json(['success' => true]);
+        Response::json(null);
     }
 }

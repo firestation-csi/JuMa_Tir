@@ -172,9 +172,9 @@ async function loadGroupInfo(token) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token }),
         });
-        const data = await res.json();
-        if (!data.success) { showScanError(data.error || 'Fehler'); restartScanner(); return; }
-        renderResult(data);
+        const json = await res.json();
+        if (!json.success) { showScanError(json.error || 'Fehler'); restartScanner(); return; }
+        renderResult(json.data);
     } catch { showScanError('Verbindungsfehler'); restartScanner(); }
 }
 
