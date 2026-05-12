@@ -105,9 +105,12 @@ class AdminStationRouteController
     /** API: Waypoints eines Abschnitts speichern */
     public function saveWaypoints(string $id): void
     {
-        $this->verifyCsrf();
+        // JSON-Request: CSRF-Token aus Body lesen, nicht aus $_POST
+        $data = $this->request->json();
+        if (!Auth::validateCsrf((string)($data['csrf_token'] ?? ''))) {
+            Response::error('Ungültiges CSRF-Token', 403);
+        }
         $route = $this->requireRoute($id);
-        $data  = $this->request->json();
 
         $raw = $data['waypoints'] ?? [];
         // Validierung: Array von [lat, lng] Paaren
