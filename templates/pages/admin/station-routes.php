@@ -1,12 +1,13 @@
 <?php
-$competition  = $competition  ?? null;
-$competitions = $competitions ?? [];
-$stations     = $stations     ?? [];
-$laufwege     = $laufwege     ?? [];
-$routes       = $routes       ?? [];
-$analysis     = $analysis     ?? [];
-$csrf         = $csrf         ?? '';
-$error        = $_GET['error'] ?? null;
+$competition      = $competition      ?? null;
+$competitions     = $competitions     ?? [];
+$stations         = $stations         ?? [];
+$laufwege         = $laufwege         ?? [];
+$routes           = $routes           ?? [];
+$analysis         = $analysis         ?? [];
+$stationDurations = $stationDurations ?? [];
+$csrf             = $csrf             ?? '';
+$error            = $_GET['error']    ?? null;
 
 $extraHead = '
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -407,11 +408,11 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
 </div><!-- /rte_layout -->
 
 <!-- ── Karten-Modal ─────────────────────────────────── -->
-<dialog id="parcoursMapModal" style="
-    border:0;padding:0;border-radius:16px;
-    width:min(920px,96vw);height:min(680px,90vh);
-    display:flex;flex-direction:column;overflow:hidden;
-    box-shadow:0 24px 64px rgba(0,0,0,.28);">
+<style>
+#parcoursMapModal { border:0;padding:0;border-radius:16px;width:min(920px,96vw);height:min(680px,90vh);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.28); }
+#parcoursMapModal[open] { display:flex;flex-direction:column; }
+</style>
+<dialog id="parcoursMapModal">
 
     <div id="mapModalHeader" style="
         display:flex;align-items:center;gap:10px;
@@ -464,19 +465,27 @@ foreach ($laufwege as $lw) {
     $segs    = [];
     foreach ($routes as $r) {
         if ((int)$r['laufweg_id'] !== $lwId) continue;
+        $fromDur = $stationDurations[(int)$r['from_station_id']] ?? null;
+        $toDur   = $stationDurations[(int)$r['to_station_id']]   ?? null;
         $segs[] = [
-            'route_id'    => (int)$r['id'],
-            'from_code'   => $r['from_code'],
-            'from_name'   => $r['from_name'],
-            'from_lat'    => $r['from_lat']  ? (float)$r['from_lat']  : null,
-            'from_lng'    => $r['from_lng']  ? (float)$r['from_lng']  : null,
-            'to_code'     => $r['to_code'],
-            'to_name'     => $r['to_name'],
-            'to_lat'      => $r['to_lat']    ? (float)$r['to_lat']    : null,
-            'to_lng'      => $r['to_lng']    ? (float)$r['to_lng']    : null,
-            'waypoints'   => $r['waypoints'] ? json_decode($r['waypoints'], true) : [],
-            'distance_m'  => $r['distance_m']  ? (int)$r['distance_m']  : null,
-            'est_time_min'=> $r['est_time_min'] ? (int)$r['est_time_min'] : null,
+            'route_id'        => (int)$r['id'],
+            'from_station_id' => (int)$r['from_station_id'],
+            'from_code'       => $r['from_code'],
+            'from_name'       => $r['from_name'],
+            'from_lat'        => $r['from_lat']  ? (float)$r['from_lat']  : null,
+            'from_lng'        => $r['from_lng']  ? (float)$r['from_lng']  : null,
+            'from_avg_sek'    => $fromDur ? $fromDur['avg_sek'] : null,
+            'from_visits'     => $fromDur ? $fromDur['visits']  : 0,
+            'to_station_id'   => (int)$r['to_station_id'],
+            'to_code'         => $r['to_code'],
+            'to_name'         => $r['to_name'],
+            'to_lat'          => $r['to_lat']    ? (float)$r['to_lat']    : null,
+            'to_lng'          => $r['to_lng']    ? (float)$r['to_lng']    : null,
+            'to_avg_sek'      => $toDur ? $toDur['avg_sek'] : null,
+            'to_visits'       => $toDur ? $toDur['visits']  : 0,
+            'waypoints'       => $r['waypoints'] ? json_decode($r['waypoints'], true) : [],
+            'distance_m'      => $r['distance_m']  ? (int)$r['distance_m']  : null,
+            'est_time_min'    => $r['est_time_min'] ? (int)$r['est_time_min'] : null,
         ];
     }
     if (empty($segs)) continue;
@@ -498,7 +507,7 @@ let waypointData  = {};  // route_id → [[lat,lng], ...]
 let waypointMarkers = {}; // route_id → [L.Marker, ...]
 let routePolylines  = {}; // route_id → L.Polyline
 let stationMarkers  = []; // L.Marker[]
-let addingToSegment = null;
+let osrmResults     = {}; // route_id → {distance_m, est_time_min}
 
 async function openParcoursMap(lwId) {
     const p = PARCOURS[lwId];
@@ -531,6 +540,7 @@ async function openParcoursMap(lwId) {
     waypointMarkers = {};
     routePolylines  = {};
     stationMarkers  = [];
+    osrmResults     = {};
 
     p.segments.forEach(s => {
         waypointData[s.route_id] = (s.waypoints || []).map(wp => [...wp]);
@@ -568,10 +578,23 @@ function fitMap(p) {
     else mapInstance.setView([49.877, 12.330], 12); // Fallback TIR
 }
 
+function fmtSek(sek) {
+    if (sek === null || sek === undefined) return null;
+    if (sek < 60) return sek + ' s';
+    return Math.floor(sek / 60) + ':' + String(sek % 60).padStart(2, '0') + ' min';
+}
+
 function drawStations(p) {
     stationMarkers.forEach(m => m.remove());
     stationMarkers = [];
-    const seen = new Set();
+    const seen = new Set(); // code → true
+    // collect avg_sek + visits per station code
+    const durMap = {};
+    p.segments.forEach(s => {
+        if (!(s.from_code in durMap)) durMap[s.from_code] = { avg_sek: s.from_avg_sek, visits: s.from_visits };
+        if (!(s.to_code   in durMap)) durMap[s.to_code]   = { avg_sek: s.to_avg_sek,   visits: s.to_visits   };
+    });
+
     p.segments.forEach((s, i) => {
         [
             { code: s.from_code, name: s.from_name, lat: s.from_lat, lng: s.from_lng, isStart: i === 0 },
@@ -591,9 +614,17 @@ function drawStations(p) {
                     box-shadow:0 2px 8px rgba(0,0,0,.25);">${st.code}</div>`,
                 iconSize: [36, 36], iconAnchor: [18, 18],
             });
+            const dur  = durMap[st.code] || {};
+            const fmt  = fmtSek(dur.avg_sek ?? null);
+            const chip = fmt
+                ? `<span style="display:inline-block;margin-top:6px;padding:3px 8px;border-radius:20px;
+                       font-size:11px;font-weight:700;background:${p.color}22;color:${p.color};
+                       border:1px solid ${p.color}55;">⏱ Ø ${fmt}${dur.visits ? ' · ' + dur.visits + ' Gr.' : ''}</span>`
+                : `<span style="display:inline-block;margin-top:6px;font-size:11px;color:#aaa;">Noch keine Daten</span>`;
+            const popup = `<strong>Station ${st.code}</strong><br>${st.name}<br>${chip}`;
             const m = L.marker([st.lat, st.lng], { icon, zIndexOffset: 1000 })
                 .addTo(mapInstance)
-                .bindTooltip(`<strong>Station ${st.code}</strong><br>${st.name}`, { direction: 'top' });
+                .bindPopup(popup, { maxWidth: 220 });
             stationMarkers.push(m);
         });
     });
@@ -697,12 +728,14 @@ async function recalcSegment(p, seg) {
         }).addTo(mapInstance);
 
         // Popup auf Linienmitte mit Segment-Info
-        const mid = latlngs[Math.floor(latlngs.length / 2)];
         const dist = Math.round(data.routes[0].distance);
         const time = Math.round(data.routes[0].duration / 60);
         routePolylines[seg.route_id].bindPopup(
             `<strong>${seg.from_code} → ${seg.to_code}</strong><br>${dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m'} · ca. ${time} min`
         );
+
+        // Ergebnisse merken für späteres Speichern
+        osrmResults[seg.route_id] = { distance_m: dist, est_time_min: time };
 
         return dist;
     } catch { return null; }
@@ -725,12 +758,18 @@ document.getElementById('btnSaveWaypoints').addEventListener('click', async () =
     let ok = true;
 
     for (const seg of p.segments) {
-        const wps = waypointData[seg.route_id] || [];
+        const wps    = waypointData[seg.route_id] || [];
+        const osrm   = osrmResults[seg.route_id]  || {};
         try {
             const res = await fetch(`/admin/stations/routes/${seg.route_id}/waypoints`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ waypoints: wps, csrf_token: CSRF }),
+                body: JSON.stringify({
+                    waypoints:    wps,
+                    distance_m:   osrm.distance_m   ?? null,
+                    est_time_min: osrm.est_time_min  ?? null,
+                    csrf_token:   CSRF,
+                }),
             });
             if (!res.ok) ok = false;
         } catch { ok = false; }

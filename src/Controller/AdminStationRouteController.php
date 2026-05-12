@@ -9,6 +9,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Model\Competition;
 use App\Model\Laufweg;
+use App\Model\Score;
 use App\Model\Station;
 use App\Model\StationRoute;
 
@@ -18,6 +19,7 @@ class AdminStationRouteController
     private Station      $stationModel;
     private Competition  $competitionModel;
     private Laufweg      $laufwegModel;
+    private Score        $scoreModel;
 
     public function __construct(private Request $request)
     {
@@ -25,6 +27,7 @@ class AdminStationRouteController
         $this->stationModel     = new Station();
         $this->competitionModel = new Competition();
         $this->laufwegModel     = new Laufweg();
+        $this->scoreModel       = new Score();
         if (!Auth::isAdmin()) {
             Response::redirect('/admin/login');
         }
@@ -37,14 +40,15 @@ class AdminStationRouteController
         $compId      = $competition ? (int)$competition['id'] : 0;
 
         Response::view('pages/admin/station-routes', [
-            'title'       => 'Laufrouten',
-            'competition' => $competition,
-            'competitions'=> $this->competitionModel->findAll(),
-            'stations'    => $compId ? $this->stationModel->findByCompetition($compId) : [],
-            'laufwege'    => $compId ? $this->laufwegModel->findByCompetition($compId) : [],
-            'routes'      => $compId ? $this->routeModel->findByCompetition($compId) : [],
-            'analysis'    => $compId ? $this->routeModel->getTravelAnalysis($compId) : [],
-            'csrf'        => Auth::getCsrfToken(),
+            'title'            => 'Laufrouten',
+            'competition'      => $competition,
+            'competitions'     => $this->competitionModel->findAll(),
+            'stations'         => $compId ? $this->stationModel->findByCompetition($compId) : [],
+            'laufwege'         => $compId ? $this->laufwegModel->findByCompetition($compId) : [],
+            'routes'           => $compId ? $this->routeModel->findByCompetition($compId) : [],
+            'analysis'         => $compId ? $this->routeModel->getTravelAnalysis($compId) : [],
+            'stationDurations' => $compId ? $this->scoreModel->getStationDurations($compId) : [],
+            'csrf'             => Auth::getCsrfToken(),
         ]);
     }
 
@@ -114,7 +118,10 @@ class AdminStationRouteController
             }
         }
 
-        $this->routeModel->saveWaypoints((int)$id, $waypoints);
+        $distM    = isset($data['distance_m'])   && is_numeric($data['distance_m'])   ? (int)$data['distance_m']   : null;
+        $estMin   = isset($data['est_time_min'])  && is_numeric($data['est_time_min'])  ? (int)$data['est_time_min']  : null;
+
+        $this->routeModel->saveWaypoints((int)$id, $waypoints, $distM, $estMin);
         Response::json(['success' => true, 'count' => count($waypoints)]);
     }
 

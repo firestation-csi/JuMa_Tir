@@ -135,12 +135,17 @@ class StationRoute
         return (int)$this->db->lastInsertId();
     }
 
-    public function saveWaypoints(int $id, array $waypoints): void
+    public function saveWaypoints(int $id, array $waypoints, ?int $distanceM = null, ?int $estTimeMin = null): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE station_routes SET waypoints = :wp, updated_at = NOW() WHERE id = :id'
+            'UPDATE station_routes
+             SET waypoints = :wp,
+                 distance_m    = COALESCE(:dist, distance_m),
+                 est_time_min  = COALESCE(:time, est_time_min),
+                 updated_at    = NOW()
+             WHERE id = :id'
         );
-        $stmt->execute([':wp' => json_encode($waypoints), ':id' => $id]);
+        $stmt->execute([':wp' => json_encode($waypoints), ':dist' => $distanceM, ':time' => $estTimeMin, ':id' => $id]);
     }
 
     public function update(int $id, ?int $laufwegId, int $fromId, int $toId,
