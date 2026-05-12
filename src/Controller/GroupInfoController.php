@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Core\Request;
 use App\Core\Response;
+use App\Model\Competition;
 use App\Model\Group;
 use App\Model\Laufweg;
 use App\Model\Message;
@@ -85,6 +86,8 @@ class GroupInfoController
         $remainingM  = 0;
         $totalM      = 0;
 
+        $allSegments = [];
+
         if ($currentLwId) {
             $laufwegInfo = $laufwegModel->findById($currentLwId);
 
@@ -96,30 +99,42 @@ class GroupInfoController
             usort($lwRoutes, fn($a, $b) => (int)$a['sort_order'] - (int)$b['sort_order']);
 
             foreach ($lwRoutes as $r) {
-                $totalM += (int)($r['distance_m'] ?? 0);
-            }
-
-            foreach ($lwRoutes as $r) {
                 $fromId = (int)$r['from_station_id'];
                 $toId   = (int)$r['to_station_id'];
+                $seg    = [
+                    'route_id'        => (int)$r['id'],
+                    'from_station_id' => $fromId,
+                    'to_station_id'   => $toId,
+                    'from_code'       => $r['from_code'],
+                    'to_code'         => $r['to_code'],
+                    'from_lat'        => $r['from_lat'] ? (float)$r['from_lat'] : null,
+                    'from_lng'        => $r['from_lng'] ? (float)$r['from_lng'] : null,
+                    'to_lat'          => $r['to_lat']   ? (float)$r['to_lat']   : null,
+                    'to_lng'          => $r['to_lng']   ? (float)$r['to_lng']   : null,
+                    'waypoints'       => $r['waypoints'] ? json_decode($r['waypoints'], true) : [],
+                    'distance_m'      => (int)($r['distance_m']  ?? 0),
+                    'est_time_min'    => (int)($r['est_time_min'] ?? 0),
+                    'notes'           => $r['notes'] ?? null,
+                    'done'            => in_array($toId, $visitedIds),
+                    'is_current'      => $lastStation && $fromId === $lastStation['id'] && !in_array($toId, $visitedIds),
+                ];
+                $allSegments[] = $seg;
+                $totalM       += $seg['distance_m'];
+                if ($seg['done']) $coveredM += $seg['distance_m'];
 
-                if (in_array($fromId, $visitedIds)) {
-                    $coveredM += (int)($r['distance_m'] ?? 0);
-                }
-
-                // Nächste Station = Ziel des Segments, dessen Start die letzte Station ist
-                if ($lastStation && $fromId === $lastStation['id'] && !in_array($toId, $visitedIds) && !$nextStation) {
+                if ($seg['is_current'] && !$nextStation) {
                     $nextStation = [
                         'id'          => $toId,
                         'code'        => $r['to_code'],
                         'name'        => $r['to_name'],
-                        'lat'         => $r['to_lat']  ? (float)$r['to_lat']  : null,
-                        'lng'         => $r['to_lng']  ? (float)$r['to_lng']  : null,
+                        'lat'         => $r['to_lat']   ? (float)$r['to_lat']   : null,
+                        'lng'         => $r['to_lng']   ? (float)$r['to_lng']   : null,
                         'distance_m'  => (int)($r['distance_m']  ?? 0),
                         'est_time_min'=> (int)($r['est_time_min'] ?? 0),
                         'waypoints'   => $r['waypoints'] ? json_decode($r['waypoints'], true) : [],
                         'from_lat'    => $r['from_lat'] ? (float)$r['from_lat'] : null,
                         'from_lng'    => $r['from_lng'] ? (float)$r['from_lng'] : null,
+                        'notes'       => $r['notes'] ?? null,
                     ];
                 }
             }
@@ -127,11 +142,16 @@ class GroupInfoController
             $remainingM = max(0, $totalM - $coveredM);
         }
 
+        // Mitgliederliste + Wettbewerb
+        $members         = $groupModel->getMembers($groupId);
+        $competition     = (new Competition())->findById($compId);
+
         Response::json([
             'group'        => [
-                'id'   => $groupId,
-                'name' => $group['name'],
-                'num'  => $group['num'] ?? null,
+                'id'               => $groupId,
+                'name'             => $group['name'],
+                'num'              => $group['num'] ?? null,
+                'competition_name' => $competition ? $competition['name'] : null,
             ],
             'laufweg'      => $laufwegInfo ? [
                 'id'    => (int)$laufwegInfo['id'],
@@ -141,9 +161,15 @@ class GroupInfoController
             'last_station' => $lastStation,
             'next_station' => $nextStation,
             'visited'      => $visitedList,
+            'all_segments' => $allSegments,
             'covered_m'    => $coveredM,
             'remaining_m'  => $remainingM,
             'total_m'      => $totalM,
+            'members'      => array_map(fn($m) => [
+                'vorname'  => $m['vorname'],
+                'name'     => $m['name'],
+                'funktion' => $m['funktion'] ?? null,
+            ], $members),
         ]);
     }
 
