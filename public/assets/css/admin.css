@@ -207,6 +207,13 @@
     border-radius: var(--wt-r-sm);
     color: var(--wt-text-muted);
     border: 1px solid var(--wt-border);
+    transition: background .15s, color .15s;
+    user-select: none;
+}
+.adm_hash--copied {
+    background: var(--wt-ok-soft);
+    color: var(--wt-ok);
+    border-color: var(--wt-ok);
 }
 
 /* ---- Status-Badges ---- */

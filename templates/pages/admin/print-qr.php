@@ -287,7 +287,8 @@ $defaultSize = '89x36';
     sizeSelect.addEventListener('change', () => applySize(sizeSelect.value));
     applySize(sizeSelect.value);
 
-    // ── Dymo SDK ──────────────────────────────────────────
+    // ── Dymo Connect Framework ────────────────────────────
+    // https://github.com/dymosoftware/dymo-connect-framework
     const dymoStatus  = document.getElementById('dymoStatus');
     const dymoSection = document.getElementById('dymoSection');
     const dymoSelect  = document.getElementById('dymoSelect');
@@ -298,101 +299,153 @@ $defaultSize = '89x36';
         dymoStatus.innerHTML = msg;
     }
 
-    // Dymo Connect lokaler Web-Service auf Port 41951/41952
-    async function detectDymo() {
-        const ports = [41951, 41952];
-        for (const port of ports) {
-            try {
-                const res = await fetch(`http://localhost:${port}/DYMO/DLS/Labeling/StatusConnected`, {
-                    signal: AbortSignal.timeout(1500),
-                    mode: 'cors',
-                });
-                if (res.ok) return port;
-            } catch { /* nächsten Port versuchen */ }
-        }
-        return null;
+    function escXml(str) {
+        return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    async function loadDymoPrinters(port) {
-        try {
-            const res  = await fetch(`http://localhost:${port}/DYMO/DLS/Labeling/Printers`, { mode: 'cors', signal: AbortSignal.timeout(3000) });
-            const text = await res.text();
-            // DYMO gibt XML zurück, Namen parsen
-            const matches = [...text.matchAll(/<Name>([^<]+)<\/Name>/g)];
-            return matches.map(m => m[1]);
-        } catch { return []; }
-    }
-
-    async function printDymo(port, printerName, copies) {
-        const qrImg = document.getElementById('qrImg');
-        const qrB64 = qrImg.src.split(',')[1] ?? '';
-        const labelXml = `<?xml version="1.0" encoding="utf-8"?>
+    /** Label-XML für den aktuell gewählten Etikettentyp aufbauen */
+    function buildLabelXml(qrBase64, mainText, subText, sizeKey) {
+        const s = sizes[sizeKey] ?? sizes['89x36'];
+        // DYMO nutzt Twips (1 Zoll = 1440 Twips, 1 mm ≈ 56.7 Twips)
+        const twipW = Math.round(s.w * 56.7);
+        const twipH = Math.round(s.h * 56.7);
+        const qrSz  = Math.round(twipH * 0.85);
+        const txtX  = qrSz + 80;
+        const txtW  = twipW - txtX - 80;
+        return `<?xml version="1.0" encoding="utf-8"?>
 <DieCutLabel Version="8.0" Units="twips" MediaType="Default">
     <PaperOrientation>Landscape</PaperOrientation>
     <Id>Address</Id>
+    <IsOutlined>false</IsOutlined>
     <PaperName>30252 Address</PaperName>
     <DrawCommands>
         <DrawImage>
-            <X>0</X><Y>30</Y><Width>720</Width><Height>720</Height>
-            <Base64Data>${qrB64}</Base64Data>
+            <X>40</X><Y>${Math.round((twipH - qrSz) / 2)}</Y>
+            <Width>${qrSz}</Width><Height>${qrSz}</Height>
+            <ImageData>${qrBase64}</ImageData>
         </DrawImage>
         <DrawText>
-            <X>740</X><Y>50</Y><Width>4000</Width><Height>300</Height>
-            <Text>${escXml(<?= json_encode($label) ?>)}</Text>
+            <X>${txtX}</X><Y>${Math.round(twipH * 0.12)}</Y>
+            <Width>${txtW}</Width><Height>${Math.round(twipH * 0.42)}</Height>
+            <ObjectName>LabelMain</ObjectName>
+            <Text>${escXml(mainText)}</Text>
             <FontInfo><Family>Arial</Family><Size>18</Size><Bold>True</Bold></FontInfo>
         </DrawText>
         <DrawText>
-            <X>740</X><Y>380</Y><Width>4000</Width><Height>280</Height>
-            <Text>${escXml(<?= json_encode($sublabel) ?>)}</Text>
-            <FontInfo><Family>Arial</Family><Size>12</Size></FontInfo>
+            <X>${txtX}</X><Y>${Math.round(twipH * 0.57)}</Y>
+            <Width>${txtW}</Width><Height>${Math.round(twipH * 0.34)}</Height>
+            <ObjectName>LabelSub</ObjectName>
+            <Text>${escXml(subText)}</Text>
+            <FontInfo><Family>Arial</Family><Size>12</Size><Bold>False</Bold></FontInfo>
         </DrawText>
     </DrawCommands>
 </DieCutLabel>`;
-        const body = new URLSearchParams({ printerName, labelXml, copies });
-        const res  = await fetch(`http://localhost:${port}/DYMO/DLS/Labeling/PrintLabel`, {
-            method: 'POST', body, mode: 'cors', signal: AbortSignal.timeout(10000),
+    }
+
+    /** Dymo Connect Framework dynamisch laden (aus laufender Dymo Connect App) */
+    function loadDymoFramework() {
+        return new Promise((resolve, reject) => {
+            // DCF JS wird von der lokal laufenden Dymo Connect App bereitgestellt
+            const urls = [
+                'https://localhost:41951/DYMO/DLS/Labeling/js/dymo.connect.framework.js',
+                'http://localhost:41951/DYMO/DLS/Labeling/js/dymo.connect.framework.js',
+                'https://localhost:41952/DYMO/DLS/Labeling/js/dymo.connect.framework.js',
+            ];
+            let idx = 0;
+            function tryNext() {
+                if (idx >= urls.length) { reject(new Error('DCF nicht erreichbar')); return; }
+                const s = document.createElement('script');
+                s.src = urls[idx++];
+                s.onload  = resolve;
+                s.onerror = tryNext;
+                document.head.appendChild(s);
+            }
+            tryNext();
         });
-        return res.ok;
     }
 
-    function escXml(str) {
-        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    let dymoPort = null;
     (async () => {
-        dymoPort = await detectDymo();
-        if (!dymoPort) {
-            setDymoStatus('error', '⚠ Dymo Connect nicht gefunden. <a href="https://www.dymo.com/support/dymo-connect-for-desktop-support.html" target="_blank" style="color:inherit;">Software herunterladen</a> → Starten → Seite neu laden.');
+        try {
+            await loadDymoFramework();
+        } catch {
+            setDymoStatus('error',
+                '⚠ Dymo Connect nicht gefunden. ' +
+                '<a href="https://www.dymo.com/de-DE/dymo-connect-for-desktop.html" target="_blank" style="color:inherit;font-weight:600;">Software herunterladen</a>' +
+                ' → starten → Seite neu laden.');
             return;
         }
-        const printers = await loadDymoPrinters(dymoPort);
+
+        // Framework initialisieren (DCF API)
+        try {
+            await dymo.connect.framework.init();
+        } catch {
+            // init() ist bei manchen DCF-Versionen nicht erforderlich — ignorieren
+        }
+
+        // Drucker auflisten
+        let printers = [];
+        try {
+            const list = dymo.connect.framework.getPrinters();
+            // DCF liefert Array von Printer-Objekten: { name, modelName, isConnected, isLocal }
+            printers = (Array.isArray(list) ? list : [])
+                .filter(p => p.isConnected !== false);
+        } catch (e) {
+            setDymoStatus('error', `⚠ Drucker konnten nicht geladen werden: ${e.message}`);
+            return;
+        }
+
         if (!printers.length) {
             setDymoStatus('error', '⚠ Kein Dymo-Drucker gefunden. Drucker verbinden und Seite neu laden.');
             return;
         }
+
         printers.forEach(p => {
             const opt = document.createElement('option');
-            opt.value = opt.textContent = p;
+            opt.value       = p.name;
+            opt.textContent = `${p.name}${p.modelName ? ' (' + p.modelName + ')' : ''}`;
             dymoSelect.appendChild(opt);
         });
+
         dymoSection.classList.add('visible');
         btnDymo.disabled = false;
-        setDymoStatus('ok', `✓ Dymo Connect erkannt · ${printers.length} Drucker verfügbar`);
-    })();
+        setDymoStatus('ok',
+            `✓ Dymo Connect Framework erkannt · ${printers.length} Drucker verfügbar`);
 
-    btnDymo.addEventListener('click', async () => {
-        if (!dymoPort) return;
-        btnDymo.disabled = true;
-        btnDymo.textContent = 'Druckt…';
-        const copies = parseInt(document.getElementById('copies').value) || 1;
-        const ok = await printDymo(dymoPort, dymoSelect.value, copies);
-        btnDymo.disabled = false;
-        btnDymo.innerHTML = ok
-            ? '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M3 9l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gedruckt!'
-            : '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><rect x="1" y="5" width="16" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/></svg> Auf Dymo drucken';
-        if (!ok) setDymoStatus('error', '✗ Druckfehler – bitte prüfen ob Drucker verbunden.');
-    });
+        btnDymo.addEventListener('click', async () => {
+            btnDymo.disabled = true;
+            btnDymo.textContent = 'Druckt…';
+
+            const copies     = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
+            const printer    = dymoSelect.value;
+            const qrBase64   = document.getElementById('qrImg').src.split(',')[1] ?? '';
+            const labelXml   = buildLabelXml(
+                qrBase64,
+                <?= json_encode($label) ?>,
+                <?= json_encode($sublabel) ?>,
+                sizeSelect.value
+            );
+
+            const printParamsXml = `<LabelWriterPrintParams>
+                <Copies>${copies}</Copies>
+                <JobTitle>JuMa QR Code</JobTitle>
+                <PrintQuality>Auto</PrintQuality>
+            </LabelWriterPrintParams>`;
+
+            try {
+                const label = dymo.connect.framework.openLabelXml(labelXml);
+                await label.print(printer, printParamsXml, '');
+                btnDymo.disabled = false;
+                btnDymo.innerHTML =
+                    '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M3 9l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gedruckt!';
+                setDymoStatus('ok', `✓ ${copies} Etikett${copies > 1 ? 'en' : ''} gedruckt auf «${printer}»`);
+            } catch (err) {
+                btnDymo.disabled = false;
+                btnDymo.innerHTML =
+                    '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><rect x="1" y="5" width="16" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/></svg> Auf Dymo drucken';
+                setDymoStatus('error', `✗ Druckfehler: ${err.message ?? err}`);
+            }
+        });
+    })();
 
     // ── Kopien: Browser-Print ─────────────────────────────
     document.getElementById('btnBrowserPrint').addEventListener('click', () => {

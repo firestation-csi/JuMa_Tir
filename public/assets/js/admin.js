@@ -2,6 +2,28 @@
 
 import { showMessage } from './app.js';
 
+// ---- Hash/Token per Klick in Zwischenablage ----
+document.querySelectorAll('.adm_hash').forEach(el => {
+    const fullToken = el.getAttribute('title') || el.textContent.trim();
+    el.style.cursor = 'copy';
+    el.title = fullToken + ' · Klicken zum Kopieren';
+
+    el.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(fullToken);
+            const prev = el.innerHTML;
+            el.textContent = '✓ Kopiert';
+            el.classList.add('adm_hash--copied');
+            setTimeout(() => {
+                el.innerHTML = prev;
+                el.classList.remove('adm_hash--copied');
+            }, 1400);
+        } catch {
+            showMessage('Kopieren nicht verfügbar', 'error');
+        }
+    });
+});
+
 // ---- CSV-Export ----
 const exportBtn = document.getElementById('exportCsvBtn');
 if (exportBtn) {
