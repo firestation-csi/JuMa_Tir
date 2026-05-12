@@ -100,19 +100,46 @@ class AdminController
         $this->requireAdmin();
 
         $competition = $this->competitionModel->findActive();
-        $stations    = $competition
-            ? $this->stationModel->findByCompetition((int)$competition['id'])
-            : [];
-        $groups = $competition
-            ? $this->groupModel->findByCompetition((int)$competition['id'])
-            : [];
+        $scoreModel  = new \App\Model\Score();
+
+        if (!$competition) {
+            Response::view('pages/admin/dashboard', [
+                'title'       => 'Wertungsbüro',
+                'competition' => null,
+                'csrf'        => Auth::getCsrfToken(),
+            ]);
+        }
+
+        $compId      = (int)$competition['id'];
+        $groups      = $this->groupModel->findByCompetition($compId);
+        $stations    = $this->stationModel->findByCompetition($compId);
+        $totalGroups = count(array_filter($groups, fn($g) => $g['active']));
+        $totalStations = count(array_filter($stations, fn($s) => $s['active']));
+
+        $stationStats       = $scoreModel->getDashboardStationStats($compId, $totalGroups);
+        $kbiDistribution    = $scoreModel->getKbiDistribution($compId);
+        $ranking            = $scoreModel->getTotalsByCompetition($compId);
+        $scoresByStation    = $scoreModel->getAllScoresByStation($compId);
+        $completedGroups    = $scoreModel->getCompletedGroupsCount($compId, $totalStations);
+        $totalScores        = array_sum(array_column($stationStats, 'scored_count'));
+
+        // Feuerwehren die teilnehmen (mit feuerwehr_id)
+        $feuerwehren = array_filter($groups, fn($g) => !empty($g['feuerwehr_id']));
+        $uniqueFw    = count(array_unique(array_column($feuerwehren, 'feuerwehr_id')));
 
         Response::view('pages/admin/dashboard', [
-            'title'       => 'Wertungsbüro',
-            'competition' => $competition,
-            'stations'    => $stations,
-            'groups'      => $groups,
-            'csrf'        => Auth::getCsrfToken(),
+            'title'            => 'Wertungsbüro',
+            'competition'      => $competition,
+            'stationStats'     => $stationStats,
+            'kbiDistribution'  => $kbiDistribution,
+            'ranking'          => $ranking,
+            'scoresByStation'  => $scoresByStation,
+            'totalGroups'      => $totalGroups,
+            'totalStations'    => $totalStations,
+            'totalScores'      => $totalScores,
+            'completedGroups'  => $completedGroups,
+            'uniqueFeuerwehren'=> $uniqueFw,
+            'csrf'             => Auth::getCsrfToken(),
         ]);
     }
 

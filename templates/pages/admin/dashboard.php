@@ -1,76 +1,325 @@
 <?php
+// Variablen-Defaults (werden vom View-System per extract() befüllt)
+$competition       = $competition       ?? null;
+$stationStats      = $stationStats      ?? [];
+$kbiDistribution   = $kbiDistribution   ?? [];
+$ranking           = $ranking           ?? [];
+$scoresByStation   = $scoresByStation   ?? [];
+$totalGroups       = $totalGroups       ?? 0;
+$totalStations     = $totalStations     ?? 0;
+$totalScores       = $totalScores       ?? 0;
+$completedGroups   = $completedGroups   ?? 0;
+$uniqueFeuerwehren = $uniqueFeuerwehren ?? 0;
 ob_start();
+
+$extraHead = '
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+';
+$extraScripts = '
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+';
+
+if (!$competition): ?>
+<div class="adm_empty">
+    <div class="adm_empty__icon">🏆</div>
+    <p>Kein aktiver Wettbewerb gefunden.</p>
+    <a href="/admin/competitions/new" class="adm_btn adm_btn--primary">Wettbewerb anlegen</a>
+</div>
+<?php else:
+$statusLabels = ['active' => 'Aktiv', 'finished' => 'Abgeschlossen', 'archived' => 'Archiviert'];
+$statusColors = ['active' => 'var(--wt-ok)', 'finished' => 'var(--wt-text-muted)', 'archived' => '#aaa'];
+$overallPct   = $totalGroups > 0 && $totalStations > 0
+    ? min(100, (int)round($totalScores / ($totalGroups * $totalStations) * 100))
+    : 0;
 ?>
-<?php if (!$competition): ?>
-    <div class="wt_alert wt_alert--info">Kein aktiver Wettbewerb gefunden.</div>
-<?php else: ?>
-    <div class="wt_dashboard-grid">
-        <div class="wt_card">
-            <h2 class="wt_card__title">Wettbewerb</h2>
-            <p><strong><?= htmlspecialchars($competition['name']) ?></strong></p>
-            <p>Datum: <?= $competition['date'] ? date('d.m.Y', strtotime($competition['date'])) : '–' ?></p>
-            <p>Status: <span class="wt_badge wt_badge--<?= htmlspecialchars($competition['status']) ?>">
-                <?= htmlspecialchars($competition['status']) ?>
-            </span></p>
-        </div>
 
-        <div class="wt_card">
-            <h2 class="wt_card__title">Übersicht</h2>
-            <ul class="wt_stat-list">
-                <li><span class="wt_stat__label">Stationen</span>
-                    <span class="wt_stat__value"><?= count($stations) ?></span></li>
-                <li><span class="wt_stat__label">Gruppen</span>
-                    <span class="wt_stat__value"><?= count($groups) ?></span></li>
-            </ul>
+<!-- ── Stat-Cards ──────────────────────────────────────── -->
+<div class="dash_stat-grid">
+    <div class="dash_stat-card">
+        <div class="dash_stat-card__value"><?= $totalGroups ?></div>
+        <div class="dash_stat-card__label">Gruppen angemeldet</div>
+    </div>
+    <div class="dash_stat-card">
+        <div class="dash_stat-card__value"><?= $uniqueFeuerwehren ?></div>
+        <div class="dash_stat-card__label">Feuerwehren vertreten</div>
+    </div>
+    <div class="dash_stat-card">
+        <div class="dash_stat-card__value"><?= $totalScores ?></div>
+        <div class="dash_stat-card__label">Bewertungen gesamt</div>
+    </div>
+    <div class="dash_stat-card dash_stat-card--accent">
+        <div class="dash_stat-card__value"><?= $completedGroups ?></div>
+        <div class="dash_stat-card__label">Gruppen fertig</div>
+        <div class="dash_stat-card__sub">von <?= $totalGroups ?> angemeldet</div>
+    </div>
+</div>
+
+<!-- ── Wettbewerb-Status + Fortschritt ───────────────── -->
+<div class="dash_section-row">
+    <div class="adm_card dash_comp-card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;">
+            <div>
+                <div class="adm_eyebrow" style="margin-bottom:4px;">Aktiver Wettbewerb</div>
+                <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;"><?= htmlspecialchars($competition['name']) ?></div>
+                <div style="font-size:13px;color:var(--wt-text-muted);margin-top:3px;">
+                    <?= $competition['date'] ? date('d.m.Y', strtotime($competition['date'])) : '–' ?>
+                    <?php if ($competition['location']): ?> · <?= htmlspecialchars($competition['location']) ?><?php endif; ?>
+                </div>
+            </div>
+            <span class="adm_badge" style="background:<?= $statusColors[$competition['status']] ?? 'var(--wt-text-muted)' ?>22;color:<?= $statusColors[$competition['status']] ?? 'var(--wt-text-muted)' ?>;flex-shrink:0;">
+                <?= $statusLabels[$competition['status']] ?? $competition['status'] ?>
+            </span>
+        </div>
+        <div class="adm_eyebrow" style="margin-bottom:8px;">Gesamtfortschritt</div>
+        <div class="dash_progress-bar">
+            <div class="dash_progress-bar__fill" style="width:<?= $overallPct ?>%;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--wt-text-muted);margin-top:6px;">
+            <span><?= $totalScores ?> von <?= $totalGroups * $totalStations ?> Bewertungen</span>
+            <span class="adm_mono" style="font-weight:700;color:var(--wt-text);"><?= $overallPct ?>%</span>
         </div>
     </div>
 
-    <div class="wt_card">
-        <h2 class="wt_card__title">Stationen</h2>
-        <table class="wt_table">
-            <thead>
-                <tr>
-                    <th>Station</th>
-                    <th>Aufgabe</th>
-                    <th>Max. Punkte</th>
-                    <th>Aktionen</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($stations as $station): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($station['name']) ?></td>
-                        <td><?= htmlspecialchars($station['task'] ?? '–') ?></td>
-                        <td><?= (int)($station['max_score'] ?? 10) ?></td>
-                        <td>
-                            <a href="/admin/results" class="wt_btn wt_btn--sm">Ergebnisse</a>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+    <!-- ── Station-Fortschritt ────────────────────────── -->
+    <div class="adm_card dash_station-progress">
+        <div class="adm_eyebrow" style="margin-bottom:14px;">Stationsfortschritt</div>
+        <?php foreach ($stationStats as $st): ?>
+        <div style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:4px;">
+                <span><?= htmlspecialchars($st['code']) ?> · <?= htmlspecialchars($st['name']) ?></span>
+                <span class="adm_mono" style="color:var(--wt-text-muted);font-size:12px;"><?= (int)$st['scored_count'] ?>/<?= $st['total_groups'] ?></span>
+            </div>
+            <div class="dash_progress-bar dash_progress-bar--sm">
+                <div class="dash_progress-bar__fill <?= $st['pct'] === 100 ? 'dash_progress-bar__fill--done' : '' ?>" style="width:<?= $st['pct'] ?>%;"></div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        <?php if (empty($stationStats)): ?>
+            <div class="adm_table__muted" style="font-size:13px;">Keine Stationen konfiguriert.</div>
+        <?php endif; ?>
     </div>
+</div>
 
-    <div class="wt_card">
-        <h2 class="wt_card__title">Gruppen</h2>
-        <table class="wt_table">
+<!-- ── OSM Karte ──────────────────────────────────────── -->
+<div class="adm_card" style="padding:0;overflow:hidden;">
+    <div style="padding:16px 20px 12px;border-bottom:1px solid var(--wt-border);">
+        <span style="font-weight:700;font-size:15px;">Stationskarte</span>
+        <?php $hasCoords = array_filter($stationStats, fn($s) => $s['lat'] && $s['lng']); ?>
+        <?php if (empty($hasCoords)): ?>
+            <span style="font-size:12px;color:var(--wt-text-muted);margin-left:10px;">
+                Koordinaten unter
+                <a href="/admin/stations" style="color:var(--wt-text-muted);">Stationen → Bearbeiten</a> eintragen
+            </span>
+        <?php endif; ?>
+    </div>
+    <div id="dash-map" style="height:380px;"></div>
+</div>
+
+<!-- ── Leaderboard + KBM-Verteilung ──────────────────── -->
+<div class="dash_section-row">
+    <!-- Leaderboard -->
+    <div class="adm_card" style="flex:3;min-width:0;">
+        <div class="adm_eyebrow" style="margin-bottom:14px;">Aktuelles Ranking</div>
+        <?php if (empty($ranking)): ?>
+            <div class="adm_table__muted" style="font-size:13px;">Noch keine Bewertungen vorhanden.</div>
+        <?php else: ?>
+        <table class="adm_table" style="font-size:13px;">
             <thead>
                 <tr>
+                    <th style="width:2.5rem;text-align:center;">#</th>
                     <th>Gruppe</th>
-                    <th>QR-Code</th>
+                    <th>Feuerwehr · Bereich</th>
+                    <th style="text-align:center;">Stat.</th>
+                    <th style="text-align:right;">FP gesamt</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($groups as $group): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($group['name']) ?></td>
-                        <td><a href="/admin/qrcodes" class="wt_btn wt_btn--sm">QR anzeigen</a></td>
-                    </tr>
+                <?php foreach (array_slice($ranking, 0, 15) as $rank => $r):
+                    $fpColor = (int)$r['total_fp'] === 0 ? 'var(--wt-ok)' : ((int)$r['total_fp'] > 20 ? 'var(--wt-red)' : 'var(--wt-text)');
+                    $isComplete = (int)$r['stations_completed'] >= $totalStations && $totalStations > 0;
+                ?>
+                <tr <?= $rank === 0 ? 'style="background:var(--wt-ok-soft);"' : '' ?>>
+                    <td style="text-align:center;font-weight:700;color:<?= $rank < 3 ? 'var(--wt-ok)' : 'var(--wt-text-muted)' ?>;">
+                        <?= $rank + 1 ?>
+                    </td>
+                    <td>
+                        <span style="font-weight:600;">#<?= htmlspecialchars($r['group_num']) ?> <?= htmlspecialchars($r['group_name']) ?></span>
+                    </td>
+                    <td style="color:var(--wt-text-muted);">
+                        <?php if ($r['feuerwehr_name']): ?>
+                            <?= htmlspecialchars($r['feuerwehr_name']) ?>
+                            <?php if ($r['bereich']): ?><span style="font-size:11px;"> · <?= htmlspecialchars($r['bereich']) ?></span><?php endif; ?>
+                        <?php else: ?>–<?php endif; ?>
+                    </td>
+                    <td style="text-align:center;">
+                        <span class="adm_mono" style="font-size:12px;color:<?= $isComplete ? 'var(--wt-ok)' : 'var(--wt-text-muted)' ?>;">
+                            <?= (int)$r['stations_completed'] ?>/<?= $totalStations ?>
+                            <?= $isComplete ? '✓' : '' ?>
+                        </span>
+                    </td>
+                    <td style="text-align:right;">
+                        <span class="adm_mono" style="font-size:15px;font-weight:700;color:<?= $fpColor ?>;">
+                            <?= (int)$r['total_fp'] ?>
+                        </span>
+                    </td>
+                </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
+        <?php if (count($ranking) > 15): ?>
+            <div style="text-align:center;padding:10px 0 2px;font-size:12px;color:var(--wt-text-muted);">
+                + <?= count($ranking) - 15 ?> weitere →
+                <a href="/admin/results" style="color:var(--wt-text-muted);">Vollständige Ergebnisse</a>
+            </div>
+        <?php endif; ?>
+        <?php endif; ?>
     </div>
+
+    <!-- KBM-Verteilung Chart -->
+    <div class="adm_card" style="flex:2;min-width:0;">
+        <div class="adm_eyebrow" style="margin-bottom:14px;">KBI-Bereich Verteilung</div>
+        <?php if (empty($kbiDistribution)): ?>
+            <div class="adm_table__muted" style="font-size:13px;">Keine Bereichsdaten vorhanden.</div>
+        <?php else: ?>
+        <div style="position:relative;height:220px;">
+            <canvas id="kbiChart"></canvas>
+        </div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:7px;">
+            <?php
+            $chartColors = ['#8B1A1A','#C0392B','#E74C3C','#F39C12','#E67E22','#2C3E50','#7F8C8D','#BDC3C7'];
+            foreach ($kbiDistribution as $i => $row): ?>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                <span style="width:12px;height:12px;border-radius:3px;background:<?= $chartColors[$i % count($chartColors)] ?>;flex-shrink:0;"></span>
+                <span style="flex:1;"><?= htmlspecialchars($row['kbi_bereich']) ?></span>
+                <span class="adm_mono" style="font-weight:700;"><?= (int)$row['group_count'] ?></span>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+
 <?php endif; ?>
 <?php
 $content = ob_get_clean();
+
+// JSON für Karte + Chart
+$stationJson = json_encode(array_map(function($s) use ($scoresByStation) {
+    return [
+        'id'      => (int)$s['id'],
+        'code'    => $s['code'],
+        'name'    => $s['name'],
+        'lat'     => $s['lat'] ? (float)$s['lat'] : null,
+        'lng'     => $s['lng'] ? (float)$s['lng'] : null,
+        'scored'  => (int)$s['scored_count'],
+        'total'   => (int)$s['total_groups'],
+        'pct'     => (int)$s['pct'],
+        'best_fp' => $s['best_fp'] !== null ? (int)$s['best_fp'] : null,
+        'scores'  => array_map(fn($sc) => [
+            'num'   => $sc['group_num'],
+            'name'  => $sc['group_name'],
+            'fp'    => (int)$sc['total_fp'],
+        ], $scoresByStation[(int)$s['id']] ?? []),
+    ];
+}, $stationStats ?? []), JSON_UNESCAPED_UNICODE);
+
+$kbiJson = json_encode(array_values($kbiDistribution ?? []), JSON_UNESCAPED_UNICODE);
+$chartColors = ['#8B1A1A','#C0392B','#E74C3C','#F39C12','#E67E22','#2C3E50','#7F8C8D','#BDC3C7'];
+
+$extraScripts .= '
+<script>
+(function () {
+    // ── Leaflet Karte ─────────────────────────────────
+    const mapEl = document.getElementById("dash-map");
+    if (!mapEl) return;
+
+    const stations = ' . $stationJson . ';
+    const stationsWithCoords = stations.filter(s => s.lat && s.lng);
+
+    const defaultCenter = [49.8772, 12.3305];
+    const defaultZoom   = stationsWithCoords.length ? 12 : 11;
+
+    const map = L.map("dash-map").setView(defaultCenter, defaultZoom);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
+        maxZoom: 19,
+    }).addTo(map);
+
+    stationsWithCoords.forEach(s => {
+        const pct   = s.pct;
+        const color = pct === 100 ? "#27AE60" : pct >= 50 ? "#E67E22" : "#C0392B";
+        const icon  = L.divIcon({
+            className: "",
+            html: `<div style="
+                background:${color};color:#fff;border-radius:50%;
+                width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+                font-family:monospace;font-size:13px;font-weight:800;
+                box-shadow:0 2px 8px rgba(0,0,0,.3);border:2px solid #fff;">
+                ${s.code}
+            </div>`,
+            iconSize: [38, 38], iconAnchor: [19, 19],
+        });
+
+        const scoreRows = s.scores.length
+            ? s.scores.slice(0, 5).map(sc =>
+                `<tr><td style="padding:2px 8px 2px 0;font-size:12px;">#${sc.num} ${sc.name}</td><td style="font-family:monospace;font-weight:700;font-size:12px;">${sc.fp} FP</td></tr>`
+              ).join("") + (s.scores.length > 5 ? `<tr><td colspan="2" style="font-size:11px;color:#888;">+ ${s.scores.length - 5} weitere</td></tr>` : "")
+            : `<tr><td colspan="2" style="color:#888;font-size:12px;">Noch keine Bewertungen</td></tr>`;
+
+        const popup = `
+            <div style="min-width:180px;">
+                <div style="font-size:14px;font-weight:800;margin-bottom:6px;">Station ${s.code} · ${s.name}</div>
+                <div style="margin-bottom:8px;">
+                    <div style="background:#eee;border-radius:4px;height:8px;">
+                        <div style="background:${color};width:${pct}%;height:8px;border-radius:4px;"></div>
+                    </div>
+                    <div style="font-size:11px;color:#666;margin-top:3px;">${s.scored}/${s.total} Gruppen (${pct}%)</div>
+                </div>
+                <table style="border-collapse:collapse;width:100%;">${scoreRows}</table>
+                ${s.best_fp !== null ? `<div style="font-size:11px;color:#27AE60;margin-top:6px;font-weight:600;">Bestes Ergebnis: ${s.best_fp} FP</div>` : ""}
+            </div>`;
+        L.marker([s.lat, s.lng], { icon }).addTo(map).bindPopup(popup);
+    });
+
+    if (stationsWithCoords.length > 1) {
+        const bounds = L.latLngBounds(stationsWithCoords.map(s => [s.lat, s.lng]));
+        map.fitBounds(bounds, { padding: [40, 40] });
+    }
+
+    // ── KBI Donut-Chart ───────────────────────────────
+    const kbiData  = ' . $kbiJson . ';
+    const kbiCtx   = document.getElementById("kbiChart");
+    if (!kbiCtx || !kbiData.length) return;
+    const colors   = ' . json_encode($chartColors) . ';
+
+    new Chart(kbiCtx, {
+        type: "doughnut",
+        data: {
+            labels:   kbiData.map(d => d.kbi_bereich),
+            datasets: [{
+                data:            kbiData.map(d => d.group_count),
+                backgroundColor: colors.slice(0, kbiData.length),
+                borderWidth:     2,
+                borderColor:     "#fff",
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "65%",
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.parsed} Gruppen`,
+                    },
+                },
+            },
+        },
+    });
+})();
+</script>
+';
+
 require dirname(__DIR__, 2) . '/layout/admin.php';

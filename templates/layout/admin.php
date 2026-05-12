@@ -7,6 +7,7 @@
     <title><?= htmlspecialchars($title ?? 'Wertungsbüro') ?> – KFV-Tirschenreuth</title>
     <link rel="stylesheet" href="/assets/css/main.css">
     <link rel="stylesheet" href="/assets/css/admin.css">
+    <?= $extraHead ?? '' ?>
 </head>
 <body class="wt_body wt_body--admin">
 
@@ -45,6 +46,7 @@
         <?= $content ?? '' ?>
     </main>
 
+    <?= $extraScripts ?? '' ?>
     <script src="/assets/js/app.js" type="module"></script>
     <script src="/assets/js/admin.js" type="module"></script>
     <script>
