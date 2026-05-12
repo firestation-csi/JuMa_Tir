@@ -279,7 +279,8 @@ $overallPct   = $totalGroups > 0 && $totalStations > 0
 $content = ob_get_clean();
 
 // JSON für Karte + Chart
-$stationJson = json_encode(array_map(function($s) use ($scoresByStation) {
+$stationJson = json_encode(array_map(function($s) use ($scoresByStation, $stationDurations) {
+    $dur = $stationDurations[(int)$s['id']] ?? null;
     return [
         'id'      => (int)$s['id'],
         'code'    => $s['code'],
@@ -290,6 +291,8 @@ $stationJson = json_encode(array_map(function($s) use ($scoresByStation) {
         'total'   => (int)$s['total_groups'],
         'pct'     => (int)$s['pct'],
         'best_fp' => $s['best_fp'] !== null ? (int)$s['best_fp'] : null,
+        'avg_sek' => $dur ? $dur['avg_sek'] : null,
+        'visits'  => $dur ? (int)$dur['visits'] : 0,
         'scores'  => array_map(fn($sc) => [
             'num'   => $sc['group_num'],
             'name'  => $sc['group_name'],
@@ -341,6 +344,18 @@ $extraScripts .= '
               ).join("") + (s.scores.length > 5 ? `<tr><td colspan="2" style="font-size:11px;color:#888;">+ ${s.scores.length - 5} weitere</td></tr>` : "")
             : `<tr><td colspan="2" style="color:#888;font-size:12px;">Noch keine Bewertungen</td></tr>`;
 
+        const fmtSek = sek => {
+            if (!sek) return null;
+            if (sek < 60) return sek + ' s';
+            return Math.floor(sek / 60) + ':' + String(sek % 60).padStart(2, '0') + ' min';
+        };
+        const durFmt  = fmtSek(s.avg_sek);
+        const durChip = durFmt
+            ? `<span style="display:inline-block;margin-top:6px;padding:3px 8px;border-radius:20px;
+                   font-size:11px;font-weight:700;background:${color}22;color:${color};
+                   border:1px solid ${color}55;">⏱ Ø ${durFmt}${s.visits ? ' · ' + s.visits + ' Gr.' : ''}</span>`
+            : '';
+
         const popup = `
             <div style="min-width:180px;">
                 <div style="font-size:14px;font-weight:800;margin-bottom:6px;">Station ${s.code} · ${s.name}</div>
@@ -352,6 +367,7 @@ $extraScripts .= '
                 </div>
                 <table style="border-collapse:collapse;width:100%;">${scoreRows}</table>
                 ${s.best_fp !== null ? `<div style="font-size:11px;color:#27AE60;margin-top:6px;font-weight:600;">Bestes Ergebnis: ${s.best_fp} FP</div>` : ""}
+                ${durChip}
             </div>`;
         L.marker([s.lat, s.lng], { icon }).addTo(map).bindPopup(popup);
     });

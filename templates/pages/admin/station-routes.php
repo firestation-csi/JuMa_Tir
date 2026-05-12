@@ -728,8 +728,12 @@ async function recalcSegment(p, seg) {
         }).addTo(mapInstance);
 
         // Popup auf Linienmitte mit Segment-Info
-        const dist = Math.round(data.routes[0].distance);
-        const time = Math.round(data.routes[0].duration / 60);
+        const dist    = Math.round(data.routes[0].distance);
+        // OSRM-Demo läuft oft mit Kfz-Profil → Gehzeit aus Distanz berechnen (4,5 km/h = 75 m/min)
+        const osrmMin = data.routes[0].duration / 60;
+        const walkMin = dist / 75; // 4,5 km/h
+        // Sanity-Check: wenn OSRM-Zeit > 50 % schneller als Gehtempo → Kfz-Profil aktiv → eigene Berechnung
+        const time = (osrmMin < walkMin * 0.5) ? Math.max(1, Math.ceil(walkMin)) : Math.max(1, Math.ceil(osrmMin));
         routePolylines[seg.route_id].bindPopup(
             `<strong>${seg.from_code} → ${seg.to_code}</strong><br>${dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m'} · ca. ${time} min`
         );
@@ -776,12 +780,15 @@ document.getElementById('btnSaveWaypoints').addEventListener('click', async () =
     }
 
     btn.disabled = false;
-    btn.innerHTML = ok
-        ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gespeichert'
-        : '⚠ Fehler';
-    setTimeout(() => {
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2h9l3 3v9H2V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 2v4h6V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Speichern';
-    }, 2000);
+    if (ok) {
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gespeichert';
+        setTimeout(() => window.location.reload(), 800);
+    } else {
+        btn.innerHTML = '⚠ Fehler';
+        setTimeout(() => {
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2h9l3 3v9H2V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 2v4h6V2M5 9h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Speichern';
+        }, 2000);
+    }
 });
 
 document.getElementById('btnCloseMapModal').addEventListener('click', () => {
