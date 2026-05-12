@@ -680,6 +680,22 @@
     .adm_login-logo img { max-width: 220px; }
 }
 
+/* ---- Farb-Picker (Laufwege) ---- */
+.lw-color-dot {
+    display: block;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .15s, border-color .15s;
+}
+.lw-color-dot:hover { transform: scale(1.15); }
+.lw-color-dot--active {
+    border-color: var(--wt-text);
+    transform: scale(1.2);
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--wt-text);
+}
+
 /* ---- Routen ---- */
 .rte_layout {
     display: grid;

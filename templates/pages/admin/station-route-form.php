@@ -1,14 +1,29 @@
 <?php
 $stations = $stations ?? [];
+$laufwege = $laufwege ?? [];
 $csrf     = $csrf     ?? '';
 $route    = $route    ?? ['id' => 0, 'from_station_id' => 0, 'to_station_id' => 0,
                           'distance_m' => null, 'est_time_min' => null,
-                          'sort_order' => 0, 'notes' => null];
+                          'sort_order' => 0, 'notes' => null, 'laufweg_id' => null];
 ob_start();
 ?>
 <div class="adm_form-wrap">
     <form method="POST" action="/admin/stations/routes/<?= (int)$route['id'] ?>/edit" class="adm_form">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+
+        <?php if (!empty($laufwege)): ?>
+        <div class="adm_field">
+            <label class="adm_label" for="laufweg_id">Parcours</label>
+            <select class="adm_input" id="laufweg_id" name="laufweg_id">
+                <option value="">– kein Parcours –</option>
+                <?php foreach ($laufwege as $lw): ?>
+                <option value="<?= (int)$lw['id'] ?>" <?= (int)($route['laufweg_id'] ?? 0) === (int)$lw['id'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($lw['name']) ?>
+                </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <?php endif; ?>
 
         <div class="adm_field-row">
             <div class="adm_field">

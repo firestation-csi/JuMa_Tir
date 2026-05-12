@@ -59,6 +59,8 @@ return [
         '/admin/stations/routes'                             => ['App\Controller\AdminStationRouteController', 'store'],
         '/admin/stations/routes/{id}/edit'                   => ['App\Controller\AdminStationRouteController', 'update'],
         '/admin/stations/routes/{id}/delete'                 => ['App\Controller\AdminStationRouteController', 'delete'],
+        '/admin/stations/laufwege'                           => ['App\Controller\AdminStationRouteController', 'storeLaufweg'],
+        '/admin/stations/laufwege/{id}/delete'               => ['App\Controller\AdminStationRouteController', 'deleteLaufweg'],
         '/admin/stations/{id}/edit'                          => ['App\Controller\AdminStationController', 'update'],
         '/admin/stations/{id}/delete'                        => ['App\Controller\AdminStationController', 'delete'],
         '/admin/stations/{stationId}/tasks'                  => ['App\Controller\AdminStationTaskController', 'store'],

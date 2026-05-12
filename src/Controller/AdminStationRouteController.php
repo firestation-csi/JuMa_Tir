@@ -8,6 +8,7 @@ use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Competition;
+use App\Model\Laufweg;
 use App\Model\Station;
 use App\Model\StationRoute;
 
@@ -16,12 +17,14 @@ class AdminStationRouteController
     private StationRoute $routeModel;
     private Station      $stationModel;
     private Competition  $competitionModel;
+    private Laufweg      $laufwegModel;
 
     public function __construct(private Request $request)
     {
         $this->routeModel       = new StationRoute();
         $this->stationModel     = new Station();
         $this->competitionModel = new Competition();
+        $this->laufwegModel     = new Laufweg();
         if (!Auth::isAdmin()) {
             Response::redirect('/admin/login');
         }
@@ -38,6 +41,7 @@ class AdminStationRouteController
             'competition' => $competition,
             'competitions'=> $this->competitionModel->findAll(),
             'stations'    => $compId ? $this->stationModel->findByCompetition($compId) : [],
+            'laufwege'    => $compId ? $this->laufwegModel->findByCompetition($compId) : [],
             'routes'      => $compId ? $this->routeModel->findByCompetition($compId) : [],
             'analysis'    => $compId ? $this->routeModel->getTravelAnalysis($compId) : [],
             'csrf'        => Auth::getCsrfToken(),
@@ -54,8 +58,8 @@ class AdminStationRouteController
         Response::view('pages/admin/station-route-form', [
             'title'       => 'Abschnitt bearbeiten',
             'competition' => $competition,
-            'competitions'=> $this->competitionModel->findAll(),
             'stations'    => $compId ? $this->stationModel->findByCompetition($compId) : [],
+            'laufwege'    => $compId ? $this->laufwegModel->findByCompetition($compId) : [],
             'route'       => $route,
             'csrf'        => Auth::getCsrfToken(),
         ]);
@@ -68,13 +72,13 @@ class AdminStationRouteController
         $competition = $this->getCompetition();
         if (!$competition) Response::redirect('/admin/stations/routes');
 
-        [$fromId, $toId, $distM, $estMin, $sort, $notes] = $this->readPost();
+        [$laufwegId, $fromId, $toId, $distM, $estMin, $sort, $notes] = $this->readPost();
 
         if (!$fromId || !$toId || $fromId === $toId) {
             $this->redirectWithError('Von- und Zu-Station müssen unterschiedlich und gesetzt sein.');
         }
 
-        $this->routeModel->create((int)$competition['id'], $fromId, $toId, $distM, $estMin, $sort, $notes);
+        $this->routeModel->create((int)$competition['id'], $laufwegId, $fromId, $toId, $distM, $estMin, $sort, $notes);
         Response::redirect('/admin/stations/routes');
     }
 
@@ -82,15 +86,41 @@ class AdminStationRouteController
     public function update(string $id): void
     {
         $this->verifyCsrf();
-        $route = $this->requireRoute($id);
+        $this->requireRoute($id);
 
-        [$fromId, $toId, $distM, $estMin, $sort, $notes] = $this->readPost();
+        [$laufwegId, $fromId, $toId, $distM, $estMin, $sort, $notes] = $this->readPost();
 
         if (!$fromId || !$toId || $fromId === $toId) {
             $this->redirectWithError('Von- und Zu-Station müssen unterschiedlich und gesetzt sein.');
         }
 
-        $this->routeModel->update((int)$id, $fromId, $toId, $distM, $estMin, $sort, $notes);
+        $this->routeModel->update((int)$id, $laufwegId, $fromId, $toId, $distM, $estMin, $sort, $notes);
+        Response::redirect('/admin/stations/routes');
+    }
+
+    /** Laufweg anlegen */
+    public function storeLaufweg(): void
+    {
+        $this->verifyCsrf();
+        $competition = $this->getCompetition();
+        if (!$competition) Response::redirect('/admin/stations/routes');
+
+        $name  = trim((string)$this->request->post('lw_name', ''));
+        $color = trim((string)$this->request->post('lw_color', '#C0392B'));
+        $sort  = (int)$this->request->post('lw_sort', 0);
+        $notes = trim((string)$this->request->post('lw_notes', '')) ?: null;
+
+        if (!empty($name)) {
+            $this->laufwegModel->create((int)$competition['id'], $name, $color ?: '#C0392B', $sort, $notes);
+        }
+        Response::redirect('/admin/stations/routes');
+    }
+
+    /** Laufweg löschen */
+    public function deleteLaufweg(string $id): void
+    {
+        $this->verifyCsrf();
+        $this->laufwegModel->delete((int)$id);
         Response::redirect('/admin/stations/routes');
     }
 
@@ -107,6 +137,7 @@ class AdminStationRouteController
     {
         $toNull = fn($v) => ($v !== '' && $v !== null) ? (int)$v : null;
         return [
+            $toNull($this->request->post('laufweg_id')),
             (int)$this->request->post('from_station_id', 0),
             (int)$this->request->post('to_station_id', 0),
             $toNull($this->request->post('distance_m')),

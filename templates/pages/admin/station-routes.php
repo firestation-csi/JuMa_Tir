@@ -2,6 +2,7 @@
 $competition  = $competition  ?? null;
 $competitions = $competitions ?? [];
 $stations     = $stations     ?? [];
+$laufwege     = $laufwege     ?? [];
 $routes       = $routes       ?? [];
 $analysis     = $analysis     ?? [];
 $csrf         = $csrf         ?? '';
@@ -14,26 +15,35 @@ $fmtDur = function (?int $sek): string {
     if ($sek < 60) return $sek . 's';
     return sprintf('%d:%02d min', intdiv($sek, 60), $sek % 60);
 };
-
 $statusIcon  = ['ok' => '✓', 'warn' => '⚠', 'lost' => '✗', 'no_data' => '–'];
-$statusColor = [
-    'ok'      => 'var(--wt-ok)',
-    'warn'    => 'var(--wt-warn)',
-    'lost'    => 'var(--wt-red)',
-    'no_data' => 'var(--wt-text-subtle)',
-];
+$statusColor = ['ok' => 'var(--wt-ok)', 'warn' => 'var(--wt-warn)', 'lost' => 'var(--wt-red)', 'no_data' => 'var(--wt-text-subtle)'];
 $statusLabel = ['ok' => 'Planmäßig', 'warn' => 'Verzögert', 'lost' => 'Verlaufen?', 'no_data' => 'Keine Daten'];
+
+// Abschnitte nach Laufweg gruppieren
+$routesByLaufweg = [];   // laufweg_id (or 0=unzugeordnet) → [routes]
+foreach ($routes as $r) {
+    $lid = $r['laufweg_id'] ? (int)$r['laufweg_id'] : 0;
+    $routesByLaufweg[$lid][] = $r;
+}
+
+// Analyse nach Laufweg gruppieren
+$analysisByLaufweg = [];
+foreach ($analysis as $seg) {
+    $lid = $seg['laufweg_id'] ? (int)$seg['laufweg_id'] : 0;
+    $analysisByLaufweg[$lid][] = $seg;
+}
+
+// Bekannte Farben für Laufweg-Picker
+$presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2C3E50','#F39C12'];
 ?>
 
-<!-- Toolbar -->
-<div class="adm_toolbar" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+<div class="adm_toolbar" style="justify-content:space-between;">
     <a href="/admin/stations" class="adm_btn adm_btn--ghost">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Stationen
     </a>
 </div>
 
-<!-- Wettbewerb-Selector -->
 <?php if (!empty($competitions)): ?>
 <div style="margin-bottom:20px;">
     <?php $redirectUrl = '/admin/stations/routes'; include dirname(__DIR__, 2) . '/partials/admin/competition-selector.php'; ?>
@@ -49,53 +59,119 @@ $statusLabel = ['ok' => 'Planmäßig', 'warn' => 'Verzögert', 'lost' => 'Verlau
 <?php else: ?>
 
 <div class="rte_layout">
-  <!-- ═══ LINKE SPALTE: Verwaltung ══════════════════════ -->
+  <!-- ═══ LINKE SPALTE ═══════════════════════════════════ -->
   <div class="rte_main">
 
-    <!-- ── Visuelle Routenkette ─────────────────────────── -->
-    <?php if (!empty($routes)): ?>
+    <!-- ── Laufwege verwalten ─────────────────────────── -->
     <div class="adm_card">
-        <div class="adm_eyebrow" style="margin-bottom:16px;">Geplante Laufroute</div>
-        <div class="rte_chain">
-            <?php foreach ($routes as $i => $r): ?>
-            <?php if ($i === 0): ?>
-            <div class="rte_chain__node rte_chain__node--start">
-                <span class="rte_chain__code"><?= htmlspecialchars($r['from_code']) ?></span>
-                <span class="rte_chain__name"><?= htmlspecialchars($r['from_name']) ?></span>
-            </div>
-            <?php endif; ?>
-            <div class="rte_chain__edge">
-                <div class="rte_chain__line"></div>
-                <div class="rte_chain__info">
-                    <?php if ($r['distance_m']): ?>
-                        <span><?= number_format((int)$r['distance_m']) ?> m</span>
-                    <?php endif; ?>
-                    <?php if ($r['est_time_min']): ?>
-                        <span>~<?= (int)$r['est_time_min'] ?> min</span>
-                    <?php endif; ?>
-                    <?php if ($r['notes']): ?>
-                        <span style="font-style:italic;color:var(--wt-text-subtle);"><?= htmlspecialchars($r['notes']) ?></span>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <div class="rte_chain__node">
-                <span class="rte_chain__code"><?= htmlspecialchars($r['to_code']) ?></span>
-                <span class="rte_chain__name"><?= htmlspecialchars($r['to_name']) ?></span>
+        <div class="adm_eyebrow" style="margin-bottom:14px;">Parcours / Laufwege</div>
+
+        <?php if (!empty($laufwege)): ?>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+            <?php foreach ($laufwege as $lw): ?>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--wt-surface-alt);border-radius:10px;border:1px solid var(--wt-border);">
+                <span style="width:16px;height:16px;border-radius:50%;background:<?= htmlspecialchars($lw['color']) ?>;flex-shrink:0;border:2px solid rgba(0,0,0,.1);"></span>
+                <span style="font-weight:700;font-size:14px;flex:1;"><?= htmlspecialchars($lw['name']) ?></span>
+                <?php if ($lw['notes']): ?>
+                    <span style="font-size:12px;color:var(--wt-text-muted);"><?= htmlspecialchars($lw['notes']) ?></span>
+                <?php endif; ?>
+                <?php $cnt = count($routesByLaufweg[(int)$lw['id']] ?? []); ?>
+                <span class="adm_badge" style="background:<?= htmlspecialchars($lw['color']) ?>22;color:<?= htmlspecialchars($lw['color']) ?>;">
+                    <?= $cnt ?> Abschnitt<?= $cnt !== 1 ? 'e' : '' ?>
+                </span>
+                <form method="POST" action="/admin/stations/laufwege/<?= (int)$lw['id'] ?>/delete"
+                      onsubmit="return confirm('Parcours «<?= htmlspecialchars(addslashes($lw['name'])) ?>» löschen? Abschnitte werden nicht gelöscht.')">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                    <button type="submit" class="adm_btn adm_btn--sm adm_btn--danger">×</button>
+                </form>
             </div>
             <?php endforeach; ?>
         </div>
-    </div>
-    <?php endif; ?>
+        <?php endif; ?>
 
-    <!-- ── Abschnitte verwalten ─────────────────────────── -->
-    <div class="adm_card">
-        <div class="adm_eyebrow" style="margin-bottom:16px;">Abschnitte</div>
-        <?php if (empty($routes)): ?>
-            <div class="adm_table__muted" style="margin-bottom:16px;font-size:13px;">
-                Noch keine Abschnitte definiert. Füge unten den ersten hinzu.
+        <!-- Neuen Parcours anlegen -->
+        <form method="POST" action="/admin/stations/laufwege" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+            <div class="adm_field" style="flex:2;min-width:140px;margin:0;">
+                <label class="adm_label" for="lw_name">Name *</label>
+                <input class="adm_input" type="text" id="lw_name" name="lw_name" placeholder="z.B. Roter Parcours" required>
             </div>
-        <?php else: ?>
-        <table class="adm_table" style="margin-bottom:16px;">
+            <div class="adm_field" style="margin:0;">
+                <label class="adm_label">Farbe</label>
+                <div style="display:flex;gap:5px;align-items:center;">
+                    <?php foreach ($presetColors as $i => $col): ?>
+                    <label style="cursor:pointer;position:relative;">
+                        <input type="radio" name="lw_color" value="<?= $col ?>" <?= $i === 0 ? 'checked' : '' ?>
+                               style="position:absolute;opacity:0;width:0;height:0;">
+                        <span class="lw-color-dot" style="background:<?= $col ?>;" data-color="<?= $col ?>"></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="adm_field" style="flex:2;min-width:120px;margin:0;">
+                <label class="adm_label" for="lw_notes">Notiz</label>
+                <input class="adm_input" type="text" id="lw_notes" name="lw_notes" placeholder="optional">
+            </div>
+            <input type="hidden" name="lw_sort" value="<?= count($laufwege) * 10 ?>">
+            <button type="submit" class="adm_btn adm_btn--primary" style="margin-bottom:1px;">Parcours anlegen</button>
+        </form>
+    </div>
+
+    <!-- ── Abschnitte nach Laufweg gruppiert ─────────── -->
+    <?php
+    // Alle Laufwege anzeigen (bekannte + unzugeordnet)
+    $lwMap = array_column($laufwege, null, 'id');
+    $displayGroups = [];
+    foreach ($laufwege as $lw) {
+        $lid = (int)$lw['id'];
+        if (isset($routesByLaufweg[$lid])) {
+            $displayGroups[] = ['laufweg' => $lw, 'routes' => $routesByLaufweg[$lid]];
+        }
+    }
+    if (!empty($routesByLaufweg[0])) {
+        $displayGroups[] = ['laufweg' => ['id' => 0, 'name' => 'Nicht zugeordnet', 'color' => '#aaa'], 'routes' => $routesByLaufweg[0]];
+    }
+    ?>
+
+    <?php foreach ($displayGroups as $dg):
+        $lw = $dg['laufweg'];
+        $grpRoutes = $dg['routes'];
+    ?>
+    <div class="adm_card" style="padding:0;overflow:hidden;">
+        <!-- Parcours-Header -->
+        <div style="padding:12px 18px;border-bottom:1px solid var(--wt-border);display:flex;align-items:center;gap:10px;background:<?= htmlspecialchars($lw['color']) ?>11;">
+            <span style="width:12px;height:12px;border-radius:50%;background:<?= htmlspecialchars($lw['color']) ?>;flex-shrink:0;"></span>
+            <span style="font-weight:800;font-size:15px;"><?= htmlspecialchars($lw['name']) ?></span>
+            <span style="font-size:12px;color:var(--wt-text-muted);margin-left:auto;"><?= count($grpRoutes) ?> Abschnitte</span>
+        </div>
+
+        <!-- Visuelle Kette -->
+        <div style="padding:16px 18px;border-bottom:1px solid var(--wt-border);">
+            <div class="rte_chain">
+                <?php foreach ($grpRoutes as $i => $r): ?>
+                <?php if ($i === 0): ?>
+                <div class="rte_chain__node rte_chain__node--start" style="--chain-color:<?= htmlspecialchars($lw['color']) ?>;">
+                    <span class="rte_chain__code"><?= htmlspecialchars($r['from_code']) ?></span>
+                    <span class="rte_chain__name"><?= htmlspecialchars($r['from_name']) ?></span>
+                </div>
+                <?php endif; ?>
+                <div class="rte_chain__edge">
+                    <div class="rte_chain__line" style="background:<?= htmlspecialchars($lw['color']) ?>66;"></div>
+                    <div class="rte_chain__info">
+                        <?php if ($r['distance_m']): ?><span><?= number_format((int)$r['distance_m']) ?> m</span><?php endif; ?>
+                        <?php if ($r['est_time_min']): ?><span>~<?= (int)$r['est_time_min'] ?> min</span><?php endif; ?>
+                    </div>
+                </div>
+                <div class="rte_chain__node">
+                    <span class="rte_chain__code" style="border-color:<?= htmlspecialchars($lw['color']) ?>;color:<?= htmlspecialchars($lw['color']) ?>;"><?= htmlspecialchars($r['to_code']) ?></span>
+                    <span class="rte_chain__name"><?= htmlspecialchars($r['to_name']) ?></span>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- Tabelle der Abschnitte -->
+        <table class="adm_table" style="font-size:13px;">
             <thead>
                 <tr>
                     <th style="width:2rem;">#</th>
@@ -108,17 +184,13 @@ $statusLabel = ['ok' => 'Planmäßig', 'warn' => 'Verzögert', 'lost' => 'Verlau
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($routes as $r): ?>
+            <?php foreach ($grpRoutes as $r): ?>
             <tr>
                 <td class="adm_mono adm_table__muted"><?= (int)$r['sort_order'] ?></td>
                 <td style="font-weight:600;"><?= htmlspecialchars($r['from_code']) ?> · <?= htmlspecialchars($r['from_name']) ?></td>
                 <td style="font-weight:600;"><?= htmlspecialchars($r['to_code']) ?> · <?= htmlspecialchars($r['to_name']) ?></td>
-                <td style="text-align:right;" class="adm_mono">
-                    <?= $r['distance_m'] ? number_format((int)$r['distance_m']) . ' m' : '–' ?>
-                </td>
-                <td style="text-align:right;" class="adm_mono">
-                    <?= $r['est_time_min'] ? (int)$r['est_time_min'] . ' min' : '–' ?>
-                </td>
+                <td class="adm_mono" style="text-align:right;"><?= $r['distance_m'] ? number_format((int)$r['distance_m']) . ' m' : '–' ?></td>
+                <td class="adm_mono" style="text-align:right;"><?= $r['est_time_min'] ? (int)$r['est_time_min'] . ' min' : '–' ?></td>
                 <td style="font-size:12px;color:var(--wt-text-muted);"><?= htmlspecialchars($r['notes'] ?? '') ?></td>
                 <td class="adm_table__actions">
                     <a href="/admin/stations/routes/<?= (int)$r['id'] ?>/edit" class="adm_btn adm_btn--sm adm_btn--ghost">Bearbeiten</a>
@@ -132,57 +204,66 @@ $statusLabel = ['ok' => 'Planmäßig', 'warn' => 'Verzögert', 'lost' => 'Verlau
             <?php endforeach; ?>
             </tbody>
         </table>
-        <?php endif; ?>
+    </div>
+    <?php endforeach; ?>
 
-        <!-- Neuen Abschnitt hinzufügen -->
-        <div style="border-top:1px solid var(--wt-border);padding-top:16px;">
-            <div class="adm_eyebrow" style="margin-bottom:12px;">Abschnitt hinzufügen</div>
-            <form method="POST" action="/admin/stations/routes" class="adm_form">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                <div class="adm_field-row">
-                    <div class="adm_field">
-                        <label class="adm_label" for="from_station_id">Von Station *</label>
-                        <select class="adm_input" id="from_station_id" name="from_station_id" required>
-                            <option value="">– wählen –</option>
-                            <?php foreach ($stations as $s): ?>
-                            <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['code']) ?> · <?= htmlspecialchars($s['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="adm_field">
-                        <label class="adm_label" for="to_station_id">Zu Station *</label>
-                        <select class="adm_input" id="to_station_id" name="to_station_id" required>
-                            <option value="">– wählen –</option>
-                            <?php foreach ($stations as $s): ?>
-                            <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['code']) ?> · <?= htmlspecialchars($s['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+    <!-- ── Neuen Abschnitt hinzufügen ─────────────────── -->
+    <div class="adm_card">
+        <div class="adm_eyebrow" style="margin-bottom:14px;">Abschnitt hinzufügen</div>
+        <form method="POST" action="/admin/stations/routes" class="adm_form">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+            <div class="adm_field-row">
+                <div class="adm_field" style="flex:2;">
+                    <label class="adm_label" for="laufweg_id">Parcours</label>
+                    <select class="adm_input" id="laufweg_id" name="laufweg_id">
+                        <option value="">– kein Parcours –</option>
+                        <?php foreach ($laufwege as $lw): ?>
+                        <option value="<?= (int)$lw['id'] ?>"><?= htmlspecialchars($lw['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
-                <div class="adm_field-row">
-                    <div class="adm_field">
-                        <label class="adm_label" for="distance_m">Distanz (Meter)</label>
-                        <input class="adm_input adm_input--mono" type="number" id="distance_m" name="distance_m" min="0" max="99999" placeholder="z.B. 200">
-                    </div>
-                    <div class="adm_field">
-                        <label class="adm_label" for="est_time_min">Schätzzeit (Minuten)</label>
-                        <input class="adm_input adm_input--mono" type="number" id="est_time_min" name="est_time_min" min="1" max="240" placeholder="z.B. 5">
-                    </div>
-                    <div class="adm_field">
-                        <label class="adm_label" for="sort_order">Reihenfolge</label>
-                        <input class="adm_input adm_input--mono" type="number" id="sort_order" name="sort_order" value="<?= count($routes) * 10 ?>" min="0" max="255">
-                    </div>
+                <div class="adm_field" style="flex:2;">
+                    <label class="adm_label" for="from_station_id">Von Station *</label>
+                    <select class="adm_input" id="from_station_id" name="from_station_id" required>
+                        <option value="">– wählen –</option>
+                        <?php foreach ($stations as $s): ?>
+                        <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['code']) ?> · <?= htmlspecialchars($s['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="adm_field" style="flex:2;">
+                    <label class="adm_label" for="to_station_id">Zu Station *</label>
+                    <select class="adm_input" id="to_station_id" name="to_station_id" required>
+                        <option value="">– wählen –</option>
+                        <?php foreach ($stations as $s): ?>
+                        <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['code']) ?> · <?= htmlspecialchars($s['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div class="adm_field-row">
+                <div class="adm_field">
+                    <label class="adm_label" for="distance_m">Distanz (m)</label>
+                    <input class="adm_input adm_input--mono" type="number" id="distance_m" name="distance_m" min="0" max="99999" placeholder="z.B. 200">
                 </div>
                 <div class="adm_field">
-                    <label class="adm_label" for="notes">Notiz / Wegbeschreibung</label>
-                    <input class="adm_input" type="text" id="notes" name="notes" placeholder="z.B. Linker Feldweg, dann über Brücke">
+                    <label class="adm_label" for="est_time_min">Schätzzeit (min)</label>
+                    <input class="adm_input adm_input--mono" type="number" id="est_time_min" name="est_time_min" min="1" max="240" placeholder="z.B. 5">
                 </div>
-                <div class="adm_form-actions" style="justify-content:flex-start;">
-                    <button type="submit" class="adm_btn adm_btn--primary">Abschnitt speichern</button>
+                <div class="adm_field">
+                    <label class="adm_label" for="sort_order">Reihenfolge</label>
+                    <input class="adm_input adm_input--mono" type="number" id="sort_order" name="sort_order" value="<?= count($routes) * 10 ?>" min="0" max="255">
                 </div>
-            </form>
+            </div>
+            <div class="adm_field">
+                <label class="adm_label" for="notes">Wegbeschreibung</label>
+                <input class="adm_input" type="text" id="notes" name="notes" placeholder="z.B. Linker Feldweg, dann über Brücke">
+            </div>
             <?php include dirname(__DIR__, 2) . '/partials/admin/osrm-route-calc.php'; ?>
-        </div>
+            <div class="adm_form-actions" style="justify-content:flex-start;margin-top:12px;">
+                <button type="submit" class="adm_btn adm_btn--primary">Abschnitt speichern</button>
+            </div>
+        </form>
     </div>
 
   </div><!-- /rte_main -->
@@ -191,72 +272,90 @@ $statusLabel = ['ok' => 'Planmäßig', 'warn' => 'Verzögert', 'lost' => 'Verlau
   <div class="rte_analysis">
     <div class="adm_card" style="padding:0;overflow:hidden;">
         <div style="padding:14px 18px 12px;border-bottom:1px solid var(--wt-border);">
-            <span style="font-weight:700;font-size:14px;">Reisezeiten-Analyse</span>
-            <div style="font-size:11px;color:var(--wt-text-subtle);margin-top:2px;">
-                Tatsächliche Laufzeit zwischen Stationen vs. Schätzung
-            </div>
+            <div style="font-weight:700;font-size:14px;">Reisezeiten-Analyse</div>
+            <div style="font-size:11px;color:var(--wt-text-subtle);margin-top:2px;">Ist- vs. Schätzzeit je Gruppe</div>
         </div>
-
-        <!-- Legende -->
-        <div style="padding:10px 16px;border-bottom:1px solid var(--wt-border);display:flex;gap:14px;flex-wrap:wrap;">
-            <?php foreach (['ok' => 'Planmäßig (≤ 1,5×)', 'warn' => 'Verzögert (≤ 3×)', 'lost' => 'Verlaufen? (> 3×)'] as $s => $label): ?>
-            <span style="display:flex;align-items:center;gap:5px;font-size:11px;">
-                <span style="color:<?= $statusColor[$s] ?>;font-weight:700;"><?= $statusIcon[$s] ?></span>
-                <span style="color:var(--wt-text-muted);"><?= $label ?></span>
+        <div style="padding:8px 14px;border-bottom:1px solid var(--wt-border);display:flex;gap:12px;flex-wrap:wrap;">
+            <?php foreach (['ok' => '≤1,5×', 'warn' => '≤3×', 'lost' => '>3×'] as $s => $lbl): ?>
+            <span style="display:flex;align-items:center;gap:4px;font-size:11px;">
+                <b style="color:<?= $statusColor[$s] ?>;"><?= $statusIcon[$s] ?></b>
+                <span style="color:var(--wt-text-muted);"><?= $lbl ?></span>
             </span>
             <?php endforeach; ?>
         </div>
 
         <?php if (empty($analysis)): ?>
-        <div style="padding:32px 18px;text-align:center;color:var(--wt-text-subtle);font-size:13px;">
-            Noch keine Routen definiert oder keine Laufprotokoll-Daten vorhanden.
+        <div style="padding:28px;text-align:center;color:var(--wt-text-subtle);font-size:13px;">
+            Noch keine Routen oder Protokolldaten.
         </div>
         <?php else: ?>
-        <?php foreach ($analysis as $seg): ?>
-        <div class="rte_seg">
-            <div class="rte_seg__head">
-                <span class="rte_seg__route">
-                    <?= htmlspecialchars($seg['from_code']) ?>
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;vertical-align:middle;"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <?= htmlspecialchars($seg['to_code']) ?>
-                </span>
-                <span style="font-size:11px;color:var(--wt-text-muted);">
-                    <?php if ($seg['distance_m']): ?>
-                        <?= number_format($seg['distance_m']) ?> m ·
-                    <?php endif; ?>
-                    <?php if ($seg['est_time_min']): ?>
-                        ~<?= $seg['est_time_min'] ?> min
-                    <?php endif; ?>
-                </span>
+
+        <?php
+        // Analyse nach Laufweg gruppiert anzeigen
+        $analysisByLw = [];
+        foreach ($analysis as $seg) {
+            $lid = $seg['laufweg_id'] ? (int)$seg['laufweg_id'] : 0;
+            $analysisByLw[$lid][] = $seg;
+        }
+        foreach (array_keys($analysisByLw) as $lid):
+            $lwInfo   = $lid > 0 ? ($lwMap[$lid] ?? null) : null;
+            $lwSegs   = $analysisByLw[$lid];
+            $lwColor  = $lwInfo ? $lwInfo['color'] : '#aaa';
+            $lwName   = $lwInfo ? $lwInfo['name'] : 'Nicht zugeordnet';
+        ?>
+        <div style="border-bottom:1px solid var(--wt-border);">
+            <div style="padding:8px 14px;background:<?= htmlspecialchars($lwColor) ?>11;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;">
+                <span style="width:9px;height:9px;border-radius:50%;background:<?= htmlspecialchars($lwColor) ?>;flex-shrink:0;"></span>
+                <?= htmlspecialchars($lwName) ?>
             </div>
-            <?php
-            $hasAny = array_filter($seg['groups'], fn($g) => $g['actual_sek'] !== null && $g['actual_sek'] > 0);
-            if (empty($hasAny)): ?>
-            <div style="padding:8px 16px;font-size:12px;color:var(--wt-text-subtle);">Noch keine Laufprotokoll-Daten</div>
-            <?php else: ?>
-            <?php foreach ($seg['groups'] as $g):
-                if ($g['actual_sek'] === null || $g['actual_sek'] <= 0) continue;
+            <?php foreach ($lwSegs as $seg):
+                $hasData = array_filter($seg['groups'], fn($g) => ($g['actual_sek'] ?? 0) > 0);
             ?>
-            <div class="rte_seg__row">
-                <span style="font-size:12px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                    #<?= htmlspecialchars($g['group_num']) ?> <?= htmlspecialchars($g['group_name']) ?>
-                </span>
-                <span class="adm_mono" style="font-size:12px;font-weight:700;color:<?= $statusColor[$g['status']] ?>;flex-shrink:0;">
-                    <?= $fmtDur($g['actual_sek']) ?>
-                </span>
-                <span style="font-size:13px;color:<?= $statusColor[$g['status']] ?>;flex-shrink:0;width:16px;text-align:center;" title="<?= $statusLabel[$g['status']] ?>">
-                    <?= $statusIcon[$g['status']] ?>
-                </span>
+            <div class="rte_seg">
+                <div class="rte_seg__head">
+                    <span class="rte_seg__route">
+                        <?= htmlspecialchars($seg['from_code']) ?>
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <?= htmlspecialchars($seg['to_code']) ?>
+                    </span>
+                    <span style="font-size:10px;color:var(--wt-text-muted);">
+                        <?= $seg['est_time_min'] ? '~' . $seg['est_time_min'] . ' min' : '' ?>
+                    </span>
+                </div>
+                <?php if (empty($hasData)): ?>
+                <div style="padding:7px 14px;font-size:11px;color:var(--wt-text-subtle);">Keine Daten</div>
+                <?php else: ?>
+                <?php foreach ($seg['groups'] as $g):
+                    if (($g['actual_sek'] ?? 0) <= 0) continue; ?>
+                <div class="rte_seg__row">
+                    <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">#<?= htmlspecialchars($g['group_num']) ?> <?= htmlspecialchars($g['group_name']) ?></span>
+                    <span class="adm_mono" style="font-size:12px;font-weight:700;color:<?= $statusColor[$g['status']] ?>;flex-shrink:0;"><?= $fmtDur($g['actual_sek']) ?></span>
+                    <span style="font-size:13px;color:<?= $statusColor[$g['status']] ?>;width:14px;text-align:center;flex-shrink:0;" title="<?= $statusLabel[$g['status']] ?>"><?= $statusIcon[$g['status']] ?></span>
+                </div>
+                <?php endforeach; ?>
+                <?php endif; ?>
             </div>
             <?php endforeach; ?>
-            <?php endif; ?>
         </div>
         <?php endforeach; ?>
         <?php endif; ?>
     </div>
-  </div><!-- /rte_analysis -->
+  </div>
 
 </div><!-- /rte_layout -->
+
+<script>
+// Farb-Picker: ausgewählten Punkt hervorheben
+document.querySelectorAll('.lw-color-dot').forEach(dot => {
+    const inp = dot.previousElementSibling;
+    if (inp?.checked) dot.classList.add('lw-color-dot--active');
+    inp?.addEventListener('change', () => {
+        document.querySelectorAll('.lw-color-dot').forEach(d => d.classList.remove('lw-color-dot--active'));
+        dot.classList.add('lw-color-dot--active');
+    });
+});
+</script>
+
 <?php endif; ?>
 <?php
 $content = ob_get_clean();

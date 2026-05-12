@@ -21,12 +21,15 @@ class StationRoute
         $stmt = $this->db->prepare(
             'SELECT r.*,
                     sf.code AS from_code, sf.name AS from_name,
-                    st.code AS to_code,   st.name AS to_name
+                    st.code AS to_code,   st.name AS to_name,
+                    lw.name  AS laufweg_name,
+                    lw.color AS laufweg_color
              FROM station_routes r
              JOIN stations sf ON sf.id = r.from_station_id
              JOIN stations st ON st.id = r.to_station_id
+             LEFT JOIN laufwege lw ON lw.id = r.laufweg_id
              WHERE r.competition_id = :comp
-             ORDER BY r.sort_order, r.id'
+             ORDER BY lw.sort_order, lw.id, r.sort_order, r.id'
         );
         $stmt->execute([':comp' => $competitionId]);
         return $stmt->fetchAll();
@@ -40,44 +43,37 @@ class StationRoute
         return $row ?: null;
     }
 
-    public function create(int $competitionId, int $fromId, int $toId,
+    public function create(int $competitionId, ?int $laufwegId, int $fromId, int $toId,
                            ?int $distanceM, ?int $estTimeMin, int $sortOrder, ?string $notes): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO station_routes
-                (competition_id, from_station_id, to_station_id, distance_m, est_time_min, sort_order, notes)
-             VALUES (:comp, :from, :to, :dist, :time, :sort, :notes)'
+                (competition_id, laufweg_id, from_station_id, to_station_id, distance_m, est_time_min, sort_order, notes)
+             VALUES (:comp, :lw, :from, :to, :dist, :time, :sort, :notes)'
         );
         $stmt->execute([
-            ':comp'  => $competitionId,
-            ':from'  => $fromId,
-            ':to'    => $toId,
-            ':dist'  => $distanceM,
-            ':time'  => $estTimeMin,
-            ':sort'  => $sortOrder,
-            ':notes' => $notes,
+            ':comp' => $competitionId, ':lw'   => $laufwegId,
+            ':from' => $fromId,        ':to'   => $toId,
+            ':dist' => $distanceM,     ':time' => $estTimeMin,
+            ':sort' => $sortOrder,     ':notes'=> $notes,
         ]);
         return (int)$this->db->lastInsertId();
     }
 
-    public function update(int $id, int $fromId, int $toId,
+    public function update(int $id, ?int $laufwegId, int $fromId, int $toId,
                            ?int $distanceM, ?int $estTimeMin, int $sortOrder, ?string $notes): void
     {
         $stmt = $this->db->prepare(
             'UPDATE station_routes
-             SET from_station_id=:from, to_station_id=:to,
+             SET laufweg_id=:lw, from_station_id=:from, to_station_id=:to,
                  distance_m=:dist, est_time_min=:time, sort_order=:sort, notes=:notes,
                  updated_at=NOW()
              WHERE id=:id'
         );
         $stmt->execute([
-            ':from'  => $fromId,
-            ':to'    => $toId,
-            ':dist'  => $distanceM,
-            ':time'  => $estTimeMin,
-            ':sort'  => $sortOrder,
-            ':notes' => $notes,
-            ':id'    => $id,
+            ':lw'   => $laufwegId, ':from' => $fromId, ':to'   => $toId,
+            ':dist' => $distanceM, ':time' => $estTimeMin,
+            ':sort' => $sortOrder, ':notes'=> $notes,   ':id'  => $id,
         ]);
     }
 
@@ -100,6 +96,9 @@ class StationRoute
                 r.distance_m,
                 r.est_time_min,
                 r.notes,
+                r.laufweg_id,
+                lw.name      AS laufweg_name,
+                lw.color     AS laufweg_color,
                 sf.code      AS from_code,
                 sf.name      AS from_name,
                 st.code      AS to_code,
@@ -113,6 +112,7 @@ class StationRoute
              FROM station_routes r
              JOIN stations sf  ON sf.id = r.from_station_id
              JOIN stations st  ON st.id = r.to_station_id
+             LEFT JOIN laufwege lw ON lw.id = r.laufweg_id
              JOIN `groups` g   ON g.competition_id = r.competition_id AND g.active = 1
              -- letztes Check-out an der Startstation dieser Gruppe
              LEFT JOIN group_station_log log_out
@@ -138,6 +138,9 @@ class StationRoute
                 $grouped[$rid] = [
                     'route_id'     => $rid,
                     'sort_order'   => (int)$row['sort_order'],
+                    'laufweg_id'   => $row['laufweg_id'] ? (int)$row['laufweg_id'] : null,
+                    'laufweg_name' => $row['laufweg_name'],
+                    'laufweg_color'=> $row['laufweg_color'] ?? '#aaa',
                     'from_code'    => $row['from_code'],
                     'from_name'    => $row['from_name'],
                     'to_code'      => $row['to_code'],
