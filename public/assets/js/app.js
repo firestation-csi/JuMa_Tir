@@ -17,6 +17,7 @@ if ('serviceWorker' in navigator) {
 // Einfacher API-Client
 export async function apiFetch(url, options = {}) {
     const defaults = {
+        credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
