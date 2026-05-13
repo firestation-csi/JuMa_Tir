@@ -99,7 +99,8 @@ class WebauthnService
         string $expectedChallenge,
         string $rpId
     ): array {
-        $clientData = json_decode($clientDataJson, true);
+        $clientDataJsonDecoded = self::base64UrlDecode($clientDataJson);
+        $clientData = json_decode($clientDataJsonDecoded, true);
         if (!is_array($clientData)) {
             throw new UnexpectedValueException('Ungültige clientDataJSON.');
         }
@@ -151,7 +152,8 @@ class WebauthnService
         string $rpId,
         int $previousSignCount
     ): int {
-        $clientData = json_decode($clientDataJson, true);
+        $clientDataJsonDecoded = self::base64UrlDecode($clientDataJson);
+        $clientData = json_decode($clientDataJsonDecoded, true);
         if (!is_array($clientData)) {
             throw new UnexpectedValueException('Ungültige clientDataJSON.');
         }
@@ -168,7 +170,7 @@ class WebauthnService
             throw new UnexpectedValueException('Ursprung nicht gültig.');
         }
 
-        $authData = self::parseAuthenticatorData($authenticatorData);
+        $authData = self::parseAuthenticatorData(self::base64UrlDecode($authenticatorData));
         $rpIdHash = hash('sha256', $rpId, true);
         if ($authData['rpIdHash'] !== $rpIdHash) {
             throw new UnexpectedValueException('RP-ID-Hash ungültig.');
@@ -179,8 +181,8 @@ class WebauthnService
         }
 
         $publicKey = self::coseKeyToPem(self::decodeCbor($publicKeyBytes));
-        $verifyData = $authenticatorData . hash('sha256', $clientDataJson, true);
-        $signatureResult = openssl_verify($signature, $verifyData, $publicKey, OPENSSL_ALGO_SHA256);
+        $verifyData = self::base64UrlDecode($authenticatorData) . hash('sha256', $clientDataJsonDecoded, true);
+        $signatureResult = openssl_verify(self::base64UrlDecode($signature), $verifyData, $publicKey, OPENSSL_ALGO_SHA256);
         if ($signatureResult !== 1) {
             throw new UnexpectedValueException('Fehler bei der Signaturprüfung.');
         }

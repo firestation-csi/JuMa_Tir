@@ -70,7 +70,8 @@ async function handlePasskeyLogin() {
             },
         };
 
-        console.log('Sende Payload zur Verifikation:', payload);
+        console.log('Credential Response:', authResponse);
+        console.log('Payload für Server:', payload);
 
         const result = await apiFetch('/admin/login/passkey/verify', {
             method: 'POST',
