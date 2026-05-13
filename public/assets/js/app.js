@@ -17,7 +17,7 @@ if ('serviceWorker' in navigator) {
 // Einfacher API-Client
 export async function apiFetch(url, options = {}) {
     const defaults = {
-        credentials: 'same-origin',
+        credentials: 'include', // Changed from 'same-origin' to 'include' for CORS
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',

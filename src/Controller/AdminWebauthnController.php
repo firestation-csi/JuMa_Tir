@@ -54,18 +54,19 @@ class AdminWebauthnController
 
     public function loginVerify(): void
     {
-        $body = $this->request->json();
-        $username = trim((string)($body['username'] ?? ''));
-        $credentialId = (string)($body['id'] ?? '');
-        $response = $body['response'] ?? [];
+        try {
+            $body = $this->request->json();
+            $username = trim((string)($body['username'] ?? ''));
+            $credentialId = (string)($body['id'] ?? '');
+            $response = $body['response'] ?? [];
 
-        error_log("WebAuthn Login Debug - Username: $username");
-        error_log("WebAuthn Login Debug - CredentialId: $credentialId");
-        error_log("WebAuthn Login Debug - Response: " . json_encode($response));
+            error_log("WebAuthn Login Debug - Username: $username");
+            error_log("WebAuthn Login Debug - CredentialId: $credentialId");
+            error_log("WebAuthn Login Debug - Response keys: " . implode(', ', array_keys($response)));
 
-        if ($username === '' || $credentialId === '' || !is_array($response)) {
-            Response::error('Ungültige Anmeldedaten.', 400);
-        }
+            if ($username === '' || $credentialId === '' || !is_array($response)) {
+                Response::error('Ungültige Anmeldedaten.', 400);
+            }
 
         $userModel = new AdminUser();
         $user = $userModel->findByUsername($username);
@@ -107,6 +108,7 @@ class AdminWebauthnController
                 (int)$credential['sign_count']
             );
         } catch (\Exception $e) {
+            error_log("WebAuthn Login Debug - Verification failed: " . $e->getMessage());
             Response::error($e->getMessage(), 400);
         }
 
@@ -120,8 +122,6 @@ class AdminWebauthnController
 
     public function options(): void
     {
-        header('Access-Control-Allow-Methods: POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type');
         Response::json(['ok' => true]);
     }
 
