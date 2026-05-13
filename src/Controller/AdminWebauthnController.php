@@ -235,13 +235,18 @@ class AdminWebauthnController
             Response::error('Ungültiges CSRF-Token', 403);
         }
 
-        $credentialId = trim((string)$this->request->post('credential_id', ''));
-        if ($credentialId === '') {
+        $credentialRowId = (int)$this->request->post('credential_row_id', 0);
+        if ($credentialRowId <= 0) {
             Response::error('Ungültige Passkey-ID.', 400);
         }
 
         $credentialModel = new AdminUserCredential();
-        $credentialModel->deleteByCredentialId(WebauthnService::base64UrlDecode($credentialId));
+        $credential = $credentialModel->findById($credentialRowId);
+        if (!$credential || (int)$credential['admin_user_id'] !== (int)$id) {
+            Response::error('Passkey nicht gefunden.', 404);
+        }
+
+        $credentialModel->deleteById($credentialRowId);
 
         Response::redirect('/admin/users/' . (int)$id . '/edit');
     }

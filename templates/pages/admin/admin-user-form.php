@@ -117,8 +117,8 @@ $action = $isEdit
                                     <td><?= date('d.m.Y H:i', strtotime($credential['created_at'])) ?></td>
                                     <td>
                                         <form method="POST" action="/admin/users/<?= (int)$user['id'] ?>/webauthn/delete" style="display:inline">
-                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                                            <input type="hidden" name="credential_id" value="<?= htmlspecialchars($credential['credential_id']) ?>">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                                            <input type="hidden" name="credential_row_id" value="<?= (int)$credential['id'] ?>">
                                             <button type="submit" class="adm_btn adm_btn--sm adm_btn--danger">Löschen</button>
                                         </form>
                                     </td>

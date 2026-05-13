@@ -70,6 +70,18 @@ class AdminUserCredential
         ]);
     }
 
+    public function findById(int $id): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, admin_user_id, credential_id, public_key, sign_count, name, created_at
+             FROM admin_user_credentials
+             WHERE id = :id'
+        );
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function deleteByCredentialId(string $credentialId): void
     {
         $stmt = $this->db->prepare(
