@@ -14,11 +14,13 @@ class Response
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
-        $payload = json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+
+        $payload = self::safeJsonEncode(['success' => true, 'data' => $data]);
         if ($payload === false) {
             error_log('Response JSON-Encoding fehlgeschlagen: ' . json_last_error_msg());
             $payload = '{"success":false,"error":"Interner Antwortfehler"}';
         }
+
         echo $payload;
         exit;
     }
@@ -28,13 +30,50 @@ class Response
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
-        $payload = json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+
+        $payload = self::safeJsonEncode(['success' => false, 'error' => $message]);
         if ($payload === false) {
             error_log('Response JSON-Encoding fehlgeschlagen: ' . json_last_error_msg() . ' - message: ' . $message);
             $payload = '{"success":false,"error":"Interner Antwortfehler"}';
         }
+
         echo $payload;
         exit;
+    }
+
+    private static function safeJsonEncode(mixed $value): string|false
+    {
+        $payload = json_encode($value, JSON_UNESCAPED_UNICODE);
+        if ($payload !== false) {
+            return $payload;
+        }
+
+        $cleanValue = self::utf8ize($value);
+        $payload = json_encode($cleanValue, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        if ($payload !== false) {
+            return $payload;
+        }
+
+        return false;
+    }
+
+    private static function utf8ize(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                $value[$key] = self::utf8ize($item);
+            }
+            return $value;
+        }
+
+        if (is_string($value)) {
+            if (!mb_check_encoding($value, 'UTF-8')) {
+                return mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+            return $value;
+        }
+
+        return $value;
     }
 
     /** Template rendern */
