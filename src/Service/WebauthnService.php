@@ -193,11 +193,7 @@ class WebauthnService
         $verifyData = self::base64UrlDecode($authenticatorData) . hash('sha256', $clientDataJsonDecoded, true);
 
         $decodedSignature = self::base64UrlDecode($signature);
-
-        // WebAuthn signatures are raw r,s values - convert to DER format for OpenSSL
-        $derSignature = self::encodeEcdsaSignatureDer($decodedSignature);
-
-        $signatureResult = openssl_verify($verifyData, $derSignature, $publicKey, OPENSSL_ALGO_SHA256);
+        $signatureResult = openssl_verify($verifyData, $decodedSignature, $publicKey, OPENSSL_ALGO_SHA256);
         if ($signatureResult !== 1) {
             throw new UnexpectedValueException('Fehler bei der Signaturprüfung.');
         }
@@ -435,39 +431,5 @@ class WebauthnService
         return chr(0x80 | strlen($binary)) . $binary;
     }
 
-    private static function encodeEcdsaSignatureDer(string $rawSignature): string
-    {
-        if (strlen($rawSignature) !== 64) {
-            throw new UnexpectedValueException('Rohe ECDSA-Signatur muss 64 Bytes lang sein.');
-        }
-
-        $r = substr($rawSignature, 0, 32);
-        $s = substr($rawSignature, 32, 32);
-
-        // Remove leading zeros from r and s
-        $r = ltrim($r, "\x00");
-        $s = ltrim($s, "\x00");
-
-        // Ensure r and s are not empty (add back one zero if they were all zeros)
-        if ($r === '') {
-            $r = "\x00";
-        }
-        if ($s === '') {
-            $s = "\x00";
-        }
-
-        // Add leading zero if high bit is set (to ensure positive integer)
-        if ((ord($r[0]) & 0x80) !== 0) {
-            $r = "\x00" . $r;
-        }
-        if ((ord($s[0]) & 0x80) !== 0) {
-            $s = "\x00" . $s;
-        }
-
-        $rEncoded = "\x02" . chr(strlen($r)) . $r;
-        $sEncoded = "\x02" . chr(strlen($s)) . $s;
-
-        $sequence = $rEncoded . $sEncoded;
-        return "\x30" . chr(strlen($sequence)) . $sequence;
     }
 }
