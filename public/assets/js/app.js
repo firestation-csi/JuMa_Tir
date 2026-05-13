@@ -17,17 +17,30 @@ if ('serviceWorker' in navigator) {
 // Einfacher API-Client
 export async function apiFetch(url, options = {}) {
     const defaults = {
-        credentials: 'include', // Changed from 'same-origin' to 'include' for CORS
+        credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         },
     };
     const response = await fetch(url, { ...defaults, ...options });
-    const data = await response.json();
+    const contentType = response.headers.get('Content-Type') || '';
+
+    let data;
+    if (contentType.includes('application/json')) {
+        try {
+            data = await response.json();
+        } catch (jsonError) {
+            const rawText = await response.text();
+            throw new Error(`Ungültige JSON-Antwort vom Server: ${rawText}`);
+        }
+    } else {
+        const rawText = await response.text();
+        throw new Error(`Server-Antwort ist kein JSON: ${rawText}`);
+    }
 
     if (!data.success) {
-        throw new Error(data.error || 'Unbekannter Fehler');
+        throw new Error(data.error || `Server antwortete mit Status ${response.status}`);
     }
     return data.data;
 }
