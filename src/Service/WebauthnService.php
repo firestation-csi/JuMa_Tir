@@ -19,6 +19,8 @@ class WebauthnService
 
     public static function base64UrlDecode(string $value): string
     {
+        // Entferne mögliche Leerzeichen oder andere Zeichen
+        $value = trim($value);
         $value = strtr($value, '-_', '+/');
         $padding = strlen($value) % 4;
         if ($padding > 0) {
@@ -26,7 +28,7 @@ class WebauthnService
         }
         $decoded = base64_decode($value, true);
         if ($decoded === false) {
-            throw new UnexpectedValueException('Ungültiges base64url-codiertes Feld.');
+            throw new UnexpectedValueException('Ungültiges base64url-codiertes Feld: ' . $value);
         }
         return $decoded;
     }

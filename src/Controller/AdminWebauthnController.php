@@ -59,6 +59,10 @@ class AdminWebauthnController
         $credentialId = (string)($body['id'] ?? '');
         $response = $body['response'] ?? [];
 
+        error_log("WebAuthn Login Debug - Username: $username");
+        error_log("WebAuthn Login Debug - CredentialId: $credentialId");
+        error_log("WebAuthn Login Debug - Response: " . json_encode($response));
+
         if ($username === '' || $credentialId === '' || !is_array($response)) {
             Response::error('Ungültige Anmeldedaten.', 400);
         }
@@ -70,7 +74,19 @@ class AdminWebauthnController
         }
 
         $credentialModel = new AdminUserCredential();
-        $credential = $credentialModel->findByCredentialId(WebauthnService::base64UrlDecode($credentialId));
+        try {
+            // Bereinige credentialId (entferne mögliche Leerzeichen oder andere Zeichen)
+            $cleanCredentialId = trim($credentialId);
+            error_log("WebAuthn Login Debug - Clean CredentialId: '$cleanCredentialId'");
+            $decodedCredentialId = WebauthnService::base64UrlDecode($cleanCredentialId);
+            error_log("WebAuthn Login Debug - Decoded CredentialId: " . bin2hex($decodedCredentialId));
+            $credential = $credentialModel->findByCredentialId($decodedCredentialId);
+        } catch (\Exception $e) {
+            error_log("WebAuthn Login Debug - Base64 decode failed: " . $e->getMessage() . " for input: '$credentialId'");
+            // Versuche es ohne Dekodierung
+            $credential = $credentialModel->findByCredentialId($credentialId);
+        }
+
         if (!$credential || (int)$credential['admin_user_id'] !== (int)$user['id']) {
             Response::error('Passkey ungültig.', 400);
         }
