@@ -26,16 +26,16 @@ export async function apiFetch(url, options = {}) {
     const response = await fetch(url, { ...defaults, ...options });
     const contentType = response.headers.get('Content-Type') || '';
 
+    const rawText = await response.text();
     let data;
+
     if (contentType.includes('application/json')) {
         try {
-            data = await response.json();
+            data = JSON.parse(rawText);
         } catch (jsonError) {
-            const rawText = await response.text();
             throw new Error(`Ungültige JSON-Antwort vom Server: ${rawText}`);
         }
     } else {
-        const rawText = await response.text();
         throw new Error(`Server-Antwort ist kein JSON: ${rawText}`);
     }
 
