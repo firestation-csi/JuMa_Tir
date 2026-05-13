@@ -471,4 +471,3 @@ class WebauthnService
         return "\x30" . chr(strlen($sequence)) . $sequence;
     }
 }
-}
