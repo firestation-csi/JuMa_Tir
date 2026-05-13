@@ -3,14 +3,14 @@
     <div class="adm_login-card">
 
         <div class="adm_login-logo">
-            <img src="/assets/img/kfv_pdf_head.png" alt="Kreisfeuerwehrverband Tirschenreuth">
+            <img src="/assets/img/kfv_pdf_head.png" alt="Kreisbrandinspektion Tirschenreuth">
         </div>
 
         <div class="adm_login-divider"></div>
 
         <div class="adm_login-title">
             <span class="adm_login-title__main">Wertungsbüro</span>
-            <span class="adm_login-title__sub">JuMa · Jugendfeuerwehr-Mannschafts-App</span>
+            <span class="adm_login-title__sub">Kreisbrandinspektion Tirschenreuth</span>
         </div>
 
         <?php if (!empty($error)): ?>
@@ -59,6 +59,12 @@
                         required
                     >
                 </div>
+            </div>
+
+            <div class="adm_field" style="margin-top:8px;">
+                <button type="button" id="passkeyLoginBtn" class="adm_btn adm_btn--secondary adm_btn--block" style="height:46px;font-size:15px;">
+                    Mit Passkey anmelden
+                </button>
             </div>
 
             <button type="submit" class="adm_btn adm_btn--primary adm_btn--block" style="height:46px;font-size:15px;margin-top:4px;">

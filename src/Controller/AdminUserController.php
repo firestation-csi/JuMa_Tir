@@ -8,6 +8,8 @@ use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\AdminUser;
+use App\Model\AdminUserCredential;
+use App\Service\WebauthnService;
 
 class AdminUserController
 {
@@ -70,11 +72,22 @@ class AdminUserController
     public function edit(string $id): void
     {
         $user = $this->requireUser($id);
+        $credentialModel = new AdminUserCredential();
+        $credentials = array_map(
+            fn(array $credential) => [
+                'id'            => (int)$credential['id'],
+                'name'          => $credential['name'] ?: 'Passkey',
+                'created_at'    => $credential['created_at'],
+                'credential_id' => WebauthnService::base64UrlEncode($credential['credential_id']),
+            ],
+            $credentialModel->findByUserId((int)$user['id'])
+        );
 
         Response::view('pages/admin/admin-user-form', [
-            'title' => 'Benutzer bearbeiten',
-            'user'  => $user,
-            'csrf'  => Auth::getCsrfToken(),
+            'title'             => 'Benutzer bearbeiten',
+            'user'              => $user,
+            'csrf'              => Auth::getCsrfToken(),
+            'webauthnCredentials'=> $credentials,
         ]);
     }
 

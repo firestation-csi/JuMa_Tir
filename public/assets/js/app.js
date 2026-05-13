@@ -44,3 +44,23 @@ export function showMessage(text, type = 'info', durationMs = 3000) {
 
     setTimeout(() => el.remove(), durationMs);
 }
+
+export function base64UrlToBuffer(string) {
+    const padding = '='.repeat((4 - (string.length % 4)) % 4);
+    const base64 = (string + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const buffer = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) {
+        buffer[i] = raw.charCodeAt(i);
+    }
+    return buffer.buffer;
+}
+
+export function bufferToBase64Url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}

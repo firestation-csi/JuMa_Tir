@@ -92,6 +92,47 @@ $action = $isEdit
             </div>
         </div>
 
+        <?php if ($isEdit): ?>
+        <div class="adm_field" style="border-top:1px solid var(--wt-border,#e5e3df);padding-top:20px;margin-top:24px;">
+            <div class="adm_label" style="font-size:.85rem;letter-spacing:.08em;margin-bottom:12px;">Passkey / WebAuthn</div>
+            <button type="button" id="webauthnRegisterBtn" data-user-id="<?= (int)$user['id'] ?>" class="adm_btn adm_btn--secondary" style="margin-bottom:12px;">
+                Passkey hinzufügen
+            </button>
+
+            <?php if (!empty($webauthnCredentials)): ?>
+                <div class="adm_card adm_card--padded" style="padding:16px;">
+                    <div class="adm_label" style="font-size:.85rem;margin-bottom:12px;">Registrierte Passkeys</div>
+                    <table class="adm_table adm_table--compact" style="margin:0;">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Registriert</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($webauthnCredentials as $credential): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($credential['name']) ?></td>
+                                    <td><?= date('d.m.Y H:i', strtotime($credential['created_at'])) ?></td>
+                                    <td>
+                                        <form method="POST" action="/admin/users/<?= (int)$user['id'] ?>/webauthn/delete" style="display:inline">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                                            <input type="hidden" name="credential_id" value="<?= htmlspecialchars($credential['credential_id']) ?>">
+                                            <button type="submit" class="adm_btn adm_btn--sm adm_btn--danger">Löschen</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else: ?>
+                <p style="margin:0;font-size:.92rem;color:var(--wt-text-muted,#6b6b6b);">Für diesen Benutzer sind noch keine Passkeys registriert.</p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <div class="adm_form-actions">
             <a href="/admin/users" class="adm_btn adm_btn--ghost">Abbrechen</a>
             <button type="submit" class="adm_btn adm_btn--primary">

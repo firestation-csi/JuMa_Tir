@@ -1,6 +1,6 @@
 // Wertungsbüro JavaScript
 
-import { showMessage } from './app.js';
+import { showMessage, base64UrlToBuffer, bufferToBase64Url, apiFetch } from './app.js';
 
 // ---- Hash/Token per Klick in Zwischenablage ----
 document.querySelectorAll('.adm_hash').forEach(el => {
@@ -23,6 +23,60 @@ document.querySelectorAll('.adm_hash').forEach(el => {
         }
     });
 });
+
+// ---- WebAuthn / Passkey-Registrierung ----
+const webauthnRegisterBtn = document.getElementById('webauthnRegisterBtn');
+if (webauthnRegisterBtn) {
+    if (!window.PublicKeyCredential) {
+        webauthnRegisterBtn.disabled = true;
+        webauthnRegisterBtn.textContent = 'WebAuthn nicht verfügbar';
+    } else {
+        webauthnRegisterBtn.addEventListener('click', async () => {
+            const userId = webauthnRegisterBtn.dataset.userId;
+            if (!userId) {
+                showMessage('Benutzer-ID fehlt.', 'error');
+                return;
+            }
+
+            try {
+                const options = await apiFetch(`/admin/users/${userId}/webauthn/register/options`, { method: 'GET' });
+                const publicKey = {
+                    ...options,
+                    challenge: base64UrlToBuffer(options.challenge),
+                    user: {
+                        ...options.user,
+                        id: base64UrlToBuffer(options.user.id),
+                    },
+                    excludeCredentials: (options.excludeCredentials || []).map((credential) => ({
+                        ...credential,
+                        id: base64UrlToBuffer(credential.id),
+                    })),
+                };
+
+                const credential = await navigator.credentials.create({ publicKey });
+                if (!credential) {
+                    throw new Error('Passkey-Registrierung fehlgeschlagen.');
+                }
+
+                const response = credential.response;
+                await apiFetch(`/admin/users/${userId}/webauthn/register`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        response: {
+                            clientDataJSON: bufferToBase64Url(response.clientDataJSON),
+                            attestationObject: bufferToBase64Url(response.attestationObject),
+                        },
+                    }),
+                });
+
+                showMessage('Passkey erfolgreich hinzugefügt.', 'success');
+                setTimeout(() => window.location.reload(), 800);
+            } catch (err) {
+                showMessage(err.message || 'Passkey-Registrierung fehlgeschlagen.', 'error');
+            }
+        });
+    }
+}
 
 // ---- CSV-Export ----
 const exportBtn = document.getElementById('exportCsvBtn');

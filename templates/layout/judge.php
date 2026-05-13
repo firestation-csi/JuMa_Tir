@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#D4263A">
-    <title><?= htmlspecialchars($title ?? 'Schiedsrichter') ?> – JuMa</title>
+    <title><?= htmlspecialchars($title ?? 'Schiedsrichter') ?></title>
     <link rel="stylesheet" href="/assets/css/main.css">
     <link rel="stylesheet" href="/assets/css/judge.css">
     <link rel="manifest" href="/manifest.json">

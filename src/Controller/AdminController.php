@@ -40,7 +40,11 @@ class AdminController
         if (Auth::isAdmin()) {
             Response::redirect('/admin');
         }
-        Response::view('pages/admin/login', ['title' => 'Admin-Login', 'extraCss' => 'admin']);
+        Response::view('pages/admin/login', [
+            'title'    => 'Admin-Login',
+            'extraCss' => 'admin',
+            'extraJs'  => 'admin-login',
+        ]);
     }
 
     /** Login verarbeiten */
@@ -76,6 +80,7 @@ class AdminController
             Response::view('pages/admin/login', [
                 'title'    => 'Admin-Login',
                 'extraCss' => 'admin',
+                'extraJs'  => 'admin-login',
                 'error'    => 'Benutzername oder Passwort falsch.',
             ]);
         }
