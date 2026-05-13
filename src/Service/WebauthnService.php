@@ -430,6 +430,4 @@ class WebauthnService
         $binary = hex2bin($hex);
         return chr(0x80 | strlen($binary)) . $binary;
     }
-
-    }
 }
