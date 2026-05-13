@@ -62,6 +62,7 @@ async function handlePasskeyLogin() {
         const payload = {
             username,
             id: credential.id,
+            rawId: bufferToBase64Url(credential.rawId),
             response: {
                 clientDataJSON: bufferToBase64Url(authResponse.clientDataJSON),
                 authenticatorData: bufferToBase64Url(authResponse.authenticatorData),
@@ -74,6 +75,7 @@ async function handlePasskeyLogin() {
         console.log('Credential ID type:', typeof credential.id);
         console.log('Credential ID value:', credential.id);
         console.log('Credential ID length:', credential.id.length);
+        console.log('Credential rawId length:', credential.rawId?.byteLength ?? null);
         console.log('Payload für Server:', payload);
 
         const result = await apiFetch('/admin/login/passkey/verify', {
