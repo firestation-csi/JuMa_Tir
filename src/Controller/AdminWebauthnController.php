@@ -68,56 +68,60 @@ class AdminWebauthnController
                 Response::error('Ungültige Anmeldedaten.', 400);
             }
 
-        $userModel = new AdminUser();
-        $user = $userModel->findByUsername($username);
-        if (!$user) {
-            Response::error('Benutzer nicht gefunden.', 404);
+            $userModel = new AdminUser();
+            $user = $userModel->findByUsername($username);
+            if (!$user) {
+                Response::error('Benutzer nicht gefunden.', 404);
+            }
+
+            $credentialModel = new AdminUserCredential();
+            try {
+                // Bereinige credentialId (entferne mögliche Leerzeichen oder andere Zeichen)
+                $cleanCredentialId = trim($credentialId);
+                error_log("WebAuthn Login Debug - Clean CredentialId: '$cleanCredentialId'");
+                $decodedCredentialId = WebauthnService::base64UrlDecode($cleanCredentialId);
+                error_log("WebAuthn Login Debug - Decoded CredentialId: " . bin2hex($decodedCredentialId));
+                $credential = $credentialModel->findByCredentialId($decodedCredentialId);
+            } catch (\Exception $e) {
+                error_log("WebAuthn Login Debug - Base64 decode failed: " . $e->getMessage() . " for input: '$credentialId'");
+                // Versuche es ohne Dekodierung
+                $credential = $credentialModel->findByCredentialId($credentialId);
+            }
+
+            if (!$credential || (int)$credential['admin_user_id'] !== (int)$user['id']) {
+                Response::error('Passkey ungültig.', 400);
+            }
+
+            $challenge = $_SESSION['webauthn_authentication_challenge'] ?? '';
+            if ($challenge === '') {
+                Response::error('Keine gültige Authentifizierungs-Challenge vorhanden.', 400);
+            }
+
+            try {
+                $newSignCount = WebauthnService::verifyAuthenticationResponse(
+                    (string)($response['clientDataJSON'] ?? ''),
+                    WebauthnService::base64UrlDecode((string)($response['authenticatorData'] ?? '')),
+                    WebauthnService::base64UrlDecode((string)($response['signature'] ?? '')),
+                    $credential['public_key'],
+                    $challenge,
+                    WebauthnService::getRpId(),
+                    (int)$credential['sign_count']
+                );
+            } catch (\Exception $e) {
+                error_log("WebAuthn Login Debug - Verification failed: " . $e->getMessage());
+                Response::error($e->getMessage(), 400);
+            }
+
+            $credentialModel->updateSignCount((int)$credential['id'], $newSignCount);
+
+            $competition = (new Competition())->findActive();
+            $competitionId = $competition ? (int)$competition['id'] : 0;
+            Auth::loginAdmin($competitionId, (int)$user['id'], $username);
+            Response::json(['redirect' => '/admin']);
+        } catch (\Throwable $e) {
+            error_log("WebAuthn Login Debug - Unexpected error: " . $e->getMessage());
+            Response::error('Interner Serverfehler.', 500);
         }
-
-        $credentialModel = new AdminUserCredential();
-        try {
-            // Bereinige credentialId (entferne mögliche Leerzeichen oder andere Zeichen)
-            $cleanCredentialId = trim($credentialId);
-            error_log("WebAuthn Login Debug - Clean CredentialId: '$cleanCredentialId'");
-            $decodedCredentialId = WebauthnService::base64UrlDecode($cleanCredentialId);
-            error_log("WebAuthn Login Debug - Decoded CredentialId: " . bin2hex($decodedCredentialId));
-            $credential = $credentialModel->findByCredentialId($decodedCredentialId);
-        } catch (\Exception $e) {
-            error_log("WebAuthn Login Debug - Base64 decode failed: " . $e->getMessage() . " for input: '$credentialId'");
-            // Versuche es ohne Dekodierung
-            $credential = $credentialModel->findByCredentialId($credentialId);
-        }
-
-        if (!$credential || (int)$credential['admin_user_id'] !== (int)$user['id']) {
-            Response::error('Passkey ungültig.', 400);
-        }
-
-        $challenge = $_SESSION['webauthn_authentication_challenge'] ?? '';
-        if ($challenge === '') {
-            Response::error('Keine gültige Authentifizierungs-Challenge vorhanden.', 400);
-        }
-
-        try {
-            $newSignCount = WebauthnService::verifyAuthenticationResponse(
-                (string)($response['clientDataJSON'] ?? ''),
-                WebauthnService::base64UrlDecode((string)($response['authenticatorData'] ?? '')),
-                WebauthnService::base64UrlDecode((string)($response['signature'] ?? '')),
-                $credential['public_key'],
-                $challenge,
-                WebauthnService::getRpId(),
-                (int)$credential['sign_count']
-            );
-        } catch (\Exception $e) {
-            error_log("WebAuthn Login Debug - Verification failed: " . $e->getMessage());
-            Response::error($e->getMessage(), 400);
-        }
-
-        $credentialModel->updateSignCount((int)$credential['id'], $newSignCount);
-
-        $competition = (new Competition())->findActive();
-        $competitionId = $competition ? (int)$competition['id'] : 0;
-        Auth::loginAdmin($competitionId, (int)$user['id'], $username);
-        Response::json(['redirect' => '/admin']);
     }
 
     public function options(): void
