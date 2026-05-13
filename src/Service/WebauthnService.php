@@ -192,27 +192,12 @@ class WebauthnService
         $publicKey = self::coseKeyToPem(self::decodeCbor($publicKeyBytes));
         $verifyData = self::base64UrlDecode($authenticatorData) . hash('sha256', $clientDataJsonDecoded, true);
 
-        error_log("WebAuthn Debug - Signature length: " . strlen($signature));
-        error_log("WebAuthn Debug - VerifyData length: " . strlen($verifyData));
-        error_log("WebAuthn Debug - PublicKey: " . $publicKey);
+        $decodedSignature = self::base64UrlDecode($signature);
 
-        try {
-            $decodedSignature = self::base64UrlDecode($signature);
-            error_log("WebAuthn Debug - Decoded signature length: " . strlen($decodedSignature));
-            error_log("WebAuthn Debug - Decoded signature hex: " . bin2hex($decodedSignature));
-        } catch (\Exception $e) {
-            error_log("WebAuthn Debug - Signature decode failed: " . $e->getMessage());
-            throw new UnexpectedValueException('Signatur-Dekodierung fehlgeschlagen.');
-        }
+        // WebAuthn signatures are raw r,s values - convert to DER format for OpenSSL
+        $derSignature = self::encodeEcdsaSignatureDer($decodedSignature);
 
-        // Parse DER-encoded ECDSA signature to raw r,s values
-        $parsedSignature = self::parseDerSignature($decodedSignature);
-        error_log("WebAuthn Debug - Parsed signature r: " . bin2hex($parsedSignature['r']));
-        error_log("WebAuthn Debug - Parsed signature s: " . bin2hex($parsedSignature['s']));
-
-        $signatureResult = openssl_verify($verifyData, $parsedSignature['r'] . $parsedSignature['s'], $publicKey, OPENSSL_ALGO_SHA256);
-        error_log("WebAuthn Debug - Signature verification result: " . $signatureResult);
-
+        $signatureResult = openssl_verify($verifyData, $derSignature, $publicKey, OPENSSL_ALGO_SHA256);
         if ($signatureResult !== 1) {
             throw new UnexpectedValueException('Fehler bei der Signaturprüfung.');
         }
@@ -450,50 +435,40 @@ class WebauthnService
         return chr(0x80 | strlen($binary)) . $binary;
     }
 
-    private static function parseDerSignature(string $derSignature): array
+    private static function encodeEcdsaSignatureDer(string $rawSignature): string
     {
-        if (strlen($derSignature) < 8) {
-            throw new UnexpectedValueException('DER-Signatur zu kurz.');
+        if (strlen($rawSignature) !== 64) {
+            throw new UnexpectedValueException('Rohe ECDSA-Signatur muss 64 Bytes lang sein.');
         }
 
-        // DER sequence tag
-        if (ord($derSignature[0]) !== 0x30) {
-            throw new UnexpectedValueException('Ungültige DER-Signatur: Keine Sequence.');
+        $r = substr($rawSignature, 0, 32);
+        $s = substr($rawSignature, 32, 32);
+
+        // Remove leading zeros from r and s
+        $r = ltrim($r, "\x00");
+        $s = ltrim($s, "\x00");
+
+        // Ensure r and s are not empty (add back one zero if they were all zeros)
+        if ($r === '') {
+            $r = "\x00";
+        }
+        if ($s === '') {
+            $s = "\x00";
         }
 
-        $pos = 2; // Skip sequence tag and length
-
-        // Parse r value
-        if (ord($derSignature[$pos++]) !== 0x02) {
-            throw new UnexpectedValueException('Ungültige DER-Signatur: r-Wert kein Integer.');
+        // Add leading zero if high bit is set (to ensure positive integer)
+        if ((ord($r[0]) & 0x80) !== 0) {
+            $r = "\x00" . $r;
+        }
+        if ((ord($s[0]) & 0x80) !== 0) {
+            $s = "\x00" . $s;
         }
 
-        $rLength = ord($derSignature[$pos++]);
-        if ($rLength > 32) {
-            $rLength--; // Remove leading zero if present
-            $pos++;
-        }
-        $r = substr($derSignature, $pos, $rLength);
-        $pos += $rLength;
+        $rEncoded = "\x02" . chr(strlen($r)) . $r;
+        $sEncoded = "\x02" . chr(strlen($s)) . $s;
 
-        // Pad r to 32 bytes
-        $r = str_pad($r, 32, "\x00", STR_PAD_LEFT);
-
-        // Parse s value
-        if (ord($derSignature[$pos++]) !== 0x02) {
-            throw new UnexpectedValueException('Ungültige DER-Signatur: s-Wert kein Integer.');
-        }
-
-        $sLength = ord($derSignature[$pos++]);
-        if ($sLength > 32) {
-            $sLength--; // Remove leading zero if present
-            $pos++;
-        }
-        $s = substr($derSignature, $pos, $sLength);
-
-        // Pad s to 32 bytes
-        $s = str_pad($s, 32, "\x00", STR_PAD_LEFT);
-
-        return ['r' => $r, 's' => $s];
+        $sequence = $rEncoded . $sEncoded;
+        return "\x30" . chr(strlen($sequence)) . $sequence;
     }
+}
 }
