@@ -92,7 +92,15 @@ $action = $isEdit
             </div>
         </div>
 
-        <?php if ($isEdit): ?>
+        <div class="adm_form-actions">
+            <a href="/admin/users" class="adm_btn adm_btn--ghost">Abbrechen</a>
+            <button type="submit" class="adm_btn adm_btn--primary">
+                <?= $isEdit ? 'Änderungen speichern' : 'Benutzer anlegen' ?>
+            </button>
+        </div>
+    </form>
+
+    <?php if ($isEdit): ?>
         <div class="adm_field" style="border-top:1px solid var(--wt-border,#e5e3df);padding-top:20px;margin-top:24px;">
             <div class="adm_label" style="font-size:.85rem;letter-spacing:.08em;margin-bottom:12px;">Passkey / WebAuthn</div>
             <button type="button" id="webauthnRegisterBtn" data-user-id="<?= (int)$user['id'] ?>" class="adm_btn adm_btn--secondary" style="margin-bottom:12px;">
@@ -117,7 +125,7 @@ $action = $isEdit
                                     <td><?= date('d.m.Y H:i', strtotime($credential['created_at'])) ?></td>
                                     <td>
                                         <form method="POST" action="/admin/users/<?= (int)$user['id'] ?>/webauthn/delete" style="display:inline">
-                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
                                             <input type="hidden" name="credential_row_id" value="<?= (int)$credential['id'] ?>">
                                             <button type="submit" class="adm_btn adm_btn--sm adm_btn--danger">Löschen</button>
                                         </form>
@@ -131,15 +139,7 @@ $action = $isEdit
                 <p style="margin:0;font-size:.92rem;color:var(--wt-text-muted,#6b6b6b);">Für diesen Benutzer sind noch keine Passkeys registriert.</p>
             <?php endif; ?>
         </div>
-        <?php endif; ?>
-
-        <div class="adm_form-actions">
-            <a href="/admin/users" class="adm_btn adm_btn--ghost">Abbrechen</a>
-            <button type="submit" class="adm_btn adm_btn--primary">
-                <?= $isEdit ? 'Änderungen speichern' : 'Benutzer anlegen' ?>
-            </button>
-        </div>
-    </form>
+    <?php endif; ?>
 </div>
 <?php
 $content = ob_get_clean();

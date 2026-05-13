@@ -114,8 +114,9 @@ class AdminUserController
             return;
         }
 
-        // Letzten aktiven Benutzer nicht deaktivieren
-        if (!$active && $this->userModel->countActive() <= 1 && (int)$user['active'] === 1) {
+        // Letzten aktiven DB-Benutzer nur dann nicht deaktivieren, wenn kein env-Admin vorhanden ist
+        $hasEnvAdmin = !empty($_ENV['ADMIN_USER']) && !empty($_ENV['ADMIN_PASSWORD']);
+        if (!$active && $this->userModel->countActive() <= 1 && (int)$user['active'] === 1 && !$hasEnvAdmin) {
             Response::view('pages/admin/admin-user-form', [
                 'title' => 'Benutzer bearbeiten',
                 'user'  => $user,
@@ -140,8 +141,9 @@ class AdminUserController
         $this->verifyCsrf();
         $user = $this->requireUser($id);
 
-        // Letzten aktiven Benutzer nicht löschen
-        if ((int)$user['active'] === 1 && $this->userModel->countActive() <= 1) {
+        // Letzten aktiven DB-Benutzer nur dann nicht löschen, wenn kein env-Admin vorhanden ist
+        $hasEnvAdmin = !empty($_ENV['ADMIN_USER']) && !empty($_ENV['ADMIN_PASSWORD']);
+        if ((int)$user['active'] === 1 && $this->userModel->countActive() <= 1 && !$hasEnvAdmin) {
             Response::redirect('/admin/users');
         }
 

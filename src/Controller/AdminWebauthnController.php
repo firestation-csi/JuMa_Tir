@@ -236,18 +236,29 @@ class AdminWebauthnController
         }
 
         $credentialRowId = (int)$this->request->post('credential_row_id', 0);
-        if ($credentialRowId <= 0) {
-            Response::error('Ungültige Passkey-ID.', 400);
-        }
+        $credentialId = trim((string)$this->request->post('credential_id', ''));
 
         $credentialModel = new AdminUserCredential();
-        $credential = $credentialModel->findById($credentialRowId);
+        $credential = null;
+
+        if ($credentialRowId > 0) {
+            $credential = $credentialModel->findById($credentialRowId);
+        }
+
+        if (!$credential && $credentialId !== '') {
+            try {
+                $decodedId = WebauthnService::base64UrlDecode($credentialId);
+                $credential = $credentialModel->findByCredentialId($decodedId);
+            } catch (\Exception $e) {
+                // ignore invalid legacy credential_id format
+            }
+        }
+
         if (!$credential || (int)$credential['admin_user_id'] !== (int)$id) {
             Response::error('Passkey nicht gefunden.', 404);
         }
 
-        $credentialModel->deleteById($credentialRowId);
-
+        $credentialModel->deleteById((int)$credential['id']);
         Response::redirect('/admin/users/' . (int)$id . '/edit');
     }
 }
