@@ -40,6 +40,9 @@ class Request
             return [];
         }
         $data = json_decode($body, true);
+        if ($body !== '' && $data === null && json_last_error() !== JSON_ERROR_NONE) {
+            error_log('Request JSON parse failed: ' . json_last_error_msg() . ' - body: ' . $body);
+        }
         return is_array($data) ? $data : [];
     }
 

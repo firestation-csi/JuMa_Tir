@@ -14,7 +14,12 @@ class Response
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+        $payload = json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+        if ($payload === false) {
+            error_log('Response JSON-Encoding fehlgeschlagen: ' . json_last_error_msg());
+            $payload = '{"success":false,"error":"Interner Antwortfehler"}';
+        }
+        echo $payload;
         exit;
     }
 
@@ -23,7 +28,12 @@ class Response
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+        $payload = json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+        if ($payload === false) {
+            error_log('Response JSON-Encoding fehlgeschlagen: ' . json_last_error_msg() . ' - message: ' . $message);
+            $payload = '{"success":false,"error":"Interner Antwortfehler"}';
+        }
+        echo $payload;
         exit;
     }
 

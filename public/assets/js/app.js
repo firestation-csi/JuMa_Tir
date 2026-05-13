@@ -33,10 +33,10 @@ export async function apiFetch(url, options = {}) {
         try {
             data = JSON.parse(rawText);
         } catch (jsonError) {
-            throw new Error(`Ungültige JSON-Antwort vom Server: ${rawText}`);
+            throw new Error(`Ungültige JSON-Antwort vom Server (Status ${response.status}, Länge ${rawText.length}): ${rawText}`);
         }
     } else {
-        throw new Error(`Server-Antwort ist kein JSON: ${rawText}`);
+        throw new Error(`Server-Antwort ist kein JSON (Status ${response.status}, Typ ${contentType}, Länge ${rawText.length}): ${rawText}`);
     }
 
     if (!data.success) {
