@@ -9,6 +9,7 @@ return [
         '/judge/station'                 => ['App\Controller\JudgeController', 'station'],
         '/admin'                         => ['App\Controller\AdminController', 'dashboard'],
         '/admin/login'                   => ['App\Controller\AdminController', 'loginForm'],
+        '/admin/login/passkey/options'   => ['App\Controller\AdminWebauthnController', 'loginOptions'],
         '/admin/users/{id}/webauthn/register/options' => ['App\Controller\AdminWebauthnController', 'registrationOptions'],
         '/admin/results'                 => ['App\Controller\AdminController', 'results'],
         '/admin/qrcodes'                 => ['App\Controller\AdminController', 'qrcodes'],
@@ -87,5 +88,9 @@ return [
         '/admin/groups/{groupId}/members'                        => ['App\Controller\AdminGroupMemberController', 'store'],
         '/admin/groups/{groupId}/members/{id}/edit'              => ['App\Controller\AdminGroupMemberController', 'update'],
         '/admin/groups/{groupId}/members/{id}/delete'            => ['App\Controller\AdminGroupMemberController', 'delete'],
+    ],
+    'OPTIONS' => [
+        '/admin/login/passkey/options' => ['App\Controller\AdminWebauthnController', 'options'],
+        '/admin/login/passkey/verify'  => ['App\Controller\AdminWebauthnController', 'options'],
     ],
 ];

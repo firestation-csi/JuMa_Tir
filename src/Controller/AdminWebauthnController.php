@@ -21,7 +21,9 @@ class AdminWebauthnController
     public function loginOptions(): void
     {
         $body = $this->request->json();
-        $username = trim((string)($body['username'] ?? ''));
+        $username = trim((string)($this->request->method() === 'GET'
+            ? $this->request->get('username', '')
+            : ($body['username'] ?? '')));
 
         if ($username === '') {
             Response::error('Benutzername ist erforderlich.', 400);
@@ -98,6 +100,13 @@ class AdminWebauthnController
         $competitionId = $competition ? (int)$competition['id'] : 0;
         Auth::loginAdmin($competitionId, (int)$user['id'], $username);
         Response::json(['redirect' => '/admin']);
+    }
+
+    public function options(): void
+    {
+        header('Access-Control-Allow-Methods: POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type');
+        Response::json(['ok' => true]);
     }
 
     public function registrationOptions(string $id): void
