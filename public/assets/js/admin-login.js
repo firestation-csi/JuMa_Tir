@@ -20,25 +20,43 @@ async function handlePasskeyLogin() {
         return;
     }
 
+    // Prüfe WebAuthn-Unterstützung
+    if (!window.PublicKeyCredential) {
+        showLoginError('WebAuthn wird von diesem Browser nicht unterstützt.');
+        return;
+    }
+
     try {
+        console.log('Starte Passkey-Login für:', username);
+
         const options = await apiFetch('/admin/login/passkey/options', {
             method: 'POST',
             body: JSON.stringify({ username }),
         });
 
+        console.log('Erhaltene Options:', options);
+
+        if (!options.allowCredentials || options.allowCredentials.length === 0) {
+            throw new Error('Keine Passkeys für diesen Benutzer registriert.');
+        }
+
         const publicKey = {
             ...options,
             challenge: base64UrlToBuffer(options.challenge),
-            allowCredentials: (options.allowCredentials || []).map((credential) => ({
+            allowCredentials: options.allowCredentials.map((credential) => ({
                 ...credential,
                 id: base64UrlToBuffer(credential.id),
             })),
         };
 
+        console.log('PublicKey für navigator.credentials.get:', publicKey);
+
         const credential = await navigator.credentials.get({ publicKey });
         if (!credential) {
             throw new Error('Passkey konnte nicht abgerufen werden.');
         }
+
+        console.log('Erhaltene Credential:', credential);
 
         const authResponse = credential.response;
         const payload = {
@@ -52,15 +70,20 @@ async function handlePasskeyLogin() {
             },
         };
 
+        console.log('Sende Payload zur Verifikation:', payload);
+
         const result = await apiFetch('/admin/login/passkey/verify', {
             method: 'POST',
             body: JSON.stringify(payload),
         });
 
+        console.log('Verifikationsergebnis:', result);
+
         if (result.redirect) {
             window.location.href = result.redirect;
         }
     } catch (err) {
+        console.error('Passkey-Login Fehler:', err);
         showLoginError(err.message || 'Passkey-Login fehlgeschlagen.');
     }
 }
