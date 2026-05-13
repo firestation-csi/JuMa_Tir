@@ -21,6 +21,13 @@ class WebauthnService
     {
         // Entferne mögliche Leerzeichen oder andere Zeichen
         $value = trim($value);
+
+        // Prüfe, ob es bereits binäre Daten sind (nicht base64)
+        if (preg_match('/[^\x20-\x7E]/', $value)) {
+            // Enthält nicht-ASCII-Zeichen - könnte bereits binär sein
+            return $value;
+        }
+
         $value = strtr($value, '-_', '+/');
         $padding = strlen($value) % 4;
         if ($padding > 0) {

@@ -80,25 +80,32 @@ class AdminWebauthnController
             error_log("WebAuthn Login Debug - raw credentialId length: " . strlen($credentialId));
 
             $credential = null;
+
+            // Versuche verschiedene Varianten der Credential-ID
+            $possibleIds = [];
+
             if ($rawId !== '') {
+                $possibleIds[] = $rawId;
                 try {
-                    $decodedCredentialId = WebauthnService::base64UrlDecode(trim($rawId));
-                    error_log("WebAuthn Login Debug - Decoded rawId: " . bin2hex($decodedCredentialId));
-                    $credential = $credentialModel->findByCredentialId($decodedCredentialId);
+                    $possibleIds[] = WebauthnService::base64UrlDecode(trim($rawId));
                 } catch (\Exception $e) {
-                    error_log("WebAuthn Login Debug - rawId decode failed: " . $e->getMessage());
+                    // Ignoriere Dekodierungsfehler
                 }
             }
 
-            if ($credential === null) {
-                try {
-                    $cleanCredentialId = trim($credentialId);
-                    error_log("WebAuthn Login Debug - Clean CredentialId: '$cleanCredentialId'");
-                    $decodedCredentialId = WebauthnService::base64UrlDecode($cleanCredentialId);
-                    error_log("WebAuthn Login Debug - Decoded CredentialId: " . bin2hex($decodedCredentialId));
-                    $credential = $credentialModel->findByCredentialId($decodedCredentialId);
-                } catch (\Exception $e) {
-                    error_log("WebAuthn Login Debug - CredentialId decode failed: " . $e->getMessage());
+            $possibleIds[] = $credentialId;
+            try {
+                $possibleIds[] = WebauthnService::base64UrlDecode(trim($credentialId));
+            } catch (\Exception $e) {
+                // Ignoriere Dekodierungsfehler
+            }
+
+            foreach ($possibleIds as $id) {
+                error_log("WebAuthn Login Debug - Trying credential ID: " . bin2hex($id));
+                $credential = $credentialModel->findByCredentialId($id);
+                if ($credential) {
+                    error_log("WebAuthn Login Debug - Found credential with ID: " . bin2hex($id));
+                    break;
                 }
             }
 
