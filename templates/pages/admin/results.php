@@ -360,6 +360,7 @@ $rankingJson = json_encode(array_map(fn($r) => [
 ], array_slice($ranking ?? [], 0, 15)), JSON_UNESCAPED_UNICODE);
 
 $impColorJson = json_encode(['sehr_gut' => '#27AE60', 'gut' => '#95A5A6', 'befriedigend' => '#E67E22']);
+$csrfJson     = json_encode($csrf ?? '');
 
 // Accordion läuft unabhängig – kein Chart.js erforderlich
 $extraScripts .= <<<ACCORDION
@@ -408,7 +409,7 @@ $extraScripts .= <<<JS
     }
 
     // ── Score löschen ──────────────────────────────────
-    const CSRF = <?= json_encode($csrf) ?>;
+    const CSRF = {$csrfJson};
 
     async function deleteScore(id, itemEl) {
         if (!confirm('Bewertung wirklich löschen?')) return;
