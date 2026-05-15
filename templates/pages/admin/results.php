@@ -122,7 +122,7 @@ $extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/c
                 $rankClass = match((int)$r['rank']) { 1=>'res_row--gold', 2=>'res_row--silver', 3=>'res_row--bronze', default=>'' };
                 $complete  = $r['is_complete'];
             ?>
-            <tr class="<?= $rankClass ?>">
+            <tr class="<?= $rankClass ?>" data-group-id="<?= (int)$r['group_id'] ?>">
                 <td style="text-align:center;font-weight:700;color:<?= (int)$r['rank'] <= 3 ? 'var(--wt-text)' : 'var(--wt-text-muted)' ?>;">
                     <?= $r['rank'] ?>
                 </td>
@@ -141,12 +141,12 @@ $extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/c
                         <?= (int)$r['stations_completed'] ?>/<?= $totalStations ?>
                     </span>
                 </td>
-                <td style="text-align:right;" class="adm_mono"><?= (int)$r['total_fp'] ?></td>
-                <td style="text-align:right;font-size:12px;color:var(--wt-text-muted);">
+                <td style="text-align:right;" class="adm_mono res_rank__fp"><?= (int)$r['total_fp'] ?></td>
+                <td style="text-align:right;font-size:12px;color:var(--wt-text-muted);" class="res_rank__impression">
                     <?= $r['avg_impression'] !== null ? number_format((float)$r['avg_impression'], 2, ',', '') : '–' ?>
                 </td>
                 <td style="text-align:right;">
-                    <span class="adm_mono" style="font-weight:700;font-size:15px;">
+                    <span class="adm_mono res_rank__score" style="font-weight:700;font-size:15px;">
                         <?= number_format((float)$r['combined_score'], 1, ',', '') ?>
                     </span>
                 </td>
@@ -480,6 +480,22 @@ $extraScripts .= <<<JS
                         <div style="font-size:10px;color:var(--wt-text-subtle);margin-top:2px;font-family:monospace;">\${fmtTime(sc.created_at)}</div>
                     </div>`).join('') || '<div style="padding:24px;text-align:center;color:var(--wt-text-subtle);font-size:13px;">Noch keine Bewertungen</div>';
             }
+            // Rangliste aktualisieren
+            if (data.ranking) {
+                const fmt1 = n => Number(n).toFixed(1).replace('.', ',');
+                const fmt2 = n => n != null ? Number(n).toFixed(2).replace('.', ',') : '–';
+                data.ranking.forEach(r => {
+                    const row = document.querySelector(`#rankingTable tbody tr[data-group-id="\${r.group_id}"]`);
+                    if (!row) return;
+                    const fpCell  = row.querySelector('.res_rank__fp');
+                    const impCell = row.querySelector('.res_rank__impression');
+                    const scCell  = row.querySelector('.res_rank__score');
+                    if (fpCell)  fpCell.textContent  = r.total_fp;
+                    if (impCell) impCell.textContent = fmt2(r.avg_impression);
+                    if (scCell)  scCell.textContent  = fmt1(r.combined_score);
+                });
+            }
+
             if (tickerTime) tickerTime.textContent = 'aktualisiert ' + (data.ts || '');
             if (badge) { badge.textContent = '● LIVE'; badge.style.color = 'var(--wt-ok)'; }
         } catch {
