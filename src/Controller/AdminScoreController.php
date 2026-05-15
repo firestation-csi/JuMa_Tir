@@ -7,15 +7,18 @@ namespace App\Controller;
 use App\Core\Auth;
 use App\Core\Response;
 use App\Core\Request;
+use App\Model\Group;
 use App\Model\Score;
 
 class AdminScoreController
 {
     private Score $scoreModel;
+    private Group $groupModel;
 
     public function __construct(private Request $request)
     {
         $this->scoreModel = new Score();
+        $this->groupModel = new Group();
         if (!Auth::isAdmin()) {
             Response::error('Nicht angemeldet', 401);
         }
@@ -34,6 +37,7 @@ class AdminScoreController
         }
 
         $this->scoreModel->delete((int)$id);
+        $this->groupModel->removeLog((int)$score['group_id'], (int)$score['station_id']);
         Response::json(['success' => true]);
     }
 }

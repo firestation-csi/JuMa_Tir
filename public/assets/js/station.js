@@ -323,7 +323,7 @@ function tabBarHtml() {
     return `<div class="wt_tabbar">
         ${t('aktiv',    svgFlame(),   'Aktiv')}
         ${t('verlauf',  svgList(),    'Verlauf')}
-        ${t('live',     svgGrid(),    'Live')}
+        ${t('live',     svgMap(),     'Karte')}
         ${t('zentrale', svgChat(),    'Zentrale', state.unreadCount)}
         ${t('profil',   svgUser(),    'Profil')}
     </div>`;
@@ -1608,7 +1608,7 @@ const svgList  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="no
 const svgUser  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const svgChat  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 4h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H7l-4 3V5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
 const svgSend    = () => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M15 9L3 3l3 6-3 6 12-6z" fill="currentColor"/></svg>`;
-const svgGrid    = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="12" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="12" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="12" y="12" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>`;
+const svgMap     = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M8 3L3 5.5v13L8 16l6 3 5-2.5v-13L14 6 8 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 3v13M14 6v13" stroke="currentColor" stroke-width="1.6"/></svg>`;
 const svgRefresh = () => `<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M16 9A7 7 0 1 1 9 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 2l3 3-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 // ── Start ──────────────────────────────────────
