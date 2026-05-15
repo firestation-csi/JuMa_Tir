@@ -49,6 +49,14 @@ async function clearQueue() {
     return new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
 }
 
+async function removeFromQueue(localIds) {
+    const db    = await openDb();
+    const tx    = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    for (const id of localIds) store.delete(id);
+    return new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+}
+
 // ---- Offline-Bewertungen speichern ----
 window.addEventListener('wt:save-offline', async (e) => {
     await saveToQueue(e.detail);
@@ -90,12 +98,29 @@ async function syncQueue() {
     }
 
     try {
-        await apiFetch('/api/sync', {
+        const result = await apiFetch('/api/sync', {
             method: 'POST',
             body: JSON.stringify({ scores: items }),
         });
-        await clearQueue();
-        showMessage(`${items.length} Bewertungen synchronisiert!`, 'success');
+
+        const results      = result?.results ?? [];
+        const failedIdx    = new Set(results.filter(r => !r.success).map(r => r.index));
+        const succeededIds = items
+            .map((item, i) => ({ localId: item.local_id, index: i }))
+            .filter(({ index }) => !failedIdx.has(index))
+            .map(({ localId }) => localId);
+
+        await removeFromQueue(succeededIds);
+
+        const successCount = items.length - failedIdx.size;
+        if (failedIdx.size === 0) {
+            showMessage(`${successCount} Bewertungen synchronisiert!`, 'success');
+        } else {
+            showMessage(
+                `${successCount} von ${items.length} Bewertungen synchronisiert – ${failedIdx.size} fehlgeschlagen.`,
+                'error'
+            );
+        }
     } catch {
         showMessage('Sync fehlgeschlagen – wird beim nächsten Verbindungsaufbau wiederholt.', 'error');
     } finally {

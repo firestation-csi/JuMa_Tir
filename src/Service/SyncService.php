@@ -6,29 +6,29 @@ namespace App\Service;
 
 use App\Model\Score;
 use App\Model\Judge;
-use App\Model\Station;
+use App\Model\StationTask;
 
 /**
  * Verarbeitung der Offline-Sync-Queue vom Schiedsrichter-Client.
- * Jeder Eintrag enthält das vollständige Fehlerpunkte-Bewertungsobjekt.
+ * Erwartet das gleiche Format wie POST /api/score:
+ *   {group_id, station_id, tasks: [{task_id, type, value, times?}], impression, time_ms, notes}
  */
 class SyncService
 {
-    private Score   $scoreModel;
-    private Judge   $judgeModel;
-    private Station $stationModel;
+    private Score       $scoreModel;
+    private Judge       $judgeModel;
+    private StationTask $taskModel;
 
     public function __construct()
     {
-        $this->scoreModel   = new Score();
-        $this->judgeModel   = new Judge();
-        $this->stationModel = new Station();
+        $this->scoreModel = new Score();
+        $this->judgeModel = new Judge();
+        $this->taskModel  = new StationTask();
     }
 
     /**
      * Array von Offline-Bewertungen verarbeiten.
-     * Jeder Eintrag muss enthalten: group_id, station_id, checks, penalties, impression
-     * Optional: time_ms, notes
+     * Jeder Eintrag muss enthalten: group_id, station_id, tasks
      */
     public function processQueue(array $entries, int $judgeId): array
     {
@@ -38,13 +38,12 @@ class SyncService
             try {
                 $this->validateEntry($entry);
 
-                $groupId    = (int)$entry['group_id'];
-                $stationId  = (int)$entry['station_id'];
-                $checks     = (array)($entry['checks'] ?? []);
-                $penalties  = (array)($entry['penalties'] ?? []);
-                $impression = $entry['impression'] ?? 'gut';
-                $timeMs     = isset($entry['time_ms']) ? (int)$entry['time_ms'] : null;
-                $notes      = $entry['notes'] ?? null;
+                $groupId     = (int)$entry['group_id'];
+                $stationId   = (int)$entry['station_id'];
+                $taskResults = (array)($entry['tasks'] ?? []);
+                $impression  = $entry['impression'] ?? 'gut';
+                $timeMs      = isset($entry['time_ms']) ? (int)$entry['time_ms'] : null;
+                $notes       = $entry['notes'] ?? null;
 
                 // Schiedsrichter darf nur an seiner zugeordneten Station einreichen
                 $judge = $this->judgeModel->findById($judgeId);
@@ -52,13 +51,64 @@ class SyncService
                     throw new \InvalidArgumentException('Station nicht zugeordnet');
                 }
 
-                // Fehlerpunkte serverseitig berechnen
-                $station = $this->stationModel->findWithDetails($stationId);
-                $totalFp = $this->calculateFp($station, $checks, $penalties);
+                // Fehlerpunkte serverseitig berechnen – identisch zu JudgeController::saveScore
+                $taskDefs = $this->taskModel->findByStation($stationId);
+                $taskMap  = array_column($taskDefs, null, 'id');
+                $totalFp  = 0;
+
+                foreach ($taskResults as $r) {
+                    $taskId = isset($r['task_id']) ? (int)$r['task_id'] : 0;
+                    $value  = $r['value'] ?? null;
+                    if (!isset($taskMap[$taskId])) continue;
+                    $task = $taskMap[$taskId];
+
+                    if ($task['type'] === 'boolean' && $value === 'fail') {
+                        $totalFp += (int)$task['points'];
+                    } elseif ($task['type'] === 'count' && (int)$value > 0) {
+                        $count = (int)$value;
+                        if ($task['max_count'] !== null) {
+                            $count = min($count, (int)$task['max_count']);
+                        }
+                        $totalFp += $count * (int)$task['points'];
+                    }
+                }
+
+                // Zeitstrafen berechnen (Single- und Multi-Timer)
+                $taskResultMap = array_column($taskResults, null, 'task_id');
+
+                foreach ($taskDefs as $task) {
+                    if ($task['type'] !== 'time') continue;
+                    if ($task['sollzeit_sek'] === null || $task['zeitstrafe_fp'] === null || $task['zeiteinheit_sek'] === null) {
+                        continue;
+                    }
+                    $felder      = (int)($task['zeit_felder'] ?? 1);
+                    $sollSek     = (int)$task['sollzeit_sek'];
+                    $maxSekLimit = $task['hoechstzeit_sek'] !== null ? (int)$task['hoechstzeit_sek'] : PHP_INT_MAX;
+                    $fpJe        = (int)$task['zeitstrafe_fp'];
+                    $einh        = (int)$task['zeiteinheit_sek'];
+
+                    $calcFpMs = function (int $ms) use ($sollSek, $maxSekLimit, $fpJe, $einh): int {
+                        if ($ms <= 0) return 0;
+                        $sek = intdiv($ms, 1000);
+                        if ($sek <= $sollSek) return 0;
+                        $overSek = min($sek, $maxSekLimit) - $sollSek;
+                        return (int)floor($overSek / $einh) * $fpJe;
+                    };
+
+                    if ($felder > 1) {
+                        $r     = $taskResultMap[$task['id']] ?? null;
+                        $times = isset($r['times']) && is_array($r['times']) ? $r['times'] : [];
+                        foreach ($times as $ms) {
+                            $totalFp += $calcFpMs((int)$ms);
+                        }
+                    } elseif ($timeMs !== null && $timeMs > 0) {
+                        $totalFp += $calcFpMs($timeMs);
+                    }
+                }
 
                 $scoreId = $this->scoreModel->save(
                     $judgeId, $groupId, $stationId,
-                    $checks, $penalties, $impression, $totalFp, $timeMs, $notes
+                    $taskResults, $impression, $totalFp, $timeMs, $notes
                 );
 
                 $results[] = ['index' => $index, 'success' => true, 'id' => $scoreId, 'total_fp' => $totalFp];
@@ -75,35 +125,13 @@ class SyncService
         if (!is_array($entry)) {
             throw new \InvalidArgumentException('Ungültiges Datenformat');
         }
-        foreach (['group_id', 'station_id', 'checks'] as $field) {
+        foreach (['group_id', 'station_id', 'tasks'] as $field) {
             if (!isset($entry[$field])) {
                 throw new \InvalidArgumentException("Pflichtfeld fehlt: $field");
             }
         }
-        if (!is_array($entry['checks']) || empty($entry['checks'])) {
-            throw new \InvalidArgumentException('Kriterien fehlen');
+        if (!is_array($entry['tasks'])) {
+            throw new \InvalidArgumentException('tasks muss ein Array sein');
         }
-    }
-
-    private function calculateFp(array $station, array $checks, array $penalties): int
-    {
-        $fp = 0;
-
-        $criteriaMap = array_column($station['criteria'], null, 'id');
-        foreach ($checks as $criterionId => $result) {
-            if ($result === 'fail' && isset($criteriaMap[$criterionId])) {
-                $fp += (int)$criteriaMap[$criterionId]['weight'];
-            }
-        }
-
-        $penaltyMap = array_column($station['penalties'], null, 'id');
-        foreach ($penalties as $penaltyId => $count) {
-            if (isset($penaltyMap[$penaltyId]) && $count > 0) {
-                $max = (int)$penaltyMap[$penaltyId]['max_count'];
-                $fp += min((int)$count, $max) * (int)$penaltyMap[$penaltyId]['weight'];
-            }
-        }
-
-        return $fp;
     }
 }
