@@ -295,7 +295,7 @@ function syncPillHtml() {
     const dot = offline ? 'wt_pulse--offline' : 'wt_pulse--online';
     const label = offline
         ? `OFFLINE${state.queueCount > 0 ? ` · ${state.queueCount} ausstehend` : ''}`
-        : 'WERTUNGSZENTRALE · LIVE';
+        : 'ONLINE';
     return `<span class="wt_sync-pill"><span class="wt_pulse ${dot}"></span>${label}</span>`;
 }
 
@@ -1380,14 +1380,44 @@ function startCheckin() {
     setState({ tab: 'aktiv', route: 'checkin', group: null });
 }
 
+function beep(ok = true) {
+    try {
+        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+
+        const play = (freq, start, dur) => {
+            const osc = ctx.createOscillator();
+            osc.connect(gain);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.25, ctx.currentTime + start);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + dur);
+        };
+
+        if (ok) {
+            // Zwei aufsteigende Töne: Erfolg
+            play(880,  0,    0.10);
+            play(1320, 0.10, 0.12);
+        } else {
+            // Einzelner tiefer Ton: Fehler
+            play(330, 0, 0.20);
+        }
+    } catch { /* Web Audio nicht verfügbar */ }
+}
+
 async function scanGroup(token) {
     try {
         const g = await apiFetch('/api/group/verify', {
             method: 'POST',
             body: JSON.stringify({ token }),
         });
+        beep(true);
         setState({ route: 'group-confirm', group: g });
     } catch (err) {
+        beep(false);
         showMessage(err.message, 'error');
         setState({ route: 'checkin' });
     }
