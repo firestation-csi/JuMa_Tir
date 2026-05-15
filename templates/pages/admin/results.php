@@ -496,7 +496,7 @@ $extraScripts .= <<<JS
         const rows  = [...table.querySelectorAll('tr')].map(tr =>
             [...tr.querySelectorAll('th,td')].map(td => '"' + td.innerText.replace(/"/g,'""') + '"').join(';')
         );
-        const blob  = new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+        const blob  = new Blob(['﻿' + rows.join('\\r\\n')], { type: 'text/csv;charset=utf-8' });
         const a     = document.createElement('a');
         a.href      = URL.createObjectURL(blob);
         a.download  = 'rangliste.csv';
