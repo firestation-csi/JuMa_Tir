@@ -15,7 +15,16 @@ $impLabel = ['sehr_gut' => 'Sehr gut', 'gut' => 'Gut', 'befriedigend' => 'Befrie
 $impScore = ['sehr_gut' => 0, 'gut' => 1, 'befriedigend' => 2];
 $impColor = ['sehr_gut' => 'var(--wt-ok)', 'gut' => 'var(--wt-text-muted)', 'befriedigend' => 'var(--wt-warn)'];
 
-$extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>';
+$extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.res_ticker__del {
+    background: none; border: none; cursor: pointer;
+    font-size: 16px; line-height: 1; padding: 0 2px;
+    color: var(--wt-text-subtle); border-radius: 4px;
+    transition: color .15s, background .15s;
+}
+.res_ticker__del:hover { color: var(--wt-red); background: var(--wt-red-soft, #fef2f2); }
+</style>';
 ?>
 
 <?php if (!empty($competitions)): ?>
@@ -265,10 +274,13 @@ $extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/c
             <?php foreach ($recentScores as $sc):
                 $impC = $impColor[$sc['impression']] ?? 'var(--wt-text-muted)';
             ?>
-            <div class="res_ticker__item">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div class="res_ticker__item" data-score-id="<?= (int)$sc['id'] ?>">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
                     <span style="font-weight:700;font-size:13px;">#<?= htmlspecialchars($sc['group_num']) ?> <?= htmlspecialchars($sc['group_name']) ?></span>
-                    <span class="adm_mono" style="font-size:14px;font-weight:800;color:<?= (int)$sc['total_fp'] > 10 ? 'var(--wt-red)' : 'var(--wt-ok)' ?>;"><?= (int)$sc['total_fp'] ?> FP</span>
+                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                        <span class="adm_mono" style="font-size:14px;font-weight:800;color:<?= (int)$sc['total_fp'] > 10 ? 'var(--wt-red)' : 'var(--wt-ok)' ?>;"><?= (int)$sc['total_fp'] ?> FP</span>
+                        <button class="res_ticker__del" data-id="<?= (int)$sc['id'] ?>" title="Bewertung löschen">×</button>
+                    </div>
                 </div>
                 <div style="display:flex;justify-content:space-between;margin-top:3px;">
                     <span style="font-size:11px;color:var(--wt-text-muted);">
@@ -395,6 +407,37 @@ $extraScripts .= <<<JS
         });
     }
 
+    // ── Score löschen ──────────────────────────────────
+    const CSRF = <?= json_encode($csrf) ?>;
+
+    async function deleteScore(id, itemEl) {
+        if (!confirm('Bewertung wirklich löschen?')) return;
+        try {
+            const resp = await fetch(`/admin/scores/${id}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `csrf_token=${encodeURIComponent(CSRF)}`,
+                credentials: 'same-origin',
+            });
+            const data = await resp.json();
+            if (data.success) {
+                itemEl.style.transition = 'opacity .2s';
+                itemEl.style.opacity = '0';
+                setTimeout(() => itemEl.remove(), 200);
+            } else {
+                alert('Fehler: ' + (data.error ?? 'Unbekannt'));
+            }
+        } catch (e) {
+            alert('Verbindungsfehler: ' + e.message);
+        }
+    }
+
+    document.getElementById('ticker-list').addEventListener('click', e => {
+        const btn = e.target.closest('.res_ticker__del');
+        if (!btn) return;
+        deleteScore(btn.dataset.id, btn.closest('.res_ticker__item'));
+    });
+
     // ── Live-Ticker Polling alle 20s ───────────────────
     const tickerList = document.getElementById('ticker-list');
     const tickerTime = document.getElementById('ticker-time');
@@ -420,10 +463,13 @@ $extraScripts .= <<<JS
                 const colors = {$impColorJson};
                 const labels = { sehr_gut: 'Sehr gut', gut: 'Gut', befriedigend: 'Befriedigend' };
                 tickerList.innerHTML = data.recentScores.map(sc => `
-                    <div class="res_ticker__item">
-                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div class="res_ticker__item" data-score-id="\${sc.id}">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
                             <span style="font-weight:700;font-size:13px;">#\${sc.group_num} \${sc.group_name}</span>
-                            <span style="font-family:monospace;font-size:14px;font-weight:800;color:\${sc.total_fp > 10 ? '#C0392B' : '#27AE60'};">\${sc.total_fp} FP</span>
+                            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                                <span style="font-family:monospace;font-size:14px;font-weight:800;color:\${sc.total_fp > 10 ? '#C0392B' : '#27AE60'};">\${sc.total_fp} FP</span>
+                                <button class="res_ticker__del" data-id="\${sc.id}" title="Bewertung löschen">×</button>
+                            </div>
                         </div>
                         <div style="display:flex;justify-content:space-between;margin-top:3px;">
                             <span style="font-size:11px;color:var(--wt-text-muted);">Stn \${sc.station_code} · \${sc.judge_name}</span>

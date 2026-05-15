@@ -88,6 +88,7 @@ return [
         '/admin/groups/{groupId}/members'                        => ['App\Controller\AdminGroupMemberController', 'store'],
         '/admin/groups/{groupId}/members/{id}/edit'              => ['App\Controller\AdminGroupMemberController', 'update'],
         '/admin/groups/{groupId}/members/{id}/delete'            => ['App\Controller\AdminGroupMemberController', 'delete'],
+        '/admin/scores/{id}/delete'                              => ['App\Controller\AdminScoreController', 'delete'],
     ],
     'OPTIONS' => [
         '/admin/login/passkey/options' => ['App\Controller\AdminWebauthnController', 'options'],
