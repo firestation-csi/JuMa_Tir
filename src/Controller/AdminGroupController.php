@@ -62,6 +62,20 @@ class AdminGroupController
         ]);
     }
 
+    /** API: Vollständiger Positionsverlauf einer Gruppe */
+    public function locationHistory(string $id): void
+    {
+        $db   = Database::getInstance();
+        $stmt = $db->prepare(
+            'SELECT lat, lng, accuracy, recorded_at
+             FROM group_locations
+             WHERE group_id = ?
+             ORDER BY recorded_at ASC'
+        );
+        $stmt->execute([(int)$id]);
+        Response::json(['points' => $stmt->fetchAll()]);
+    }
+
     /** API: Letzte bekannte Position je Gruppe */
     public function liveLocations(): void
     {

@@ -132,17 +132,95 @@
         });
     }
 
+    // Aktiver Verlauf: { groupId, layers: [polyline, ...circleMarkers] }
+    let activeHistory = null;
+
     function buildPopup(loc, age) {
-        const al   = ageLabel(age);
-        const acc  = loc.accuracy ? Math.round(loc.accuracy) + ' m' : '–';
+        const al      = ageLabel(age);
+        const acc     = loc.accuracy ? Math.round(loc.accuracy) + ' m' : '–';
+        const hasHist = activeHistory?.groupId === loc.group_id;
         return `<div class="trk-popup">
             <div class="trk-popup__num">#${loc.group_num ?? '?'}</div>
             <div class="trk-popup__name">${loc.group_name}</div>
             ${loc.kreis ? `<div class="trk-popup__row">${loc.kreis}</div>` : ''}
             <div class="trk-popup__row">Genauigkeit: <strong>${acc}</strong></div>
             <div class="trk-popup__age trk-popup__age--${al.cls}">${al.text}</div>
+            <button class="trk-hist-btn ${hasHist ? 'trk-hist-btn--active' : ''}"
+                    data-group-id="${loc.group_id}" style="
+                margin-top:8px;width:100%;padding:5px 10px;border-radius:7px;cursor:pointer;
+                font-family:inherit;font-size:12px;font-weight:600;
+                border:1px solid ${hasHist ? '#3b82f6' : '#cbd5e1'};
+                background:${hasHist ? '#eff6ff' : '#f8fafc'};
+                color:${hasHist ? '#1d4ed8' : '#475569'};">
+                ${hasHist ? '✕ Verlauf ausblenden' : '↗ Verlauf anzeigen'}
+            </button>
         </div>`;
     }
+
+    function clearHistory() {
+        if (!activeHistory) return;
+        activeHistory.layers.forEach(l => map.removeLayer(l));
+        activeHistory = null;
+    }
+
+    async function showHistory(groupId) {
+        // Toggle: gleiche Gruppe → ausblenden
+        if (activeHistory?.groupId === groupId) {
+            clearHistory();
+            refreshPopupBtn(groupId);
+            return;
+        }
+        clearHistory();
+
+        try {
+            const res  = await fetch(`/api/admin/groups/${groupId}/location-history`, { credentials: 'same-origin' });
+            const json = await res.json();
+            const pts  = (json.data ?? json).points ?? [];
+            if (pts.length === 0) return;
+
+            const latlngs = pts.map(p => [parseFloat(p.lat), parseFloat(p.lng)]);
+            const layers  = [];
+
+            // Polyline
+            layers.push(L.polyline(latlngs, {
+                color: '#3b82f6', weight: 3, opacity: 0.75, dashArray: '6 4',
+            }).addTo(map));
+
+            // Startpunkt
+            layers.push(L.circleMarker(latlngs[0], {
+                radius: 6, color: '#1d4ed8', fillColor: '#bfdbfe', fillOpacity: 1, weight: 2,
+            }).bindTooltip('Start').addTo(map));
+
+            // Zwischenpunkte (klein, nur wenn > 2 Punkte)
+            if (latlngs.length > 2) {
+                latlngs.slice(1, -1).forEach(ll => {
+                    layers.push(L.circleMarker(ll, {
+                        radius: 3, color: '#3b82f6', fillColor: '#93c5fd', fillOpacity: 1, weight: 1,
+                    }).addTo(map));
+                });
+            }
+
+            activeHistory = { groupId, layers };
+            refreshPopupBtn(groupId);
+        } catch { /* ignorieren */ }
+    }
+
+    // Verlauf-Button im offenen Popup aktualisieren ohne Popup-Neuaufbau
+    function refreshPopupBtn(groupId) {
+        const btn = document.querySelector(`.trk-hist-btn[data-group-id="${groupId}"]`);
+        if (!btn) return;
+        const active = activeHistory?.groupId === groupId;
+        btn.textContent = active ? '✕ Verlauf ausblenden' : '↗ Verlauf anzeigen';
+        btn.style.border      = `1px solid ${active ? '#3b82f6' : '#cbd5e1'}`;
+        btn.style.background  = active ? '#eff6ff' : '#f8fafc';
+        btn.style.color       = active ? '#1d4ed8' : '#475569';
+    }
+
+    // Event-Delegation für Verlauf-Button (Leaflet-Popups sind dynamisch im DOM)
+    map.on('popupopen', e => {
+        const btn = e.popup.getElement()?.querySelector('.trk-hist-btn');
+        if (btn) btn.addEventListener('click', () => showHistory(parseInt(btn.dataset.groupId)));
+    });
 
     async function refresh() {
         try {
