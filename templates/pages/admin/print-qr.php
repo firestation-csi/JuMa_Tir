@@ -304,109 +304,109 @@ $defaultSize = '89x36';
         return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    /** Label-XML für den aktuell gewählten Etikettentyp aufbauen (ObjectInfo-Format für DCF) */
-    function buildLabelXml(qrBase64, mainText, subText, sizeKey) {
-        const s = sizes[sizeKey] ?? sizes['89x36'];
-        const paperNames = {
-            '89x36': '30252 Address',
-            '89x51': '30321 Large Address',
-            '89x28': '30336 Small Address',
-            '54x25': '30334 Return Address',
-            '57x32': '11354 Multi Purpose',
+    /** Label-XML aufbauen — DesktopLabel/DYMOLabel-Format für Dymo Connect (Koordinaten in Zoll, Farben 0.0–1.0) */
+    function buildLabelXml(qrContent, mainText, subText, sizeKey) {
+        // Abmessungen in Zoll (Breite × Höhe im Querformat)
+        const SIZES = {
+            '89x36': { w: 3.50, h: 1.42, name: '30252 Address' },
+            '89x51': { w: 3.50, h: 2.01, name: '30321 Large Address' },
+            '89x28': { w: 3.50, h: 1.10, name: '30336 Small Address' },
+            '54x25': { w: 2.13, h: 0.98, name: '30334 Return Address' },
+            '57x32': { w: 2.24, h: 1.26, name: '11354 Multi Purpose' },
         };
-        const paperName = paperNames[sizeKey] ?? '30252 Address';
+        const s   = SIZES[sizeKey] ?? SIZES['89x36'];
+        const pad = 0.05;
+        const f   = n => n.toFixed(4);
 
-        // 1 mm = 1440 / 25.4 ≈ 56.693 Twips
-        const T     = 56.693;
-        const twipW = Math.round(s.w * T);
-        const twipH = Math.round(s.h * T);
-        const pad   = 57;
-        const qrSz  = Math.round(twipH * 0.85);
-        const qrY   = Math.round((twipH - qrSz) / 2);
-        const txtX  = pad + qrSz + 80;
-        const txtW  = twipW - txtX - pad;
-        const mid   = Math.round(twipH / 2);
+        const qrSz = +((s.h - 2 * pad) * 0.88).toFixed(4);
+        const qrX  = pad;
+        const qrY  = +((s.h - qrSz) / 2).toFixed(4);
+        const txtX = +(qrX + qrSz + 0.07).toFixed(4);
+        const txtW = +(s.w - txtX - pad).toFixed(4);
+        const txtH = +((s.h - 2 * pad) / 2).toFixed(4);
+
+        const brushes = (bgA, fill) =>
+`          <Brushes>
+            <BackgroundBrush><SolidColorBrush><Color A="${bgA}" R="${bgA}" G="${bgA}" B="${bgA}"></Color></SolidColorBrush></BackgroundBrush>
+            <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
+            <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
+            <FillBrush><SolidColorBrush><Color A="${fill}" R="0" G="0" B="0"></Color></SolidColorBrush></FillBrush>
+          </Brushes>`;
+
+        const baseAttrs =
+`          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>`;
+
+        const layout = (x, y, w, h) =>
+`          <ObjectLayout>
+            <DYMOPoint><X>${f(x)}</X><Y>${f(y)}</Y></DYMOPoint>
+            <Size><Width>${f(w)}</Width><Height>${f(h)}</Height></Size>
+          </ObjectLayout>`;
+
+        const textObj = (name, text, bold, size, x, y, w, h) =>
+`        <TextObject>
+          <Name>${name}</Name>
+${brushes(0, 1)}
+${baseAttrs}
+          <StyledText>
+            <Element>
+              <Attributes>
+                <Font Family="Helvetica" Size="${size}" Bold="${bold}" Italic="False" Underline="False" StrikeOut="False" />
+                <ForeColor Alpha="1" Red="0" Green="0" Blue="0" />
+                <BackColor Alpha="0" Red="0" Green="0" Blue="0" />
+              </Attributes>
+              <String>${escXml(text)}</String>
+            </Element>
+          </StyledText>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <HorizontalAlignment>Left</HorizontalAlignment>
+          <AutoSize>True</AutoSize>
+          <AllowVerticalExpansion>False</AllowVerticalExpansion>
+${layout(x, y, w, h)}
+        </TextObject>`;
 
         return '<' + '?xml version="1.0" encoding="utf-8"?>\n' +
-`<DYMOLabel Version="8">
-  <Description/>
-  <Orientation>Landscape</Orientation>
-  <LabelName>Address</LabelName>
-  <InitialLength>0</InitialLength>
-  <BorderStyle>Solid</BorderStyle>
-  <PaperName>${paperName}</PaperName>
-  <DrawCommands/>
-  <ObjectInfo>
-    <ImageObject>
-      <Name>QRCode</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <LinkedObjectName/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <ImageType>PNG</ImageType>
-      <Data>${qrBase64}</Data>
-      <ScaleMode>Uniform</ScaleMode>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Center</VerticalAlignment>
-      <IsBackground>False</IsBackground>
-    </ImageObject>
-    <Bounds X="${pad}" Y="${qrY}" Width="${qrSz}" Height="${qrSz}"/>
-  </ObjectInfo>
-  <ObjectInfo>
-    <TextObject>
-      <Name>LabelMain</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <LinkedObjectName/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <HorizontalAlignment>Left</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${escXml(mainText)}</String>
-          <Attributes>
-            <Font Family="Helvetica" Size="14" Bold="True" Italic="False" Underline="False" StrikeOut="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${txtX}" Y="${pad}" Width="${txtW}" Height="${mid - pad}"/>
-  </ObjectInfo>
-  <ObjectInfo>
-    <TextObject>
-      <Name>LabelSub</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <LinkedObjectName/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <HorizontalAlignment>Left</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${escXml(subText)}</String>
-          <Attributes>
-            <Font Family="Helvetica" Size="11" Bold="False" Italic="False" Underline="False" StrikeOut="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${txtX}" Y="${mid}" Width="${txtW}" Height="${twipH - mid - pad}"/>
-  </ObjectInfo>
-</DYMOLabel>`;
+`<DesktopLabel Version="1">
+  <DYMOLabel Version="4">
+    <Description>JuMa QR Label</Description>
+    <Orientation>Portrait</Orientation>
+    <LabelName>${escXml(s.name)}</LabelName>
+    <InitialLength>0</InitialLength>
+    <BorderStyle>SolidLine</BorderStyle>
+    <DYMORect>
+      <DYMOPoint><X>${pad}</X><Y>${pad}</Y></DYMOPoint>
+      <Size><Width>${f(s.w - 2 * pad)}</Width><Height>${f(s.h - 2 * pad)}</Height></Size>
+    </DYMORect>
+    <BorderColor><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderColor>
+    <BorderThickness>1</BorderThickness>
+    <Show_Border>False</Show_Border>
+    <HasFixedLength>False</HasFixedLength>
+    <FixedLengthValue>0</FixedLengthValue>
+    <DynamicLayoutManager>
+      <RotationBehavior>ClearObjects</RotationBehavior>
+      <LabelObjects>
+        <QRCodeObject>
+          <Name>QRCode0</Name>
+${brushes(1, 1)}
+${baseAttrs}
+          <BarcodeFormat>QRCode</BarcodeFormat>
+          <Data><DataString>${escXml(qrContent)}</DataString></Data>
+          <HorizontalAlignment>Center</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <Size>AutoFit</Size>
+          <EQRCodeType>QRCodeText</EQRCodeType>
+          <TextDataHolder><Value>${escXml(qrContent)}</Value></TextDataHolder>
+${layout(qrX, qrY, qrSz, qrSz)}
+        </QRCodeObject>
+${textObj('TextMain', mainText, 'True',  14, txtX, pad,         txtW, txtH)}
+${textObj('TextSub',  subText || ' ', 'False', 11, txtX, pad + txtH, txtW, txtH)}
+      </LabelObjects>
+    </DynamicLayoutManager>
+  </DYMOLabel>
+</DesktopLabel>`;
     }
 
     // ── Dymo Connect REST-API (kein Framework-JS nötig) ──────
@@ -464,9 +464,8 @@ $defaultSize = '89x36';
 
             const copies   = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
             const printer  = dymoSelect.value;
-            const qrBase64 = document.getElementById('qrImg').src.split(',')[1] ?? '';
             const labelXml = buildLabelXml(
-                qrBase64,
+                <?= json_encode($qrContent) ?>,
                 <?= json_encode($label) ?>,
                 <?= json_encode($sublabel) ?>,
                 sizeSelect.value
