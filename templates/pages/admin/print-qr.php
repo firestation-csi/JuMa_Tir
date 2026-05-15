@@ -48,10 +48,6 @@ if ($qrContent && file_exists($dymoTemplatePath)) {
 
 // Etiketten-Größen (Breite × Höhe in mm, Landscape)
 $labelSizes = [
-    '89x36' => ['w' => 89, 'h' => 36, 'name' => '89 × 36 mm  (Standard Adressetikett)'],
-    '89x51' => ['w' => 89, 'h' => 51, 'name' => '89 × 51 mm  (Großes Adressetikett)'],
-    '89x28' => ['w' => 89, 'h' => 28, 'name' => '89 × 28 mm  (Schmales Etikett)'],
-    '54x25' => ['w' => 54, 'h' => 25, 'name' => '54 × 25 mm  (Namensschildchen)'],
     '57x32' => ['w' => 57, 'h' => 32, 'name' => '57 × 32 mm  (11354 Multi Purpose)'],
 ];
 $defaultSize = '89x36';
@@ -529,7 +525,8 @@ ${textObj('TextSub',
             // Antwort ist roh-Base64 oder XML-gewrapped (<string>base64...</string>)
             const xml    = new DOMParser().parseFromString(text, 'text/xml');
             const xmlErr = xml.querySelector('parsererror');
-            const png    = xmlErr ? text.trim() : (xml.querySelector('string')?.textContent ?? text).trim();
+            const raw    = xmlErr ? text : (xml.querySelector('string')?.textContent ?? text);
+            const png    = raw.replace(/\s+/g, '');
             if (!png) throw new Error('Leere Vorschau-Antwort');
             dymoPreviewImg.src = 'data:image/png;base64,' + png;
             dymoPreviewEl.classList.add('visible');
