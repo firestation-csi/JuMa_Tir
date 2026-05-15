@@ -825,49 +825,50 @@ let lMap = null;
 
 async function loadStationsOverview() {
     if (state.stationsOverviewLoading) return;
-    setState({ stationsOverviewLoading: true });
+    state.stationsOverviewLoading = true; // direkte Mutation — kein Re-Render, kein Spinner-Flash
     try {
         const data = await apiFetch('/api/stations/overview');
-        state.stationsOverview       = data.stations || [];
-        state.stationsOverviewLoading = false;
-        if (state.tab === 'live') {
-            if (lMap) {
-                // Karte läuft bereits — nur Marker aktualisieren, kein Re-Render
-                updateLiveMarkers();
-            } else {
-                // Erster Ladevorgang: Re-Render zeigt Map-div, attachHandlers ruft initLiveMap()
-                render();
-            }
-        }
+        state.stationsOverview = data.stations || [];
     } catch {
-        state.stationsOverviewLoading = false;
-        if (state.tab === 'live') render();
+        state.stationsOverview = state.stationsOverview ?? [];
+    }
+    state.stationsOverviewLoading = false;
+    if (state.tab !== 'live') return;
+
+    // Map-Container im DOM? → nur Marker aktualisieren; sonst neu rendern (zeigt Map-div)
+    if (lMap && document.getElementById('wt-live-map')) {
+        updateLiveMarkers();
+    } else {
+        if (lMap) { try { lMap.remove(); } catch { /**/ } lMap = null; }
+        render();
     }
 }
 
 function renderStationsOverview() {
-    if (!state.stationsOverview && !state.stationsOverviewLoading) {
+    // Noch keine Daten → Laden anstoßen
+    if (state.stationsOverview === null && !state.stationsOverviewLoading) {
         setTimeout(loadStationsOverview, 0);
     }
 
-    const withCoords = (state.stationsOverview || []).filter(s => s.lat !== null && s.lng !== null);
-    const dataReady  = state.stationsOverview !== null && !state.stationsOverviewLoading;
-
     let inner;
-    if (state.stationsOverviewLoading) {
+    if (state.stationsOverview === null) {
+        // Erster Ladevorgang — Spinner zeigen
         inner = `<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--wt-text-subtle);">
             <div class="wt_sync-spinner"></div>
             <span class="wt_caption">Lade Stationen…</span>
         </div>`;
-    } else if (dataReady && withCoords.length === 0) {
-        inner = `<div style="flex:1;display:flex;align-items:center;justify-content:center;">
-            <span class="wt_caption">Für keine Station sind Koordinaten hinterlegt.</span>
-        </div>`;
     } else {
-        inner = `<div id="wt-live-map" style="flex:1;position:relative;z-index:0;"></div>`;
+        const withCoords = state.stationsOverview.filter(s => s.lat !== null && s.lng !== null);
+        if (withCoords.length === 0) {
+            inner = `<div style="flex:1;display:flex;align-items:center;justify-content:center;">
+                <span class="wt_caption">Für keine Station sind Koordinaten hinterlegt.</span>
+            </div>`;
+        } else {
+            inner = `<div id="wt-live-map" style="flex:1;position:relative;z-index:0;"></div>`;
+        }
     }
 
-    const refreshBtn = dataReady ? `
+    const refreshBtn = state.stationsOverview !== null ? `
         <div style="position:absolute;bottom:calc(56px + env(safe-area-inset-bottom));right:12px;z-index:500;">
             <button id="btnRefreshOverview" style="
                 height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--wt-border);
