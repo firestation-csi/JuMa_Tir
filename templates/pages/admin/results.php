@@ -433,7 +433,7 @@ $extraScripts .= <<<JS
         }
     }
 
-    document.getElementById('ticker-list').addEventListener('click', e => {
+    document.getElementById('ticker-list')?.addEventListener('click', e => {
         const btn = e.target.closest('.res_ticker__del');
         if (!btn) return;
         deleteScore(btn.dataset.id, btn.closest('.res_ticker__item'));
@@ -457,7 +457,8 @@ $extraScripts .= <<<JS
                 credentials: 'same-origin',
             });
             if (!res.ok) return;
-            const data = await res.json();
+            const json = await res.json();
+            const data = (json && json.data) ? json.data : json;
 
             // Ticker aktualisieren
             if (tickerList && data.recentScores) {
