@@ -376,10 +376,6 @@ $defaultSize = '89x36';
     /** Label-XML — exakt nach Dymo_QRCode_KFV.dymo-Vorlage */
     function buildLabelXml(qrContent, mainText, subText, sizeKey) {
         const SIZES = {
-            '89x36': { w: 3.50, h: 1.42, name: '30252 Address' },
-            '89x51': { w: 3.50, h: 2.01, name: '30321 Large Address' },
-            '89x28': { w: 3.50, h: 1.10, name: '30336 Small Address' },
-            '54x25': { w: 2.13, h: 0.98, name: '30334 Return Address' },
             '57x32': { w: 2.24, h: 1.26, name: '1933084 Drbl 2-1/4 x 1-1/4 in' },
         };
         const s = SIZES[sizeKey] ?? SIZES['89x36'];
@@ -530,10 +526,10 @@ ${textObj('TextSub',
             const resp = await fetch(`${DYMO_API}/RenderLabel`, { method: 'POST', body });
             if (!resp.ok) throw new Error(`RenderLabel HTTP ${resp.status}: ${await resp.text()}`);
             const text = await resp.text();
-            // Antwort kann roh-Base64 oder XML-gewrapped sein (<string>base64...</string>)
-            const xml  = new DOMParser().parseFromString(text, 'text/xml');
-            const node = xml.querySelector('string') ?? xml.documentElement;
-            const png  = (node?.textContent ?? text).trim();
+            // Antwort ist roh-Base64 oder XML-gewrapped (<string>base64...</string>)
+            const xml    = new DOMParser().parseFromString(text, 'text/xml');
+            const xmlErr = xml.querySelector('parsererror');
+            const png    = xmlErr ? text.trim() : (xml.querySelector('string')?.textContent ?? text).trim();
             if (!png) throw new Error('Leere Vorschau-Antwort');
             dymoPreviewImg.src = 'data:image/png;base64,' + png;
             dymoPreviewEl.classList.add('visible');
