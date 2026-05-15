@@ -413,10 +413,10 @@ $extraScripts .= <<<JS
     async function deleteScore(id, itemEl) {
         if (!confirm('Bewertung wirklich löschen?')) return;
         try {
-            const resp = await fetch(`/admin/scores/${id}/delete`, {
+            const resp = await fetch('/admin/scores/' + id + '/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `csrf_token=${encodeURIComponent(CSRF)}`,
+                body: 'csrf_token=' + encodeURIComponent(CSRF),
                 credentials: 'same-origin',
             });
             const data = await resp.json();
