@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\Writer\PngWriter;
 
 /**
  * Generiert QR-Codes als PNG-Datei oder Data-URL.
- * Kompatibel mit endroid/qr-code ^6.x (kein Builder::create(), sondern new Builder()).
+ * Kompatibel mit endroid/qr-code ^6.x (QrCode ist final readonly, nur Konstruktor).
  */
 class QrCodeService
 {
@@ -25,7 +26,7 @@ class QrCodeService
     /** QR-Code als PNG speichern, Pfad zurückgeben */
     public function generateFile(string $content, string $filename): string
     {
-        $result = $this->build($content);
+        $result = $this->write($content);
         $path   = $this->outputDir . $filename . '.png';
         $result->saveToFile($path);
         return '/assets/img/qrcodes/' . $filename . '.png';
@@ -34,19 +35,22 @@ class QrCodeService
     /** QR-Code als Base64 Data-URL für direkte HTML-Einbettung */
     public function generateDataUrl(string $content): string
     {
-        return $this->build($content)->getDataUri();
+        return $this->write($content)->getDataUri();
     }
 
-    private function build(string $content): \Endroid\QrCode\Writer\Result\ResultInterface
+    private function write(string $content): \Endroid\QrCode\Writer\Result\ResultInterface
     {
-        return (new Builder())
-            ->writer(new PngWriter())
-            ->data($content)
-            ->encoding(new Encoding('UTF-8'))
-            ->errorCorrectionLevel(ErrorCorrectionLevel::High)
-            ->size(300)
-            ->margin(10)
-            ->build();
+        $qrCode = new QrCode(
+            data: $content,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::High,
+            size: 300,
+            margin: 10,
+            foregroundColor: new Color(0, 0, 0),
+            backgroundColor: new Color(255, 255, 255),
+        );
+
+        return (new PngWriter())->write($qrCode);
     }
 
     /** Judge-QR-Token-URL generieren */
