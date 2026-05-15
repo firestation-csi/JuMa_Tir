@@ -31,7 +31,35 @@ class AdminGroupController
     /** Seite: Live-Tracking-Karte */
     public function tracking(): void
     {
-        Response::view('pages/admin/group-tracking', ['title' => 'Live-Tracking']);
+        $db = Database::getInstance();
+
+        // Aktiven Wettbewerb laden
+        $comp = $db->query(
+            "SELECT id, name, lat, lng FROM competitions WHERE status = 'active' ORDER BY id DESC LIMIT 1"
+        )->fetch() ?: null;
+
+        // Karten-Center: Competition-Koordinaten, sonst Mittelpunkt der Stationen
+        $center = null;
+        if ($comp && $comp['lat'] !== null && $comp['lng'] !== null) {
+            $center = ['lat' => (float)$comp['lat'], 'lng' => (float)$comp['lng']];
+        } elseif ($comp) {
+            $stmt = $db->prepare(
+                'SELECT AVG(lat) AS lat, AVG(lng) AS lng
+                 FROM stations
+                 WHERE competition_id = ? AND lat IS NOT NULL AND lng IS NOT NULL'
+            );
+            $stmt->execute([(int)$comp['id']]);
+            $avg = $stmt->fetch();
+            if ($avg && $avg['lat'] !== null) {
+                $center = ['lat' => (float)$avg['lat'], 'lng' => (float)$avg['lng']];
+            }
+        }
+
+        Response::view('pages/admin/group-tracking', [
+            'title'  => 'Live-Tracking',
+            'center' => $center,
+            'comp'   => $comp,
+        ]);
     }
 
     /** API: Letzte bekannte Position je Gruppe */

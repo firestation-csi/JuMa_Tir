@@ -65,11 +65,28 @@
 </div>
 
 <div id="map"></div>
+<div id="track-empty" style="display:none;position:absolute;inset:0;top:57px;display:none;
+     align-items:center;justify-content:center;pointer-events:none;">
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 28px;
+                text-align:center;color:#64748b;font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
+        Noch keine GPS-Positionen empfangen.
+    </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
-    const map = L.map('map', { zoomControl: true }).setView([47.27, 11.40], 13);
+    const CENTER = <?= json_encode($center) ?>;
+    const initialView = CENTER
+        ? [CENTER.lat, CENTER.lng]
+        : null;
+
+    const map = L.map('map', { zoomControl: true });
+    if (initialView) {
+        map.setView(initialView, 14);
+    } else {
+        map.setView([47.5, 13.5], 7); // Österreich als letzter Fallback
+    }
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -79,6 +96,7 @@
     const markers = {};
     const badge   = document.getElementById('track-badge');
     const meta    = document.getElementById('track-meta');
+    const empty   = document.getElementById('track-empty');
 
     function ageMinutes(recorded_at) {
         return (Date.now() - new Date(recorded_at.replace(' ', 'T')).getTime()) / 60000;
@@ -161,19 +179,22 @@
                 }
             });
 
-            // Karte auf alle Marker einzoomen (nur beim ersten Laden)
-            if (firstLoad && seen.size > 0) {
+            // Karte auf alle Marker einzoomen (nur beim ersten Laden, nur wenn kein Center vorgegeben)
+            if (firstLoad && seen.size > 0 && !CENTER) {
                 firstLoad = false;
                 const all = Object.values(markers).map(m => m.getLatLng());
                 map.fitBounds(L.latLngBounds(all), { padding: [48, 48], maxZoom: 16 });
             }
+            firstLoad = false;
 
+            empty.style.display = seen.size === 0 ? 'flex' : 'none';
             badge.textContent = '● LIVE';
             badge.className   = '';
-            meta.textContent  = `${locs.length} Gruppen · ${data.ts}`;
-        } catch {
+            meta.textContent  = `${locs.length} Gruppe${locs.length !== 1 ? 'n' : ''} · ${data.ts}`;
+        } catch (err) {
             badge.textContent = '○ OFFLINE';
             badge.className   = 'offline';
+            meta.textContent  = err.message ?? 'Verbindungsfehler';
         }
     }
 
