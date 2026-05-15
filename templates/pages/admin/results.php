@@ -51,9 +51,10 @@ $extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/c
             ● LIVE
         </span>
     </div>
-    <div style="display:flex;gap:8px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="adm_btn adm_btn--ghost adm_btn--sm" id="exportCsvBtn">↓ CSV Export</button>
         <button class="adm_btn adm_btn--ghost adm_btn--sm" onclick="window.print()">⎙ Drucken</button>
+        <a href="/admin/results/present" target="_blank" class="adm_btn adm_btn--primary adm_btn--sm">▶ Präsentation</a>
     </div>
 </div>
 

@@ -22,6 +22,8 @@ return [
         '/admin/competitions'            => ['App\Controller\AdminCompetitionController', 'index'],
         '/admin/competitions/new'        => ['App\Controller\AdminCompetitionController', 'create'],
         '/admin/competitions/{id}/edit'  => ['App\Controller\AdminCompetitionController', 'edit'],
+        '/admin/judges'                                      => ['App\Controller\AdminJudgeController', 'index'],
+        '/admin/results/present'                             => ['App\Controller\AdminController', 'present'],
         '/admin/stations'                                    => ['App\Controller\AdminStationController', 'index'],
         '/admin/stations/routes'                             => ['App\Controller\AdminStationRouteController', 'index'],
         '/admin/stations/routes/{id}/edit'                   => ['App\Controller\AdminStationRouteController', 'edit'],

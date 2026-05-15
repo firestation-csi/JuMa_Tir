@@ -211,6 +211,30 @@ class AdminController
         ]);
     }
 
+    /** Ergebnis-Präsentationsmodus (Fullscreen, Beamer) */
+    public function present(): void
+    {
+        $this->requireAdmin();
+
+        $competition = $this->getSelectedCompetition();
+        if (!$competition) {
+            Response::redirect('/admin/results');
+        }
+
+        $competitionId = (int)$competition['id'];
+        $scoreModel    = new \App\Model\Score();
+        $stations      = $this->stationModel->findByCompetition($competitionId);
+        $totalStations = count(array_filter($stations, fn($s) => $s['active']));
+        $ranking       = $scoreModel->getFullRankingWithImpression($competitionId, $totalStations);
+
+        Response::view('pages/admin/results-present', [
+            'title'        => 'Präsentation · ' . $competition['name'],
+            'competition'  => $competition,
+            'ranking'      => $ranking,
+            'totalStations'=> $totalStations,
+        ]);
+    }
+
     /** QR-Code-Verwaltung */
     public function qrcodes(): void
     {
