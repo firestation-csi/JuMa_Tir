@@ -154,6 +154,18 @@ class Group
         $stmt->execute([$id]);
     }
 
+    /** Prüft ob ein offener Check-in (ohne Check-out) für diese Gruppe+Station existiert */
+    public function hasOpenCheckIn(int $groupId, int $stationId): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT 1 FROM group_station_log
+             WHERE group_id = ? AND station_id = ? AND checked_out IS NULL
+             LIMIT 1'
+        );
+        $stmt->execute([$groupId, $stationId]);
+        return $stmt->fetchColumn() !== false;
+    }
+
     /** Check-in ins Stationsprotokoll eintragen */
     public function checkIn(int $groupId, int $stationId, ?int $laufwegId = null): int
     {

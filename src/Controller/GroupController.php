@@ -51,8 +51,8 @@ class GroupController
         }
         $existing = $this->scoreModel->findExistingAtStation((int)$group['id'], $stationId);
 
-        // Check-in protokollieren (nur wenn noch keine Bewertung vorliegt)
-        if (!$existing) {
+        // Check-in protokollieren (nur wenn noch keine Bewertung vorliegt und kein offener Eintrag existiert)
+        if (!$existing && !$this->groupModel->hasOpenCheckIn((int)$group['id'], $stationId)) {
             // Laufweg automatisch ermitteln damit Vor-/Rückwärts-Parcours unterschieden werden
             $station       = (new Station())->findById($stationId);
             $competitionId = $station ? (int)$station['competition_id'] : 0;
