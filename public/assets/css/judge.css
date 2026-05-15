@@ -194,6 +194,7 @@
     flex: 1;
     border: 0;
     background: transparent;
+    font-size: 16px; /* verhindert iOS-Zoom beim Fokus */
     font-family: inherit;
     font-size: 14px;
     color: var(--wt-text);
