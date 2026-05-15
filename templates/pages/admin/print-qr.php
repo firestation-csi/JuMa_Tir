@@ -526,11 +526,16 @@ ${textObj('TextSub',
     async function updateDymoPreview(printerName) {
         if (!LABEL_XML || !printerName) return;
         try {
-            const body = new URLSearchParams({ printerName, labelXml: LABEL_XML, renderParamsXml: '', labelSetXml: '' });
+            const body = new URLSearchParams({ printerName, labelXml: LABEL_XML, renderParamsXml: '' });
             const resp = await fetch(`${DYMO_API}/RenderLabel`, { method: 'POST', body });
-            if (!resp.ok) throw new Error(`RenderLabel HTTP ${resp.status}`);
-            const png = await resp.text();
-            dymoPreviewImg.src = 'data:image/png;base64,' + png.trim();
+            if (!resp.ok) throw new Error(`RenderLabel HTTP ${resp.status}: ${await resp.text()}`);
+            const text = await resp.text();
+            // Antwort kann roh-Base64 oder XML-gewrapped sein (<string>base64...</string>)
+            const xml  = new DOMParser().parseFromString(text, 'text/xml');
+            const node = xml.querySelector('string') ?? xml.documentElement;
+            const png  = (node?.textContent ?? text).trim();
+            if (!png) throw new Error('Leere Vorschau-Antwort');
+            dymoPreviewImg.src = 'data:image/png;base64,' + png;
             dymoPreviewEl.classList.add('visible');
         } catch (e) {
             console.warn('Dymo-Vorschau fehlgeschlagen:', e.message);
