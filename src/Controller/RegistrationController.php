@@ -66,9 +66,9 @@ class RegistrationController
         // Gruppe anlegen (inactive, self_registered)
         $stmt = $db->prepare(
             'INSERT INTO `groups`
-                (competition_id, name, geschlecht, active, self_registered, qr_token,
+                (competition_id, name, active, self_registered, qr_token,
                  registration_date, kbm_area, feuerwehr_id, created_at, updated_at)
-             VALUES (?, ?, ?, 0, 1, ?, CURDATE(), ?, ?, NOW(), NOW())'
+             VALUES (?, ?, 0, 1, ?, CURDATE(), ?, ?, NOW(), NOW())'
         );
         $stmt->execute([
             (int)$competition['id'],
