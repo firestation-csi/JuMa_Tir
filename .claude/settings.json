@@ -22,7 +22,17 @@
       "Bash(python -c \"import sys,json; [print\\(x['path']\\) for x in json.load\\(sys.stdin\\)['tree'] if 'JavaScript' in x['path']]\")",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:developers.dymo.com)",
-      "Bash(curl -s \"https://raw.githubusercontent.com/dymosoftware/dymo-connect-framework/master/dymo.connect.framework.js\" -o \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")"
+      "Bash(curl -s \"https://raw.githubusercontent.com/dymosoftware/dymo-connect-framework/master/dymo.connect.framework.js\" -o \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,200\\\\}PrintLabel.\\\\{0,200\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,300\\\\}printerName.\\\\{0,300\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,150\\\\}DYMOLabel.\\\\{0,150\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{5,300\\\\}DYMOLabel.\\\\{5,300\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,50\\\\}PrinterName.\\\\{0,50\\\\}\\\\|.\\\\{0,50\\\\}LabelXml.\\\\{0,50\\\\}\\\\|.\\\\{0,50\\\\}PrintParamsXml.\\\\{0,50\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,300\\\\}printerName.*labelXml.\\\\{0,300\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,100\\\\}application.x-www.\\\\{0,200\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '\"printerName=\\\\|\"PrinterName=\\\\|printerName=%\\\\|printerName=\\\\\\\\\\\\|PrintLabel.*printerName\\\\|sendPost.*printerName' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,30\\\\}syncFindWebService.\\\\{0,30\\\\}\\\\|.\\\\{0,30\\\\}callService.\\\\{0,30\\\\}\\\\|.\\\\{0,30\\\\}sendPost.\\\\{0,30\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,500\\\\}PrintLabel.\\\\{0,500\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")"
     ]
   }
 }

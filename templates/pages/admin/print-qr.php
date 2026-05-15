@@ -328,7 +328,7 @@ $defaultSize = '89x36';
         const mid   = Math.round(twipH / 2);
 
         return '<' + '?xml version="1.0" encoding="utf-8"?>\n' +
-`<DieCutLabel Version="8.0" Units="twips" MediaType="Default">
+`<DYMOLabel Version="8.0" Units="twips" MediaType="Default">
   <PaperOrientation>Landscape</PaperOrientation>
   <Id>Address</Id>
   <IsOutlined>false</IsOutlined>
@@ -404,7 +404,7 @@ $defaultSize = '89x36';
     </TextObject>
     <Bounds X="${txtX}" Y="${mid}" Width="${txtW}" Height="${twipH - mid - pad}"/>
   </ObjectInfo>
-</DieCutLabel>`;
+</DYMOLabel>`;
     }
 
     // ── Dymo Connect REST-API (kein Framework-JS nötig) ──────
