@@ -2,7 +2,6 @@
 $type      = $type      ?? 'station';
 $label     = $label     ?? '';
 $sublabel  = $sublabel  ?? '';
-$qrDataUrl = $qrDataUrl ?? '';
 $qrContent = $qrContent ?? '';
 
 // Dymo-Vorlage laden und mit aktuellen Daten befüllen
@@ -260,7 +259,7 @@ $defaultSize = '89x36';
     }
 
     async function dymoPrint(printerName, labelXml, copies) {
-        const printParamsXml = `<LabelWriterPrintParams><Copies>${copies}</Copies><JobTitle>JuMa QR</JobTitle><PrintQuality>Auto</PrintQuality></LabelWriterPrintParams>`;
+        const printParamsXml = `<LabelWriterPrintParams><Copies>${copies}</Copies><JobTitle>Print-QR</JobTitle><PrintQuality>BarcodeAndGraphics</PrintQuality></LabelWriterPrintParams>`;
         const body = new URLSearchParams({ printerName, printParamsXml, labelXml, labelSetXml: '' });
         const resp = await fetch(`${DYMO_API}/PrintLabel`, { method: 'POST', body });
         if (!resp.ok) throw new Error(`PrintLabel HTTP ${resp.status}: ${await resp.text()}`);
