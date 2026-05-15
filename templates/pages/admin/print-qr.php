@@ -331,7 +331,7 @@ $defaultSize = '89x36';
 `<DYMOLabel Version="8">
   <Description/>
   <Orientation>Landscape</Orientation>
-  <Id>Address</Id>
+  <LabelName>Address</LabelName>
   <IsOutlined>false</IsOutlined>
   <PaperName>${paperName}</PaperName>
   <DrawCommands/>
