@@ -43,6 +43,10 @@ function swStop() {
     swBase   += performance.now() - swStart;
     swMs      = swBase;
     swRunning = false;
+    if (sw.raf) {
+    cancelAnimationFrame(sw.raf);
+    sw.raf = null;
+}
     cancelAnimationFrame(swRaf);
 }
 function swReset() {
@@ -104,25 +108,45 @@ function mswToggle(taskId, idx) {
 
     } else {
 
-        sw.start = performance.now();
-        sw.running = true;
+    // zuerst ALLE anderen Timer stoppen
+    arr.forEach((other, otherIdx) => {
 
-        const tick = () => {
+        if (otherIdx === idx) return;
 
-            if (!sw.running) return;
+        if (other.running) {
 
-            sw.ms = sw.base + (performance.now() - sw.start);
+            other.base += performance.now() - other.start;
+            other.ms = other.base;
+            other.running = false;
 
-            const el = document.getElementById(`msw-${taskId}-${idx}`);
-            if (el) {
-                el.textContent = swFmt(sw.ms).main;
+            if (other.raf) {
+                cancelAnimationFrame(other.raf);
+                other.raf = null;
             }
+        }
+    });
 
-            sw.raf = requestAnimationFrame(tick);
-        };
+    // aktuellen Timer starten
+    sw.start = performance.now();
+    sw.running = true;
+
+    const tick = () => {
+
+        if (!sw.running) return;
+
+        sw.ms = sw.base + (performance.now() - sw.start);
+
+        const el = document.getElementById(`msw-${taskId}-${idx}`);
+
+        if (el) {
+            el.textContent = swFmt(sw.ms).main;
+        }
 
         sw.raf = requestAnimationFrame(tick);
-    }
+    };
+
+    sw.raf = requestAnimationFrame(tick);
+}
 
     render();
 }
