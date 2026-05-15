@@ -58,20 +58,32 @@ class GroupInfoController
             ];
         }
 
+        // Einträge je Station vorgruppieren — für korrekte done-Erkennung bei Mehrfach-Einträgen
+        $byStation = [];
+        foreach ($log as $entry) {
+            $byStation[(int)$entry['station_id']][] = $entry;
+        }
+
         // Besuchte Stationen (eindeutig, älteste zuerst)
+        // done = true wenn IRGENDEIN Eintrag der Station einen checked_out hat
         $visitedIds  = [];
         $visitedList = [];
         foreach (array_reverse($log) as $entry) {
             $sid = (int)$entry['station_id'];
             if (in_array($sid, $visitedIds)) continue;
-            $visitedIds[]  = $sid;
+            $visitedIds[] = $sid;
+            $done = array_reduce(
+                $byStation[$sid],
+                fn(bool $carry, array $e) => $carry || $e['checked_out'] !== null,
+                false
+            );
             $visitedList[] = [
                 'id'          => $sid,
                 'code'        => $entry['station_code'],
                 'name'        => $entry['station_name'],
                 'checked_in'  => $entry['checked_in'],
                 'checked_out' => $entry['checked_out'],
-                'done'        => $entry['checked_out'] !== null,
+                'done'        => $done,
             ];
         }
 
