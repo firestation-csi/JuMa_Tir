@@ -617,13 +617,26 @@ async function sendLocation() {
 async function sendHelp() {
     const btn = document.getElementById('gi-help-btn');
     const msg = document.getElementById('gi-help-msg').value.trim();
-    btn.disabled = true; btn.textContent = 'Wird gesendet…';
+    btn.disabled = true;
+
+    // Standort immer frisch abfragen — unabhängig vom GPS-Tracking-Status
+    btn.textContent = '📍 Standort wird abgefragt…';
+    const pos = await new Promise(resolve => {
+        if (!navigator.geolocation) { resolve(null); return; }
+        navigator.geolocation.getCurrentPosition(
+            p  => resolve(p),
+            () => resolve(lastGpsPos ?? null),   // Fallback auf letzten bekannten Standort
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+        );
+    });
+
+    btn.textContent = '🆘 Wird gesendet…';
     try {
         const payload = {
             token:   groupToken,
             message: msg,
-            lat:     lastGpsPos?.coords.latitude  ?? null,
-            lng:     lastGpsPos?.coords.longitude ?? null,
+            lat:     pos?.coords.latitude  ?? null,
+            lng:     pos?.coords.longitude ?? null,
         };
         const res  = await fetch('/api/group/help', {
             method:  'POST',
@@ -634,6 +647,7 @@ async function sendHelp() {
         if (data.success) {
             document.getElementById('gi-help-result').style.display = 'block';
             btn.style.display = 'none';
+            setTimeout(() => location.reload(), 1500);
         } else {
             btn.disabled = false; btn.textContent = '🆘 Hilfe anfordern';
             alert(data.error || 'Fehler');
