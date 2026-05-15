@@ -11,6 +11,7 @@ $labelSizes = [
     '89x51' => ['w' => 89, 'h' => 51, 'name' => '89 × 51 mm  (Großes Adressetikett)'],
     '89x28' => ['w' => 89, 'h' => 28, 'name' => '89 × 28 mm  (Schmales Etikett)'],
     '54x25' => ['w' => 54, 'h' => 25, 'name' => '54 × 25 mm  (Namensschildchen)'],
+    '57x32' => ['w' => 57, 'h' => 32, 'name' => '57 × 32 mm  (11354 Multi Purpose)'],
 ];
 $defaultSize = '89x36';
 ?>
@@ -303,42 +304,106 @@ $defaultSize = '89x36';
         return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    /** Label-XML für den aktuell gewählten Etikettentyp aufbauen */
+    /** Label-XML für den aktuell gewählten Etikettentyp aufbauen (ObjectInfo-Format für DCF) */
     function buildLabelXml(qrBase64, mainText, subText, sizeKey) {
         const s = sizes[sizeKey] ?? sizes['89x36'];
-        // DYMO nutzt Twips (1 Zoll = 1440 Twips, 1 mm ≈ 56.7 Twips)
-        const twipW = Math.round(s.w * 56.7);
-        const twipH = Math.round(s.h * 56.7);
+        const paperNames = {
+            '89x36': '30252 Address',
+            '89x51': '30321 Large Address',
+            '89x28': '30336 Small Address',
+            '54x25': '30334 Return Address',
+            '57x32': '11354 Multi Purpose',
+        };
+        const paperName = paperNames[sizeKey] ?? '30252 Address';
+
+        // 1 mm = 1440 / 25.4 ≈ 56.693 Twips
+        const T     = 56.693;
+        const twipW = Math.round(s.w * T);
+        const twipH = Math.round(s.h * T);
+        const pad   = 57;
         const qrSz  = Math.round(twipH * 0.85);
-        const txtX  = qrSz + 80;
-        const txtW  = twipW - txtX - 80;
+        const qrY   = Math.round((twipH - qrSz) / 2);
+        const txtX  = pad + qrSz + 80;
+        const txtW  = twipW - txtX - pad;
+        const mid   = Math.round(twipH / 2);
+
         return `<?xml version="1.0" encoding="utf-8"?>
 <DieCutLabel Version="8.0" Units="twips" MediaType="Default">
-    <PaperOrientation>Landscape</PaperOrientation>
-    <Id>Address</Id>
-    <IsOutlined>false</IsOutlined>
-    <PaperName>30252 Address</PaperName>
-    <DrawCommands>
-        <DrawImage>
-            <X>40</X><Y>${Math.round((twipH - qrSz) / 2)}</Y>
-            <Width>${qrSz}</Width><Height>${qrSz}</Height>
-            <ImageData>${qrBase64}</ImageData>
-        </DrawImage>
-        <DrawText>
-            <X>${txtX}</X><Y>${Math.round(twipH * 0.12)}</Y>
-            <Width>${txtW}</Width><Height>${Math.round(twipH * 0.42)}</Height>
-            <ObjectName>LabelMain</ObjectName>
-            <Text>${escXml(mainText)}</Text>
-            <FontInfo><Family>Arial</Family><Size>18</Size><Bold>True</Bold></FontInfo>
-        </DrawText>
-        <DrawText>
-            <X>${txtX}</X><Y>${Math.round(twipH * 0.57)}</Y>
-            <Width>${txtW}</Width><Height>${Math.round(twipH * 0.34)}</Height>
-            <ObjectName>LabelSub</ObjectName>
-            <Text>${escXml(subText)}</Text>
-            <FontInfo><Family>Arial</Family><Size>12</Size><Bold>False</Bold></FontInfo>
-        </DrawText>
-    </DrawCommands>
+  <PaperOrientation>Landscape</PaperOrientation>
+  <Id>Address</Id>
+  <IsOutlined>false</IsOutlined>
+  <PaperName>${paperName}</PaperName>
+  <DrawCommands/>
+  <ObjectInfo>
+    <ImageObject>
+      <Name>QRCode</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
+      <LinkedObjectName/>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+      <ImageType>PNG</ImageType>
+      <Data>${qrBase64}</Data>
+      <ScaleMode>Uniform</ScaleMode>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+      <VerticalAlignment>Center</VerticalAlignment>
+      <IsBackground>False</IsBackground>
+    </ImageObject>
+    <Bounds X="${pad}" Y="${qrY}" Width="${qrSz}" Height="${qrSz}"/>
+  </ObjectInfo>
+  <ObjectInfo>
+    <TextObject>
+      <Name>LabelMain</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
+      <LinkedObjectName/>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${escXml(mainText)}</String>
+          <Attributes>
+            <Font Family="Helvetica" Size="14" Bold="True" Italic="False" Underline="False" StrikeOut="False"/>
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="${txtX}" Y="${pad}" Width="${txtW}" Height="${mid - pad}"/>
+  </ObjectInfo>
+  <ObjectInfo>
+    <TextObject>
+      <Name>LabelSub</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
+      <LinkedObjectName/>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${escXml(subText)}</String>
+          <Attributes>
+            <Font Family="Helvetica" Size="11" Bold="False" Italic="False" Underline="False" StrikeOut="False"/>
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="${txtX}" Y="${mid}" Width="${txtW}" Height="${twipH - mid - pad}"/>
+  </ObjectInfo>
 </DieCutLabel>`;
     }
 
