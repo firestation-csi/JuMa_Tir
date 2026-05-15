@@ -191,7 +191,19 @@ class AdminController
         // Bei JSON-Anfrage (Live-Polling) nur Ticker + Ranking zurückgeben
         if ($this->request->isJson()) {
             Response::json([
-                'ranking'      => array_slice($ranking, 0, 20),
+                'ranking'      => array_map(fn($r) => [
+                    'group_id'           => (int)$r['group_id'],
+                    'rank'               => (int)$r['rank'],
+                    'group_num'          => $r['group_num'],
+                    'group_name'         => $r['group_name'],
+                    'feuerwehr_name'     => $r['feuerwehr_name'] ?? null,
+                    'bereich'            => $r['bereich'] ?? null,
+                    'stations_completed' => (int)$r['stations_completed'],
+                    'is_complete'        => (bool)$r['is_complete'],
+                    'total_fp'           => (int)$r['total_fp'],
+                    'avg_impression'     => $r['avg_impression'] !== null ? (float)$r['avg_impression'] : null,
+                    'combined_score'     => (float)$r['combined_score'],
+                ], $ranking),
                 'recentScores' => $recentScores,
                 'ts'           => date('H:i:s'),
             ]);

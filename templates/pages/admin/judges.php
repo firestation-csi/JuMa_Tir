@@ -2,8 +2,6 @@
 $judges      = $judges      ?? [];
 $competition = $competition ?? null;
 
-$now = new DateTime();
-
 // PHP-8-sicheres Hilfsmittel: max() nur wenn Array nicht leer
 $safeMax = fn(array $vals): ?string =>
     ($f = array_filter($vals)) ? max($f) : null;
@@ -14,12 +12,13 @@ $lastActivity = fn(array $j): ?string =>
 $fmtTs = fn(?string $ts): string =>
     $ts ? date('d.m. H:i', strtotime($ts)) : '–';
 
-$fmtAge = function (?string $ts) use ($now): string {
+// Einheitlich mit Unix-Timestamps — vermeidet Timezone-Probleme mit DateInterval
+$fmtAge = function (?string $ts): string {
     if (!$ts) return '–';
-    $diff = $now->diff(new DateTime($ts));
-    if ($diff->days > 0) return 'vor ' . $diff->days . ' Tag(en)';
-    if ($diff->h  > 0)   return 'vor ' . $diff->h  . ' Std.';
-    if ($diff->i  > 0)   return 'vor ' . $diff->i  . ' Min.';
+    $sec = max(0, time() - strtotime($ts));
+    if ($sec >= 86400) return 'vor ' . intdiv($sec, 86400) . ' Tag(en)';
+    if ($sec >= 3600)  return 'vor ' . intdiv($sec, 3600)  . ' Std.';
+    if ($sec >= 60)    return 'vor ' . intdiv($sec, 60)    . ' Min.';
     return 'gerade eben';
 };
 
