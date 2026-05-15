@@ -304,9 +304,8 @@ $defaultSize = '89x36';
         return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    /** Label-XML aufbauen — DesktopLabel/DYMOLabel-Format für Dymo Connect (Koordinaten in Zoll, Farben 0.0–1.0) */
+    /** Label-XML — exakt nach Dymo_QRCode_KFV.dymo-Vorlage */
     function buildLabelXml(qrContent, mainText, subText, sizeKey) {
-        // Abmessungen in Zoll (Breite × Höhe im Querformat)
         const SIZES = {
             '89x36': { w: 3.50, h: 1.42, name: '30252 Address' },
             '89x51': { w: 3.50, h: 2.01, name: '30321 Large Address' },
@@ -314,26 +313,25 @@ $defaultSize = '89x36';
             '54x25': { w: 2.13, h: 0.98, name: '30334 Return Address' },
             '57x32': { w: 2.24, h: 1.26, name: '1933084 Drbl 2-1/4 x 1-1/4 in' },
         };
-        const s   = SIZES[sizeKey] ?? SIZES['89x36'];
-        const pad = 0.05;
-        const f   = n => n.toFixed(4);
+        const s = SIZES[sizeKey] ?? SIZES['89x36'];
+        const f = n => n.toFixed(6);
 
-        const qrSz = +((s.h - 2 * pad) * 0.88).toFixed(4);
-        const qrX  = pad;
-        const qrY  = +((s.h - qrSz) / 2).toFixed(4);
-        const txtX = +(qrX + qrSz + 0.07).toFixed(4);
-        const txtW = +(s.w - txtX - pad).toFixed(4);
-        const txtH = +((s.h - 2 * pad) / 2).toFixed(4);
+        // Layout: QR links (49% Breite), Text rechts
+        const qrX  = 0.059, qrY = s.h * 0.18;
+        const qrW  = s.w * 0.49,  qrH = s.h * 0.74;
+        const txtX = s.w * 0.50,  txtY1 = s.h * 0.06;
+        const txtW = s.w * 0.47;
+        const txtH = (s.h * 0.88) / 2;
 
-        const brushes = (bgA, fill) =>
+        const brushes = (bgA, bgR, bgG, bgB) =>
 `          <Brushes>
-            <BackgroundBrush><SolidColorBrush><Color A="${bgA}" R="${bgA}" G="${bgA}" B="${bgA}"></Color></SolidColorBrush></BackgroundBrush>
+            <BackgroundBrush><SolidColorBrush><Color A="${bgA}" R="${bgR}" G="${bgG}" B="${bgB}"></Color></SolidColorBrush></BackgroundBrush>
             <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
             <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
-            <FillBrush><SolidColorBrush><Color A="${fill}" R="0" G="0" B="0"></Color></SolidColorBrush></FillBrush>
+            <FillBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FillBrush>
           </Brushes>`;
 
-        const baseAttrs =
+        const base =
 `          <Rotation>Rotation0</Rotation>
           <OutlineThickness>1</OutlineThickness>
           <IsOutlined>False</IsOutlined>
@@ -346,25 +344,37 @@ $defaultSize = '89x36';
             <Size><Width>${f(w)}</Width><Height>${f(h)}</Height></Size>
           </ObjectLayout>`;
 
-        const textObj = (name, text, bold, size, x, y, w, h) =>
+        const lineSpan = (text, fontName, fontSize, bold) =>
+`            <LineTextSpan>
+              <TextSpan>
+                <Text>${escXml(text)}</Text>
+                <FontInfo>
+                  <FontName>${fontName}</FontName>
+                  <FontSize>${fontSize}</FontSize>
+                  <IsBold>${bold}</IsBold>
+                  <IsItalic>False</IsItalic>
+                  <IsUnderline>False</IsUnderline>
+                  <FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush>
+                </FontInfo>
+              </TextSpan>
+            </LineTextSpan>`;
+
+        const textObj = (name, lines, x, y, w, h) =>
 `        <TextObject>
           <Name>${name}</Name>
-${brushes(0, 1)}
-${baseAttrs}
+${brushes('0','0','0','0')}
+${base}
           <HorizontalAlignment>Left</HorizontalAlignment>
           <VerticalAlignment>Middle</VerticalAlignment>
-          <StyledText>
-            <Element>
-              <Attributes>
-                <Font Family="Helvetica" Size="${size}" Bold="${bold}" Italic="False" Underline="False" StrikeOut="False" />
-                <ForeColor Alpha="1" Red="0" Green="0" Blue="0" />
-                <BackColor Alpha="0" Red="0" Green="0" Blue="0" />
-              </Attributes>
-              <String>${escXml(text)}</String>
-            </Element>
-          </StyledText>
-          <AutoSize>True</AutoSize>
-          <AllowVerticalExpansion>False</AllowVerticalExpansion>
+          <FitMode>None</FitMode>
+          <IsVertical>False</IsVertical>
+          <FormattedText>
+            <FitMode>None</FitMode>
+            <HorizontalAlignment>Left</HorizontalAlignment>
+            <VerticalAlignment>Middle</VerticalAlignment>
+            <IsVertical>False</IsVertical>
+${lines}
+          </FormattedText>
 ${layout(x, y, w, h)}
         </TextObject>`;
 
@@ -373,12 +383,12 @@ ${layout(x, y, w, h)}
   <DYMOLabel Version="4">
     <Description>JuMa QR Label</Description>
     <Orientation>Portrait</Orientation>
-    <LabelName>1933084 Drbl 2-1/4 x 1-1/4 in</LabelName>
+    <LabelName>${escXml(s.name)}</LabelName>
     <InitialLength>0</InitialLength>
     <BorderStyle>SolidLine</BorderStyle>
     <DYMORect>
-      <DYMOPoint><X>${pad}</X><Y>${pad}</Y></DYMOPoint>
-      <Size><Width>${f(s.w - 2 * pad)}</Width><Height>${f(s.h - 2 * pad)}</Height></Size>
+      <DYMOPoint><X>0.039999966</X><Y>0.060000002</Y></DYMOPoint>
+      <Size><Width>${f(s.w - 0.08)}</Width><Height>${f(s.h - 0.10)}</Height></Size>
     </DYMORect>
     <BorderColor><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderColor>
     <BorderThickness>1</BorderThickness>
@@ -389,9 +399,9 @@ ${layout(x, y, w, h)}
       <RotationBehavior>ClearObjects</RotationBehavior>
       <LabelObjects>
         <QRCodeObject>
-          <Name>QRCode0</Name>
-${brushes(1, 1)}
-${baseAttrs}
+          <Name>QRCodeObject0</Name>
+${brushes('1','1','1','1')}
+${base}
           <BarcodeFormat>QRCode</BarcodeFormat>
           <Data><DataString>${escXml(qrContent)}</DataString></Data>
           <HorizontalAlignment>Center</HorizontalAlignment>
@@ -399,13 +409,22 @@ ${baseAttrs}
           <Size>AutoFit</Size>
           <EQRCodeType>QRCodeText</EQRCodeType>
           <TextDataHolder><Value>${escXml(qrContent)}</Value></TextDataHolder>
-${layout(qrX, qrY, qrSz, qrSz)}
+${layout(qrX, qrY, qrW, qrH)}
         </QRCodeObject>
-${textObj('TextMain', mainText, 'True',  14, txtX, pad,         txtW, txtH)}
-${textObj('TextSub',  subText || ' ', 'False', 11, txtX, pad + txtH, txtW, txtH)}
+${textObj('TextMain',
+    lineSpan(mainText, 'Segoe UI', 10, 'True'),
+    txtX, txtY1, txtW, txtH)}
+${textObj('TextSub',
+    lineSpan(subText || ' ', 'Segoe UI', 8, 'False'),
+    txtX, txtY1 + txtH, txtW, txtH)}
       </LabelObjects>
     </DynamicLayoutManager>
   </DYMOLabel>
+  <LabelApplication>Blank</LabelApplication>
+  <DataTable>
+    <Columns></Columns>
+    <Rows></Rows>
+  </DataTable>
 </DesktopLabel>`;
     }
 

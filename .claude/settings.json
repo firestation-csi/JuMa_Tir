@@ -36,7 +36,13 @@
       "Bash(grep -E '\"[A-Z][a-z]{2,}\"')",
       "Bash(grep -v '\"[A-Z]{2,}\\\\|Aborting\\\\|Active\\\\|Address\\\\|Android\\\\|Animation\\\\|Apple\\\\|Arial\\\\|Assertion\\\\|Barcode\\\\|Below\\\\|Chrome\\\\|Circular\\\\|Coast\\\\|Continuous\\\\|Counter\\\\|Custom\\\\|Already\\\\|Above\\\\|Canvas\\\\|Caption\\\\|Center\\\\|Canceled\\\\|Chain\\\\|Copies')",
       "Bash(grep -o '.\\\\{0,30\\\\}DashPattern.\\\\{0,30\\\\}\\\\|.\\\\{0,30\\\\}BorderStyle.\\\\{0,30\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
-      "Bash(powershell -Command ' *)"
+      "Bash(powershell -Command ' *)",
+      "Bash(grep -o '.\\\\{0,60\\\\}TextObject.\\\\{0,60\\\\}\\\\|.\\\\{0,60\\\\}FitMode.\\\\{0,60\\\\}\\\\|.\\\\{0,60\\\\}AutoSize.\\\\{0,60\\\\}\\\\|.\\\\{0,60\\\\}StyledText.\\\\{0,60\\\\}\\\\|.\\\\{0,60\\\\}AllowVertical.\\\\{0,60\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,200\\\\}FitMode.\\\\{0,200\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,400\\\\}_getAddressObjectText.\\\\{0,400\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(powershell -Command 'Get-ChildItem '\\\\''C:\\\\Program Files\\\\'\\\\'' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '\\\\''*DYMO*'\\\\'' -or $_.Name -like '\\\\''*Dymo*'\\\\'' } | Select-Object FullName')",
+      "Bash(grep -o '.\\\\{0,300\\\\}FormattedText.\\\\{0,300\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -o '.\\\\{0,100\\\\}LineTextSpan.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}TextSpan.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}FontInfo.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}FontName.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}IsBold.\\\\{0,100\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")"
     ]
   }
 }
