@@ -1,4 +1,6 @@
-<?php ob_start(); ?>
+<?php ob_start();
+$activeComp = $activeComp ?? null;
+?>
 <div class="adm_toolbar">
     <a href="/admin/groups/new" class="adm_btn adm_btn--primary">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -45,9 +47,15 @@
                         <td class="adm_table__muted adm_col--hide-sm"><?= htmlspecialchars($g['competition_name'] ?? '–') ?></td>
                         <td class="adm_mono adm_col--hide-sm"><?= !empty($g['registration_date']) ? date('d.m.Y', strtotime($g['registration_date'])) : '–' ?></td>
                         <td>
-                            <span class="adm_badge adm_badge--<?= $g['active'] ? 'active' : 'inactive' ?>">
-                                <?= $g['active'] ? 'Aktiv' : 'Inaktiv' ?>
-                            </span>
+                            <?php if (($g['self_registered'] ?? 0) && !$g['active']): ?>
+                                <span class="adm_badge" style="background:var(--wt-warn-soft);color:var(--wt-warn);border:1px solid var(--wt-warn);">
+                                    Neu angemeldet
+                                </span>
+                            <?php else: ?>
+                                <span class="adm_badge adm_badge--<?= $g['active'] ? 'active' : 'inactive' ?>">
+                                    <?= $g['active'] ? 'Aktiv' : 'Inaktiv' ?>
+                                </span>
+                            <?php endif; ?>
                         </td>
                         <td style="white-space:nowrap;">
                             <?php if ($g['last_station_code'] ?? null): ?>
@@ -76,6 +84,12 @@
                             </code>
                         </td>
                         <td class="adm_table__actions" style="white-space:nowrap;">
+                            <?php if (($g['self_registered'] ?? 0) && !$g['active']): ?>
+                                <form method="POST" action="/admin/groups/<?= (int)$g['id'] ?>/activate" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
+                                    <button type="submit" class="adm_btn adm_btn--sm adm_btn--primary">✓ Aktivieren</button>
+                                </form>
+                            <?php endif; ?>
                             <a href="/admin/groups/<?= (int)$g['id'] ?>/members"
                                class="adm_btn adm_btn--sm adm_btn--ghost">Mitglieder</a>
                             <a href="/admin/print/qr/group/<?= (int)$g['id'] ?>"

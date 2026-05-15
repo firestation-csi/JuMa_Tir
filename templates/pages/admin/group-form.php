@@ -1,10 +1,34 @@
 <?php
 ob_start();
-$isEdit = !empty($group);
-$action = $isEdit
+$isEdit     = !empty($group);
+$action     = $isEdit
     ? '/admin/groups/' . (int)$group['id'] . '/edit'
     : '/admin/groups';
+$activeComp = $activeComp ?? null;
 ?>
+
+<?php if (!$isEdit && $activeComp && ($activeComp['hash'] ?? null)): ?>
+<div class="adm_card" style="margin-bottom:20px;background:var(--wt-ok-soft);border-color:var(--wt-ok);">
+    <div class="adm_eyebrow" style="color:var(--wt-ok);margin-bottom:8px;">🔗 Registrierungslink für Gruppen</div>
+    <p style="font-size:13px;color:var(--wt-text-muted);margin-bottom:10px;">
+        Diesen Link an Feuerwehren senden — Gruppen können sich damit ohne Login selbst anmelden.
+        Selbst-angemeldete Gruppen erscheinen in der Gruppenliste und müssen aktiviert werden.
+    </p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="text" readonly id="regLink"
+               value="<?= htmlspecialchars((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
+                   . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/anmeldung/' . $activeComp['hash']) ?>"
+               style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--wt-border);
+                      border-radius:var(--wt-r-sm);font-family:monospace;font-size:12px;
+                      background:var(--wt-surface);color:var(--wt-text);">
+        <button type="button" class="adm_btn adm_btn--ghost adm_btn--sm" onclick="
+            navigator.clipboard.writeText(document.getElementById('regLink').value)
+                .then(() => { this.textContent='✓ Kopiert!'; setTimeout(()=>{ this.textContent='Kopieren'; },2000); });
+        ">Kopieren</button>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="adm_form-wrap">
 
     <?php if (!empty($error)): ?>

@@ -34,6 +34,7 @@ return [
         '/admin/groups/new'                                      => ['App\Controller\AdminGroupController', 'create'],
         '/admin/groups/tracking'                                 => ['App\Controller\AdminGroupController', 'tracking'],
         '/admin/groups/{id}/edit'                                => ['App\Controller\AdminGroupController', 'edit'],
+        '/admin/groups/{id}/activate'                            => ['App\Controller\AdminGroupController', 'activate'],
         '/admin/groups/{groupId}/members'                        => ['App\Controller\AdminGroupMemberController', 'index'],
         '/admin/groups/{groupId}/members/new'                    => ['App\Controller\AdminGroupMemberController', 'create'],
         '/admin/groups/{groupId}/members/{id}/edit'              => ['App\Controller\AdminGroupMemberController', 'edit'],
@@ -47,6 +48,7 @@ return [
         '/api/messages'                                          => ['App\Controller\JudgeController', 'getMessages'],
         '/api/station/{id}'                                      => ['App\Controller\StationController', 'show'],
         '/group'                                                 => ['App\Controller\GroupInfoController', 'index'],
+        '/anmeldung/{hash}'                                      => ['App\Controller\RegistrationController', 'showForm'],
     ],
     'POST' => [
         '/api/judge/verify-station'      => ['App\Controller\JudgeController', 'verifyStation'],
@@ -54,6 +56,7 @@ return [
         '/admin/login/passkey/options'    => ['App\Controller\AdminWebauthnController', 'loginOptions'],
         '/admin/login/passkey/verify'     => ['App\Controller\AdminWebauthnController', 'loginVerify'],
         '/api/group/verify'              => ['App\Controller\GroupController', 'verify'],
+        '/anmeldung/{hash}'              => ['App\Controller\RegistrationController', 'submit'],
         '/api/group/info'                => ['App\Controller\GroupInfoController', 'info'],
         '/api/group/location'            => ['App\Controller\GroupInfoController', 'location'],
         '/api/group/help'                => ['App\Controller\GroupInfoController', 'help'],

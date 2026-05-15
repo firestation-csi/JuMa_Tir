@@ -101,11 +101,25 @@ class AdminGroupController
     /** Liste aller Gruppen */
     public function index(): void
     {
+        $activeComp = $this->competitionModel->findActive();
         Response::view('pages/admin/groups', [
-            'title'  => 'Gruppen',
-            'groups' => $this->groupModel->findAll(),
-            'csrf'   => Auth::getCsrfToken(),
+            'title'       => 'Gruppen',
+            'groups'      => $this->groupModel->findAll(),
+            'activeComp'  => $activeComp,
+            'csrf'        => Auth::getCsrfToken(),
         ]);
+    }
+
+    /** Selbst-angemeldete Gruppe aktivieren */
+    public function activate(string $id): void
+    {
+        $this->verifyCsrf();
+        $group = $this->requireGroup($id);
+        $stmt  = Database::getInstance()->prepare(
+            'UPDATE `groups` SET active = 1, self_registered = 0, updated_at = NOW() WHERE id = ?'
+        );
+        $stmt->execute([(int)$id]);
+        Response::redirect('/admin/groups');
     }
 
     /** Formular: Neu anlegen */
@@ -115,6 +129,7 @@ class AdminGroupController
             'title'        => 'Gruppe anlegen',
             'group'        => null,
             'competitions' => $this->competitionModel->findAll(),
+            'activeComp'   => $this->competitionModel->findActive(),
             'feuerwehren'  => $this->feuerwehrModel->findAll(),
             'csrf'         => Auth::getCsrfToken(),
         ]);
