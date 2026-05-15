@@ -5,6 +5,47 @@ $sublabel  = $sublabel  ?? '';
 $qrDataUrl = $qrDataUrl ?? '';
 $qrContent = $qrContent ?? '';
 
+// Dymo-Vorlage laden und mit aktuellen Daten befüllen
+$dymoLabelXml = '';
+$dymoTemplatePath = dirname(__DIR__, 3) . '/info/Dymo_QRCode_KFV.dymo';
+if ($qrContent && file_exists($dymoTemplatePath)) {
+    $dom = new DOMDocument();
+    $dom->preserveWhiteSpace = true;
+    $dom->loadXML(file_get_contents($dymoTemplatePath));
+
+    // QR-Code Inhalt setzen
+    foreach ($dom->getElementsByTagName('DataString') as $node) {
+        $node->textContent = $qrContent;
+    }
+    foreach ($dom->getElementsByTagName('Value') as $node) {
+        $node->textContent = $qrContent;
+    }
+
+    // Textzeilen: Präfix + Name (+ optionaler Sublabel)
+    $prefix    = $type === 'group' ? 'Gruppe:' : 'Station:';
+    $lineTexts = array_filter([$prefix, $label, $sublabel], fn($s) => $s !== '');
+    $lineSpans = $dom->getElementsByTagName('LineTextSpan');
+    $parent    = $lineSpans->length > 0 ? $lineSpans->item(0)->parentNode : null;
+
+    // Vorhandene Zeilen befüllen
+    foreach ($lineTexts as $i => $text) {
+        if ($i < $lineSpans->length) {
+            $lineSpans->item($i)->getElementsByTagName('Text')->item(0)->textContent = $text;
+        } elseif ($parent) {
+            // Zusätzliche Zeile: letzte Zeile klonen
+            $clone = $lineSpans->item($lineSpans->length - 1)->cloneNode(true);
+            $clone->getElementsByTagName('Text')->item(0)->textContent = $text;
+            $parent->appendChild($clone);
+        }
+    }
+    // Überschüssige Zeilen entfernen
+    while ($lineSpans->length > count($lineTexts)) {
+        $parent->removeChild($lineSpans->item($lineSpans->length - 1));
+    }
+
+    $dymoLabelXml = $dom->saveXML();
+}
+
 // Etiketten-Größen (Breite × Höhe in mm, Landscape)
 $labelSizes = [
     '89x36' => ['w' => 89, 'h' => 36, 'name' => '89 × 36 mm  (Standard Adressetikett)'],
@@ -483,12 +524,7 @@ ${textObj('TextSub',
 
             const copies   = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
             const printer  = dymoSelect.value;
-            const labelXml = buildLabelXml(
-                <?= json_encode($qrContent) ?>,
-                <?= json_encode($label) ?>,
-                <?= json_encode($sublabel) ?>,
-                sizeSelect.value
-            );
+            const labelXml = <?= json_encode($dymoLabelXml) ?>;
 
             try {
                 await dymoPrint(printer, labelXml, copies);
