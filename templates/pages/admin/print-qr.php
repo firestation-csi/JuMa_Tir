@@ -312,7 +312,7 @@ $defaultSize = '89x36';
             '89x51': { w: 3.50, h: 2.01, name: '30321 Large Address' },
             '89x28': { w: 3.50, h: 1.10, name: '30336 Small Address' },
             '54x25': { w: 2.13, h: 0.98, name: '30334 Return Address' },
-            '57x32': { w: 2.24, h: 1.26, name: '11354 Multi Purpose' },
+            '57x32': { w: 2.24, h: 1.26, name: '1933084 Drbl 2-1/4 x 1-1/4 in' },
         };
         const s   = SIZES[sizeKey] ?? SIZES['89x36'];
         const pad = 0.05;
@@ -351,6 +351,8 @@ $defaultSize = '89x36';
           <Name>${name}</Name>
 ${brushes(0, 1)}
 ${baseAttrs}
+          <HorizontalAlignment>Left</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
           <StyledText>
             <Element>
               <Attributes>
@@ -361,8 +363,6 @@ ${baseAttrs}
               <String>${escXml(text)}</String>
             </Element>
           </StyledText>
-          <VerticalAlignment>Middle</VerticalAlignment>
-          <HorizontalAlignment>Left</HorizontalAlignment>
           <AutoSize>True</AutoSize>
           <AllowVerticalExpansion>False</AllowVerticalExpansion>
 ${layout(x, y, w, h)}
