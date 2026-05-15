@@ -1,7 +1,7 @@
 {
-    "name": "JuMa – Schiedsrichter",
-    "short_name": "JuMa",
-    "description": "Schiedsrichter-App für JuMa-Wettbewerbe",
+    "name": "KFV Tirschenreuth – Schiedsrichter",
+    "short_name": "Schiedsrichter",
+    "description": "Schiedsrichter-App für Wettbewerbe",
     "start_url": "/judge",
     "display": "standalone",
     "background_color": "#ffffff",

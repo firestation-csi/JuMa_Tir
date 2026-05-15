@@ -79,30 +79,51 @@ function mswGet(taskId, n) {
 function mswToggle(taskId, idx) {
     const task = taskMap[taskId];
     if (!task?.time) return;
+
     const arr = mswGet(taskId, task.time.zeit_felder);
     const sw  = arr[idx];
-    if (sw.running) {
-        sw.base   += performance.now() - sw.start;
-        sw.ms      = sw.base;
-        sw.running = false;
+
+    // alten RAF sicher stoppen
+    if (sw.raf) {
         cancelAnimationFrame(sw.raf);
-        // Wert in taskValues speichern
+        sw.raf = null;
+    }
+
+    if (sw.running) {
+
+        sw.base += performance.now() - sw.start;
+        sw.ms = sw.base;
+        sw.running = false;
+
         state.scoring.taskValues = {
             ...state.scoring.taskValues,
             [taskId]: arr.map(s => Math.round(s.ms)),
         };
+
         updateScoringLive();
+
     } else {
-        sw.start   = performance.now();
+
+        sw.start = performance.now();
         sw.running = true;
+
         const tick = () => {
+
+            if (!sw.running) return;
+
             sw.ms = sw.base + (performance.now() - sw.start);
+
             const el = document.getElementById(`msw-${taskId}-${idx}`);
-            if (el) el.textContent = swFmt(sw.ms).main;
-            if (sw.running) sw.raf = requestAnimationFrame(tick);
+            if (el) {
+                el.textContent = swFmt(sw.ms).main;
+            }
+
+            sw.raf = requestAnimationFrame(tick);
         };
+
         sw.raf = requestAnimationFrame(tick);
     }
+
     render();
 }
 
