@@ -521,14 +521,27 @@ ${textObj('TextSub',
             const body = new URLSearchParams({ printerName, labelXml: LABEL_XML, renderParamsXml: '' });
             const resp = await fetch(`${DYMO_API}/RenderLabel`, { method: 'POST', body });
             if (!resp.ok) throw new Error(`RenderLabel HTTP ${resp.status}: ${await resp.text()}`);
-            const text = await resp.text();
-            // Antwort ist roh-Base64 oder XML-gewrapped (<string>base64...</string>)
-            const xml    = new DOMParser().parseFromString(text, 'text/xml');
-            const xmlErr = xml.querySelector('parsererror');
-            const raw    = xmlErr ? text : (xml.querySelector('string')?.textContent ?? text);
-            const png    = raw.replace(/\s+/g, '');
-            if (!png) throw new Error('Leere Vorschau-Antwort');
-            dymoPreviewImg.src = 'data:image/png;base64,' + png;
+
+            const ct = resp.headers.get('content-type') ?? '';
+            console.log('[Dymo Preview] Content-Type:', ct);
+
+            if (ct.includes('image/')) {
+                // Binary-PNG direkt als Blob
+                const blob = await resp.blob();
+                if (dymoPreviewImg._blobUrl) URL.revokeObjectURL(dymoPreviewImg._blobUrl);
+                dymoPreviewImg._blobUrl = URL.createObjectURL(blob);
+                dymoPreviewImg.src = dymoPreviewImg._blobUrl;
+            } else {
+                // Base64-Text (ggf. XML-gewrapped)
+                const text = await resp.text();
+                console.log('[Dymo Preview] Erste 120 Zeichen:', JSON.stringify(text.substring(0, 120)));
+                const xml    = new DOMParser().parseFromString(text, 'text/xml');
+                const xmlErr = xml.querySelector('parsererror');
+                const raw    = xmlErr ? text : (xml.querySelector('string')?.textContent ?? text);
+                const png    = raw.replace(/\s+/g, '');
+                if (!png) throw new Error('Leere Vorschau-Antwort');
+                dymoPreviewImg.src = 'data:image/png;base64,' + png;
+            }
             dymoPreviewEl.classList.add('visible');
         } catch (e) {
             console.warn('Dymo-Vorschau fehlgeschlagen:', e.message);
