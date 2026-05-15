@@ -441,7 +441,7 @@ $extraScripts .= <<<JS
     });
 
     // ── Rangliste-Renderer ─────────────────────────────
-    const TOTAL_STATIONS = <?= (int)$totalStations ?>;
+    const TOTAL_STATIONS = {$totalStations};
 
     function renderRankingRows(ranking) {
         const fmt1 = n => Number(n).toFixed(1).replace('.', ',');
@@ -452,25 +452,25 @@ $extraScripts .= <<<JS
         const stColor   = r => r.is_complete ? 'var(--wt-ok)' : 'var(--wt-text-muted)';
 
         return ranking.map(r => `
-            <tr class="${rankClass(r)}" data-group-id="${r.group_id}">
-                <td style="text-align:center;font-weight:700;color:${rankColor(r)};">${r.rank}</td>
+            <tr class="\${rankClass(r)}" data-group-id="\${r.group_id}">
+                <td style="text-align:center;font-weight:700;color:\${rankColor(r)};">\${r.rank}</td>
                 <td>
-                    <span style="font-weight:600;">#${esc(r.group_num)} ${esc(r.group_name)}</span>
-                    ${!r.is_complete ? '<span style="font-size:11px;color:var(--wt-text-subtle);margin-left:4px;">unvollständig</span>' : ''}
+                    <span style="font-weight:600;">#\${esc(r.group_num)} \${esc(r.group_name)}</span>
+                    \${!r.is_complete ? '<span style="font-size:11px;color:var(--wt-text-subtle);margin-left:4px;">unvollständig</span>' : ''}
                 </td>
                 <td style="font-size:12px;color:var(--wt-text-muted);">
-                    ${r.feuerwehr_name ? esc(r.feuerwehr_name) : '–'}
-                    ${r.bereich ? `<br><span style="font-size:11px;">${esc(r.bereich)}</span>` : ''}
+                    \${r.feuerwehr_name ? esc(r.feuerwehr_name) : '–'}
+                    \${r.bereich ? `<br><span style="font-size:11px;">\${esc(r.bereich)}</span>` : ''}
                 </td>
                 <td style="text-align:center;">
-                    <span class="adm_mono" style="font-size:12px;color:${stColor(r)};">
-                        ${r.stations_completed}/${TOTAL_STATIONS}
+                    <span class="adm_mono" style="font-size:12px;color:\${stColor(r)};">
+                        \${parseInt(r.stations_completed, 10)}/\${TOTAL_STATIONS}
                     </span>
                 </td>
-                <td style="text-align:right;" class="adm_mono res_rank__fp">${r.total_fp}</td>
-                <td style="text-align:right;font-size:12px;color:var(--wt-text-muted);" class="res_rank__impression">${fmt2(r.avg_impression)}</td>
+                <td style="text-align:right;" class="adm_mono res_rank__fp">\${r.total_fp}</td>
+                <td style="text-align:right;font-size:12px;color:var(--wt-text-muted);" class="res_rank__impression">\${fmt2(r.avg_impression)}</td>
                 <td style="text-align:right;">
-                    <span class="adm_mono res_rank__score" style="font-weight:700;font-size:15px;">${fmt1(r.combined_score)}</span>
+                    <span class="adm_mono res_rank__score" style="font-weight:700;font-size:15px;">\${fmt1(r.combined_score)}</span>
                 </td>
             </tr>`).join('');
     }
