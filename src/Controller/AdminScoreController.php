@@ -24,7 +24,7 @@ class AdminScoreController
     /** Einzelne Bewertung löschen */
     public function delete(string $id): void
     {
-        if (!$this->request->verifyCsrf()) {
+        if (!Auth::validateCsrf($this->request->getCsrfToken())) {
             Response::error('Ungültiger CSRF-Token', 403);
         }
 
