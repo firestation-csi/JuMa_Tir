@@ -158,6 +158,19 @@ window.addEventListener('wt:queue-count', (e) => {
     rerenderSyncPill();
 });
 
+window.addEventListener('wt:synced', (e) => {
+    const syncedGroupIds = new Set(e.detail);
+    let changed = false;
+    state.history = state.history.map(h => {
+        if (!h.synced && syncedGroupIds.has(h.group_id)) {
+            changed = true;
+            return { ...h, synced: true };
+        }
+        return h;
+    });
+    if (changed) render();
+});
+
 function rerenderSyncPill() {
     const pills = document.querySelectorAll('.wt_sync-pill');
     pills.forEach(p => { p.outerHTML = syncPillHtml(); });

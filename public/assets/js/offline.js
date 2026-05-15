@@ -112,6 +112,14 @@ async function syncQueue() {
 
         await removeFromQueue(succeededIds);
 
+        // Erfolgreich synchronisierte group_ids an station.js melden
+        const syncedGroupIds = items
+            .filter((_, i) => !failedIdx.has(i))
+            .map(item => item.group_id);
+        if (syncedGroupIds.length > 0) {
+            window.dispatchEvent(new CustomEvent('wt:synced', { detail: syncedGroupIds }));
+        }
+
         const successCount = items.length - failedIdx.size;
         if (failedIdx.size === 0) {
             showMessage(`${successCount} Bewertungen synchronisiert!`, 'success');
