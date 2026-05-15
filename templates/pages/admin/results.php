@@ -362,6 +362,7 @@ $rankingJson = json_encode(array_map(fn($r) => [
 
 $impColorJson = json_encode(['sehr_gut' => '#27AE60', 'gut' => '#95A5A6', 'befriedigend' => '#E67E22']);
 $csrfJson     = json_encode($csrf ?? '');
+$serverTime   = date('H:i:s');
 
 // Accordion läuft unabhängig – kein Chart.js erforderlich
 $extraScripts .= <<<ACCORDION
@@ -530,7 +531,7 @@ $extraScripts .= <<<JS
         }
     }
     setInterval(pollResults, 20_000);
-    if (tickerTime) tickerTime.textContent = 'aktualisiert <?= date('H:i:s') ?>';
+    if (tickerTime) tickerTime.textContent = 'aktualisiert {$serverTime}';
 
     // ── CSV Export ─────────────────────────────────────
     document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
