@@ -407,41 +407,36 @@ $defaultSize = '89x36';
 </DieCutLabel>`;
     }
 
+    // ── Dymo Connect REST-API (kein Framework-JS nötig) ──────
+    const DYMO_API = 'http://localhost:41951/DYMO/DLS/Labeling';
+
+    async function dymoGetPrinters() {
+        const resp = await fetch(`${DYMO_API}/GetPrinters`);
+        if (!resp.ok) throw new Error(`GetPrinters HTTP ${resp.status}`);
+        const xml = new DOMParser().parseFromString(await resp.text(), 'text/xml');
+        return Array.from(xml.querySelectorAll('LabelWriterPrinter'))
+            .map(p => ({
+                name:      p.querySelector('Name')?.textContent?.trim() ?? '',
+                modelName: p.querySelector('ModelName')?.textContent?.trim() ?? '',
+            }))
+            .filter(p => p.name);
+    }
+
+    async function dymoPrint(printerName, labelXml, copies) {
+        const printParamsXml = `<LabelWriterPrintParams><Copies>${copies}</Copies><JobTitle>JuMa QR</JobTitle><PrintQuality>Auto</PrintQuality></LabelWriterPrintParams>`;
+        const body = new URLSearchParams({ printerName, printParamsXml, labelXml, labelSetXml: '' });
+        const resp = await fetch(`${DYMO_API}/PrintLabel`, { method: 'POST', body });
+        if (!resp.ok) throw new Error(`PrintLabel HTTP ${resp.status}: ${await resp.text()}`);
+    }
+
     (async () => {
-        // Framework-JS liegt lokal im Projekt — kein localhost-Laden nötig
-        try {
-            await new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = '/assets/js/dymo.connect.framework.js';
-                s.onload  = resolve;
-                s.onerror = () => reject(new Error('Datei nicht geladen'));
-                document.head.appendChild(s);
-            });
-        } catch (e) {
-            setDymoStatus('error', `⚠ Dymo Framework konnte nicht geladen werden: ${e.message}`);
-            return;
-        }
-
-        // Namespace: die Datei exponiert dymo.label.framework
-        const fw = dymo?.label?.framework;
-        if (!fw) {
-            setDymoStatus('error', '⚠ dymo.label.framework nicht verfügbar — Framework-Datei prüfen.');
-            return;
-        }
-
-        // Framework initialisieren
-        try { await fw.init(); } catch { /* bei manchen Versionen nicht nötig */ }
-
-        // Drucker auflisten — Dymo Connect WebService muss auf localhost:41951 laufen
         let printers = [];
         try {
-            const list = fw.getPrinters();
-            printers = (Array.isArray(list) ? list : [])
-                .filter(p => p.isConnected !== false);
+            printers = await dymoGetPrinters();
         } catch (e) {
             setDymoStatus('error',
-                `⚠ Drucker konnten nicht geladen werden: ${e.message} — ` +
-                'Dymo Connect WebService muss laufen.');
+                `⚠ Dymo WebService nicht erreichbar (${e.message}). ` +
+                'Dymo Connect muss als Admin laufen.');
             return;
         }
 
@@ -459,48 +454,33 @@ $defaultSize = '89x36';
 
         dymoSection.classList.add('visible');
         btnDymo.disabled = false;
-        setDymoStatus('ok',
-            `✓ Dymo Connect Framework erkannt · ${printers.length} Drucker verfügbar`);
+        setDymoStatus('ok', `✓ Dymo WebService · ${printers.length} Drucker verfügbar`);
 
         btnDymo.addEventListener('click', async () => {
             btnDymo.disabled = true;
             btnDymo.textContent = 'Druckt…';
 
-            const copies     = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
-            const printer    = dymoSelect.value;
-            const qrBase64   = document.getElementById('qrImg').src.split(',')[1] ?? '';
-            const labelXml   = buildLabelXml(
+            const copies   = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
+            const printer  = dymoSelect.value;
+            const qrBase64 = document.getElementById('qrImg').src.split(',')[1] ?? '';
+            const labelXml = buildLabelXml(
                 qrBase64,
                 <?= json_encode($label) ?>,
                 <?= json_encode($sublabel) ?>,
                 sizeSelect.value
             );
 
-            const printParamsXml = `<LabelWriterPrintParams>
-                <Copies>${copies}</Copies>
-                <JobTitle>JuMa QR Code</JobTitle>
-                <PrintQuality>Auto</PrintQuality>
-            </LabelWriterPrintParams>`;
-
-            const resetBtn = () => {
-                btnDymo.disabled = false;
-                btnDymo.innerHTML =
-                    '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><rect x="1" y="5" width="16" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/></svg> Auf Dymo drucken';
-            };
-
             try {
-                if (typeof fw.printLabel !== 'function') {
-                    throw new Error('fw.printLabel() nicht verfügbar');
-                }
-                await fw.printLabel(printer, printParamsXml, labelXml, '');
+                await dymoPrint(printer, labelXml, copies);
                 btnDymo.disabled = false;
                 btnDymo.innerHTML =
                     '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M3 9l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gedruckt!';
                 setDymoStatus('ok', `✓ ${copies} Etikett${copies > 1 ? 'en' : ''} gedruckt auf «${printer}»`);
             } catch (err) {
-                resetBtn();
-                const msg = err?.message ?? err?.responseText ?? String(err);
-                setDymoStatus('error', `✗ Druckfehler: ${msg}`);
+                btnDymo.disabled = false;
+                btnDymo.innerHTML =
+                    '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><rect x="1" y="5" width="16" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/></svg> Auf Dymo drucken';
+                setDymoStatus('error', `✗ Druckfehler: ${err.message}`);
                 console.error('Dymo Druckfehler:', err);
             }
         });
