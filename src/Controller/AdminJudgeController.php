@@ -14,7 +14,7 @@ class AdminJudgeController
 {
     private Competition $competitionModel;
 
-    public function __construct(private Request $request)
+    public function __construct(Request $request)
     {
         $this->competitionModel = new Competition();
         if (!Auth::isAdmin()) {
@@ -31,21 +31,22 @@ class AdminJudgeController
         if ($competition) {
             $stmt = Database::getInstance()->prepare(
                 'SELECT
-                    j.id,
-                    j.name                           AS judge_name,
-                    j.created_at                     AS logged_in_at,
                     s.id                             AS station_id,
                     s.code                           AS station_code,
                     s.name                           AS station_name,
+                    s.active                         AS station_active,
+                    j.id                             AS judge_id,
+                    j.name                           AS judge_name,
+                    j.created_at                     AS logged_in_at,
                     COUNT(DISTINCT sc.id)            AS score_count,
                     MAX(sc.created_at)               AS last_score_at,
                     MAX(m.created_at)                AS last_message_at
-                 FROM judges j
-                 JOIN stations s  ON s.id = j.station_id
-                 LEFT JOIN scores sc ON sc.judge_id = j.id
-                 LEFT JOIN messages m ON m.judge_id = j.id AND m.sender = \'judge\'
-                 WHERE s.competition_id = ?
-                 GROUP BY j.id, j.name, j.created_at, s.id, s.code, s.name
+                 FROM stations s
+                 LEFT JOIN judges j   ON j.station_id = s.id
+                 LEFT JOIN scores sc  ON sc.judge_id  = j.id
+                 LEFT JOIN messages m ON m.judge_id   = j.id AND m.sender = \'judge\'
+                 WHERE s.competition_id = ? AND s.active = 1
+                 GROUP BY s.id, s.code, s.name, s.active, j.id, j.name, j.created_at
                  ORDER BY s.code, j.name'
             );
             $stmt->execute([(int)$competition['id']]);

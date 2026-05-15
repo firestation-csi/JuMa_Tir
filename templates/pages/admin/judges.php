@@ -41,18 +41,25 @@ $isActive = fn(?string $ts): bool =>
 
 <?php else:
     // Aktivitäts-Zusammenfassung
-    $totalActive  = count(array_filter($judges, fn($j) => $isActive($lastActivity($j))));
-    $totalScores  = array_sum(array_column($judges, 'score_count'));
+    $staffed      = array_filter($judges, fn($j) => $j['judge_id'] !== null);
+    $unstaffed    = array_filter($judges, fn($j) => $j['judge_id'] === null);
+    $totalActive  = count(array_filter($staffed, fn($j) => $isActive($lastActivity($j))));
+    $totalScores  = array_sum(array_column(array_values($staffed), 'score_count'));
 ?>
 
 <div class="adm_toolbar" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
-    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:13px;color:var(--wt-text-muted);">
             <?= htmlspecialchars($competition['name']) ?>
         </span>
         <span class="adm_badge adm_badge--<?= $totalActive > 0 ? 'active' : 'inactive' ?>">
-            <?= $totalActive ?>/<?= count($judges) ?> aktiv
+            <?= $totalActive ?>/<?= count($staffed) ?> aktiv
         </span>
+        <?php if (count($unstaffed) > 0): ?>
+        <span class="adm_badge" style="background:var(--wt-red-soft);color:var(--wt-red);">
+            <?= count($unstaffed) ?> unbesetzt
+        </span>
+        <?php endif; ?>
         <span style="font-size:13px;color:var(--wt-text-muted);">
             <?= $totalScores ?> Bewertungen gesamt
         </span>
@@ -78,12 +85,13 @@ $isActive = fn(?string $ts): bool =>
         // Nach Station sortiert ausgeben
         $prevStation = null;
         foreach ($judges as $j):
-            $la       = $lastActivity($j);
-            $active   = $isActive($la);
+            $noJudge     = $j['judge_id'] === null;
+            $la          = $noJudge ? null : $lastActivity($j);
+            $active      = $isActive($la);
             $sameStation = $j['station_code'] === $prevStation;
             $prevStation = $j['station_code'];
         ?>
-        <tr>
+        <tr <?= $noJudge ? 'style="background:var(--wt-red-soft);"' : '' ?>>
             <td>
                 <?php if (!$sameStation): ?>
                     <span class="adm_mono" style="font-weight:700;"><?= htmlspecialchars($j['station_code']) ?></span><br>
@@ -93,21 +101,29 @@ $isActive = fn(?string $ts): bool =>
                 <?php endif; ?>
             </td>
             <td>
-                <span class="adm_table__name"><?= htmlspecialchars($j['judge_name']) ?></span>
+                <?php if ($noJudge): ?>
+                    <span style="font-size:12px;font-weight:700;color:var(--wt-red);">— unbesetzt —</span>
+                <?php else: ?>
+                    <span class="adm_table__name"><?= htmlspecialchars($j['judge_name']) ?></span>
+                <?php endif; ?>
             </td>
             <td style="text-align:center;">
+                <?php if (!$noJudge): ?>
                 <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
                              color:<?= $active ? 'var(--wt-ok)' : 'var(--wt-text-subtle)' ?>;">
                     <span style="width:8px;height:8px;border-radius:50%;flex-shrink:0;
                                  background:<?= $active ? 'var(--wt-ok)' : 'var(--wt-border-strong)' ?>;"></span>
                     <?= $active ? 'Aktiv' : 'Inaktiv' ?>
                 </span>
+                <?php endif; ?>
             </td>
             <td style="text-align:right;">
+                <?php if (!$noJudge): ?>
                 <span class="adm_mono" style="font-size:16px;font-weight:700;
                              color:<?= $j['score_count'] > 0 ? 'var(--wt-text)' : 'var(--wt-text-subtle)' ?>;">
                     <?= (int)$j['score_count'] ?>
                 </span>
+                <?php endif; ?>
             </td>
             <td class="adm_table__muted" style="font-size:.82rem;">
                 <?= $fmtAge($la) ?>
@@ -116,7 +132,7 @@ $isActive = fn(?string $ts): bool =>
                 <?php endif; ?>
             </td>
             <td class="adm_mono adm_table__muted" style="font-size:.78rem;">
-                <?= $fmtTs($j['logged_in_at']) ?>
+                <?= $noJudge ? '–' : $fmtTs($j['logged_in_at']) ?>
             </td>
         </tr>
         <?php endforeach; ?>
