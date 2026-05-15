@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Core\Auth;
+use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Competition;
+use App\Model\Group;
 use App\Model\Message;
 use App\Model\Station;
 
@@ -16,12 +18,14 @@ class AdminMessageController
     private Message     $messageModel;
     private Station     $stationModel;
     private Competition $competitionModel;
+    private Group       $groupModel;
 
     public function __construct(private Request $request)
     {
         $this->messageModel     = new Message();
         $this->stationModel     = new Station();
         $this->competitionModel = new Competition();
+        $this->groupModel       = new Group();
 
         if (!Auth::isAdmin()) {
             Response::redirect('/admin/login');
@@ -49,12 +53,30 @@ class AdminMessageController
             return strcmp($tb, $ta);
         });
 
+        // Ansagen und Gruppen für das Ansagen-Formular laden
+        $announcements = [];
+        $groups        = [];
+        if ($competition) {
+            $compId = (int)$competition['id'];
+            $stmt   = Database::getInstance()->prepare(
+                'SELECT id, body, target_group_ids, created_at
+                 FROM group_announcements
+                 WHERE competition_id = ?
+                 ORDER BY created_at DESC'
+            );
+            $stmt->execute([$compId]);
+            $announcements = $stmt->fetchAll();
+            $groups        = $this->groupModel->findByCompetition($compId);
+        }
+
         Response::view('pages/admin/messages', [
-            'title'       => 'Nachrichten',
-            'competition' => $competition,
-            'stations'    => $stations,
-            'overview'    => $overview,
-            'csrf'        => Auth::getCsrfToken(),
+            'title'         => 'Nachrichten',
+            'competition'   => $competition,
+            'stations'      => $stations,
+            'overview'      => $overview,
+            'announcements' => $announcements,
+            'groups'        => $groups,
+            'csrf'          => Auth::getCsrfToken(),
         ]);
     }
 

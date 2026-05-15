@@ -28,7 +28,6 @@
                     <span id="msgBadge" class="adm_nav-badge" style="display:none;"></span>
                 </a>
             </li>
-            <li><a href="/admin/announcements" class="adm_nav__link">Ansagen</a></li>
             <li><a href="/admin/users" class="adm_nav__link">Benutzer</a></li>
             <li>
                 <form action="/admin/logout" method="POST" style="display:inline">

@@ -22,34 +22,6 @@ class AdminAnnouncementController
         }
     }
 
-    /** Liste aller Ansagen + Formular */
-    public function index(): void
-    {
-        $competitions   = $this->competitionModel->findAll();
-        $competitionId  = (int)($_SESSION['admin_competition_id'] ?? ($competitions[0]['id'] ?? 0));
-
-        $announcements = [];
-        if ($competitionId) {
-            $stmt = Database::getInstance()->prepare(
-                'SELECT a.*, c.name AS competition_name
-                 FROM group_announcements a
-                 JOIN competitions c ON c.id = a.competition_id
-                 WHERE a.competition_id = ?
-                 ORDER BY a.created_at DESC'
-            );
-            $stmt->execute([$competitionId]);
-            $announcements = $stmt->fetchAll();
-        }
-
-        Response::view('pages/admin/announcements', [
-            'title'         => 'Gruppenansagen',
-            'announcements' => $announcements,
-            'competitions'  => $competitions,
-            'competitionId' => $competitionId,
-            'csrf'          => Auth::getCsrfToken(),
-        ]);
-    }
-
     /** Neue Ansage speichern */
     public function store(): void
     {
@@ -61,14 +33,22 @@ class AdminAnnouncementController
         $competitionId = (int)$this->request->post('competition_id', 0);
 
         if (empty($body) || $competitionId === 0) {
-            Response::redirect('/admin/announcements');
+            Response::redirect('/admin/messages');
+        }
+
+        // Zielgruppen: null = alle, sonst JSON-Array der gewählten Gruppen-IDs
+        $groupIds = $this->request->post('group_ids', []);
+        if (!is_array($groupIds) || empty($groupIds)) {
+            $targetGroupIds = null;
+        } else {
+            $targetGroupIds = json_encode(array_map('intval', $groupIds));
         }
 
         $stmt = Database::getInstance()->prepare(
-            'INSERT INTO group_announcements (competition_id, body) VALUES (?, ?)'
+            'INSERT INTO group_announcements (competition_id, body, target_group_ids) VALUES (?, ?, ?)'
         );
-        $stmt->execute([$competitionId, $body]);
-        Response::redirect('/admin/announcements');
+        $stmt->execute([$competitionId, $body, $targetGroupIds]);
+        Response::redirect('/admin/messages');
     }
 
     /** Ansage löschen */
@@ -82,6 +62,6 @@ class AdminAnnouncementController
             'DELETE FROM group_announcements WHERE id = ?'
         );
         $stmt->execute([(int)$id]);
-        Response::redirect('/admin/announcements');
+        Response::redirect('/admin/messages');
     }
 }

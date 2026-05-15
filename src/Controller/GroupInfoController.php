@@ -197,7 +197,7 @@ class GroupInfoController
         Response::json(null);
     }
 
-    /** POST /api/group/announcements — Aktive Ansagen für diesen Wettbewerb */
+    /** POST /api/group/announcements — Aktive Ansagen für diese Gruppe */
     public function announcements(): void
     {
         $data  = $this->request->json();
@@ -207,15 +207,26 @@ class GroupInfoController
         $group = (new Group())->findByToken($token);
         if (!$group) Response::error('Gruppe nicht gefunden', 404);
 
+        $groupId = (int)$group['id'];
+
         $stmt = Database::getInstance()->prepare(
-            'SELECT id, body, created_at
+            'SELECT id, body, target_group_ids, created_at
              FROM group_announcements
              WHERE competition_id = ?
              ORDER BY created_at DESC
              LIMIT 20'
         );
         $stmt->execute([(int)$group['competition_id']]);
-        Response::json(['announcements' => $stmt->fetchAll()]);
+        $all = $stmt->fetchAll();
+
+        // Nur Ansagen für alle oder explizit für diese Gruppe
+        $filtered = array_values(array_filter($all, function (array $a) use ($groupId): bool {
+            if ($a['target_group_ids'] === null) return true;
+            $ids = json_decode($a['target_group_ids'], true);
+            return empty($ids) || in_array($groupId, $ids, true);
+        }));
+
+        Response::json(['announcements' => $filtered]);
     }
 
     /** POST /api/group/help — Hilfeanfrage an Admin-Messageboard */

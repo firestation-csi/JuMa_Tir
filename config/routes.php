@@ -39,7 +39,6 @@ return [
         '/admin/groups/{groupId}/members/{id}/edit'              => ['App\Controller\AdminGroupMemberController', 'edit'],
         '/admin/print/qr/station/{id}'                           => ['App\Controller\AdminPrintController', 'station'],
         '/admin/print/qr/group/{id}'                             => ['App\Controller\AdminPrintController', 'group'],
-        '/admin/announcements'                                   => ['App\Controller\AdminAnnouncementController', 'index'],
         '/admin/users'                                           => ['App\Controller\AdminUserController', 'index'],
         '/admin/users/new'                                       => ['App\Controller\AdminUserController', 'create'],
         '/admin/users/{id}/edit'                                 => ['App\Controller\AdminUserController', 'edit'],

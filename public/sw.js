@@ -1,8 +1,8 @@
-// Service Worker – JuMa Schiedsrichter-App
+// Service Worker – Schiedsrichter-App
 // Strategie: Network-First für Seiten & API, Cache-First nur für echte Assets
 
 // VERSION ERHÖHEN bei jedem Deploy (CSS/JS-Änderungen werden sonst nicht übernommen)
-const CACHE_NAME = 'juma-v21';
+const CACHE_NAME = 'juma-v22';
 
 // Nur echte statische Assets voraufladen — KEINE PHP-Seiten
 const STATIC_ASSETS = [

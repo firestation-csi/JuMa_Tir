@@ -1,6 +1,9 @@
 <?php
-/** @var array|null $competition @var array $stations @var array $overview @var string $csrf */
+/** @var array|null $competition @var array $stations @var array $overview @var string $csrf
+ *  @var array $announcements @var array $groups */
 ob_start();
+$announcements ??= [];
+$groups        ??= [];
 
 $totalUnread = array_sum(array_column(array_column($overview, 'unread_judge'), null));
 $totalUnread = 0;
@@ -85,6 +88,111 @@ $fmtTime = function (string $iso): string {
             </tbody>
         </table>
     </div>
+<?php endif; ?>
+
+<!-- ── Gruppenansagen ───────────────────────────────── -->
+<?php if ($competition): ?>
+<div class="adm_card" style="margin-top:24px;">
+    <div class="adm_eyebrow" style="margin-bottom:16px;">📢 Gruppenansagen</div>
+
+    <!-- Formular -->
+    <form method="POST" action="/admin/announcements" id="announce-form">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+        <input type="hidden" name="competition_id" value="<?= (int)$competition['id'] ?>">
+
+        <div style="margin-bottom:12px;">
+            <textarea name="body" rows="2" required
+                      placeholder="Nachricht an Gruppen (z.B. Station 3 hat 15 min Verzögerung)…"
+                      style="width:100%;padding:9px 12px;border:1px solid var(--wt-border);border-radius:var(--wt-r-sm);
+                             font-family:inherit;font-size:14px;resize:vertical;background:var(--wt-surface);
+                             color:var(--wt-text);box-sizing:border-box;"></textarea>
+        </div>
+
+        <!-- Zielgruppen -->
+        <div style="margin-bottom:14px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
+                          cursor:pointer;margin-bottom:8px;">
+                <input type="checkbox" id="announce-all" checked
+                       style="width:16px;height:16px;cursor:pointer;accent-color:var(--wt-red);">
+                Alle Gruppen
+            </label>
+            <?php if (!empty($groups)): ?>
+            <div id="announce-groups" style="display:none;padding:10px 12px;background:var(--wt-surface-alt);
+                 border-radius:var(--wt-r-sm);border:1px solid var(--wt-border);
+                 display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;">
+                <?php foreach ($groups as $g): ?>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" name="group_ids[]" value="<?= (int)$g['id'] ?>"
+                           style="width:15px;height:15px;cursor:pointer;accent-color:var(--wt-red);">
+                    <span>
+                        <?php if ($g['num'] ?? null): ?><span class="adm_mono" style="font-size:11px;color:var(--wt-text-muted);">#<?= htmlspecialchars($g['num']) ?></span><?php endif; ?>
+                        <?= htmlspecialchars($g['name']) ?>
+                    </span>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <button type="submit" class="adm_btn adm_btn--primary" style="gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14 8L2 2l3 6-3 6 12-6z" fill="currentColor"/></svg>
+            Ansage senden
+        </button>
+    </form>
+
+    <!-- Liste gesendeter Ansagen -->
+    <?php if (!empty($announcements)): ?>
+    <div style="margin-top:20px;border-top:1px solid var(--wt-border);padding-top:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--wt-text-muted);text-transform:uppercase;
+                    letter-spacing:.06em;margin-bottom:10px;">Gesendete Ansagen</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+        <?php foreach ($announcements as $a):
+            $targets = $a['target_group_ids'] ? json_decode($a['target_group_ids'], true) : null;
+            $targetLabel = (!$targets || count($targets) === 0)
+                ? '<span style="color:var(--wt-ok);font-size:11px;font-weight:600;">Alle Gruppen</span>'
+                : '<span style="color:var(--wt-text-muted);font-size:11px;">' . count($targets) . ' Gruppe(n)</span>';
+        ?>
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;
+                    background:var(--wt-surface-alt);border-radius:var(--wt-r-sm);
+                    border:1px solid var(--wt-border);">
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:13.5px;font-weight:600;margin-bottom:3px;">
+                    <?= htmlspecialchars($a['body']) ?>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <?= $targetLabel ?>
+                    <span style="font-size:11px;color:var(--wt-text-subtle);font-family:monospace;">
+                        <?= $fmtTime($a['created_at']) ?>
+                    </span>
+                </div>
+            </div>
+            <form method="POST" action="/admin/announcements/<?= (int)$a['id'] ?>/delete"
+                  onsubmit="return confirm('Ansage löschen?')" style="flex-shrink:0;">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                <button type="submit" class="adm_btn adm_btn--sm adm_btn--danger">Löschen</button>
+            </form>
+        </div>
+        <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+
+<script>
+(function () {
+    const allCb     = document.getElementById('announce-all');
+    const groupsDiv = document.getElementById('announce-groups');
+    if (!allCb || !groupsDiv) return;
+    allCb.addEventListener('change', () => {
+        groupsDiv.style.display = allCb.checked ? 'none' : 'grid';
+        groupsDiv.querySelectorAll('input[type=checkbox]').forEach(cb => {
+            cb.disabled = allCb.checked;
+        });
+    });
+    // Initial state
+    groupsDiv.style.display = 'none';
+})();
+</script>
 <?php endif; ?>
 
 <script>
