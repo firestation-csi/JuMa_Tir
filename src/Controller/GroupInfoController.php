@@ -248,11 +248,19 @@ class GroupInfoController
         }
 
         $stationId = (int)$log[0]['station_id'];
-        $body      = sprintf(
-            '[HILFE] Gruppe #%s %s: %s',
+        $lat = isset($data['lat']) && is_numeric($data['lat']) ? (float)$data['lat'] : null;
+        $lng = isset($data['lng']) && is_numeric($data['lng']) ? (float)$data['lng'] : null;
+
+        $posInfo = ($lat !== null && $lng !== null)
+            ? sprintf("\n📍 Position: %.6f, %.6f  →  https://maps.google.com/?q=%.6f,%.6f", $lat, $lng, $lat, $lng)
+            : '';
+
+        $body = sprintf(
+            '[HILFE] Gruppe #%s %s: %s%s',
             $group['num'] ?? '?',
             $group['name'],
-            $message
+            $message,
+            $posInfo
         );
 
         (new Message())->createFromGroup($stationId, (int)$group['id'], $group['name'], $body);

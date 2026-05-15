@@ -37,25 +37,59 @@ $fmtDate = function (string $iso): string {
     <?php else:
         $lastDate = '';
         foreach ($messages as $m):
-            $msgDate = $fmtDate($m['created_at']);
+            $msgDate  = $fmtDate($m['created_at']);
+            $isHelp   = $m['sender'] === 'group';
             if ($msgDate !== $lastDate):
                 $lastDate = $msgDate;
         ?>
             <div class="adm_msg-date"><?= htmlspecialchars($msgDate) ?></div>
         <?php endif; ?>
-        <div class="adm_msg-row adm_msg-row--<?= $m['sender'] ?>">
-            <div class="adm_msg-bubble adm_msg-bubble--<?= $m['sender'] ?>">
+
+        <?php if ($isHelp): ?>
+        <div style="margin:6px 0;padding:10px 14px;background:#fef2f2;border:1.5px solid #fca5a5;
+                    border-radius:10px;display:flex;align-items:flex-start;gap:10px;">
+            <span style="font-size:18px;flex-shrink:0;">🆘</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:11.5px;font-weight:700;color:#991b1b;margin-bottom:3px;">
+                    HILFEANFRAGE · <?= htmlspecialchars($m['group_name'] ?? 'Gruppe') ?>
+                </div>
+                <div style="font-size:13.5px;color:#7f1d1d;">
+                    <?= nl2br(htmlspecialchars($m['body'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8')) ?>
+                </div>
+                <div style="font-size:11px;color:#b91c1c;margin-top:4px;font-family:monospace;">
+                    <?= $fmtTime($m['created_at']) ?>
+                </div>
+            </div>
+            <form method="POST" action="/admin/messages/<?= (int)$m['id'] ?>/delete"
+                  onsubmit="return confirm('Nachricht löschen?')" style="flex-shrink:0;">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                <button type="submit" style="background:none;border:none;cursor:pointer;
+                        color:#b91c1c;font-size:16px;padding:2px 4px;" title="Löschen">×</button>
+            </form>
+        </div>
+        <?php else: ?>
+        <div class="adm_msg-row adm_msg-row--<?= htmlspecialchars($m['sender']) ?>">
+            <div class="adm_msg-bubble adm_msg-bubble--<?= htmlspecialchars($m['sender']) ?>"
+                 style="position:relative;">
                 <?= nl2br(htmlspecialchars($m['body'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8')) ?>
             </div>
-            <div class="adm_msg-meta">
+            <div class="adm_msg-meta" style="display:flex;align-items:center;gap:8px;">
                 <?php if ($m['sender'] === 'judge'): ?>
                     <?= htmlspecialchars($m['judge_name'] ?? 'Schiedsrichter') ?> ·
                 <?php else: ?>
                     Zentrale ·
                 <?php endif; ?>
                 <?= $fmtTime($m['created_at']) ?>
+                <form method="POST" action="/admin/messages/<?= (int)$m['id'] ?>/delete"
+                      onsubmit="return confirm('Nachricht löschen?')" style="display:inline;margin:0;">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                    <button type="submit" style="background:none;border:none;cursor:pointer;
+                            color:var(--wt-text-subtle);font-size:14px;padding:0 2px;line-height:1;"
+                            title="Löschen">×</button>
+                </form>
             </div>
         </div>
+        <?php endif; ?>
         <?php endforeach; ?>
     <?php endif; ?>
 </div>
@@ -91,6 +125,7 @@ $fmtDate = function (string $iso): string {
 (function () {
     const thread    = document.getElementById('msgThread');
     const stationId = <?= (int)$station['id'] ?>;
+    const CSRF      = <?= json_encode($csrf) ?>;
     let lastCount   = <?= count($messages) ?>;
 
     // Beim Laden ans Ende scrollen
@@ -126,19 +161,43 @@ $fmtDate = function (string $iso): string {
                 lastDate = d;
                 html += `<div class="adm_msg-date">${esc(d)}</div>`;
             }
-            const sender = m.sender === 'judge'
+            const escAttr = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const escBody = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const delBtn  = id => `<form method="POST" action="/admin/messages/${id}/delete"
+            onsubmit="return confirm('Nachricht löschen?')" style="display:inline;margin:0;">
+            <input type="hidden" name="csrf_token" value="${escAttr(CSRF)}">
+            <button type="submit" style="background:none;border:none;cursor:pointer;
+                color:var(--wt-text-subtle);font-size:14px;padding:0 2px;line-height:1;"
+                title="Löschen">×</button></form>`;
+
+        if (m.sender === 'group') {
+            html += `
+            <div style="margin:6px 0;padding:10px 14px;background:#fef2f2;border:1.5px solid #fca5a5;
+                        border-radius:10px;display:flex;align-items:flex-start;gap:10px;">
+                <span style="font-size:18px;flex-shrink:0;">🆘</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:11.5px;font-weight:700;color:#991b1b;margin-bottom:3px;">
+                        HILFEANFRAGE · ${escBody(m.group_name || 'Gruppe')}
+                    </div>
+                    <div style="font-size:13.5px;color:#7f1d1d;">${escBody(m.body).replace(/\n/g,'<br>')}</div>
+                    <div style="font-size:11px;color:#b91c1c;margin-top:4px;font-family:monospace;">${fmtTime(m.created_at)}</div>
+                </div>
+                ${delBtn(m.id)}
+            </div>`;
+        } else {
+        const sender = m.sender === 'judge'
                 ? esc(m.judge_name || 'Schiedsrichter')
                 : 'Zentrale';
-            // Sender als Attributwert escapen, Body nur Text-escapen (keine &quot;)
-        const escAttr = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        const escBody = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         html += `
             <div class="adm_msg-row adm_msg-row--${escAttr(m.sender)}">
                 <div class="adm_msg-bubble adm_msg-bubble--${escAttr(m.sender)}">
                     ${escBody(m.body).replace(/\n/g,'<br>')}
                 </div>
-                <div class="adm_msg-meta">${sender} · ${fmtTime(m.created_at)}</div>
+                <div class="adm_msg-meta" style="display:flex;align-items:center;gap:8px;">
+                    ${sender} · ${fmtTime(m.created_at)} ${delBtn(m.id)}
+                </div>
             </div>`;
+        }
         }
         const wasAtBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 60;
         thread.innerHTML  = html;

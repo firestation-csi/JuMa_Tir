@@ -40,6 +40,20 @@
         </ul>
     </nav>
 
+    <div id="helpBanner" style="display:none;align-items:center;gap:12px;
+         padding:10px 20px;background:#fef2f2;border-bottom:2px solid #fca5a5;
+         font-size:13px;font-weight:600;color:#991b1b;">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style="flex-shrink:0;">
+            <path d="M10 3L2 17h16L10 3z" stroke="#991b1b" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M10 9v4M10 14.5v.5" stroke="#991b1b" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span>🆘 <span id="helpBannerCount">0</span> offene Hilfeanfrage(n) von Gruppen</span>
+        <a href="/admin/messages" style="margin-left:auto;padding:4px 12px;border-radius:6px;
+           background:#991b1b;color:#fff;font-size:12px;text-decoration:none;white-space:nowrap;">
+            → Nachrichten öffnen
+        </a>
+    </div>
+
     <main class="adm_main">
         <h1 class="adm_page-title"><?= htmlspecialchars($title ?? '') ?></h1>
         <?= $content ?? '' ?>
@@ -60,18 +74,27 @@
         });
     })();
 
-    // Nachrichten-Badge
+    // Nachrichten-Badge + Hilfe-Alert
     (function () {
-        const badge = document.getElementById('msgBadge');
-        if (!badge) return;
+        const badge     = document.getElementById('msgBadge');
+        const helpBanner= document.getElementById('helpBanner');
+
         async function checkUnread() {
             try {
                 const res  = await fetch('/api/admin/message-count', { credentials: 'same-origin' });
                 if (!res.ok) return;
-                const data = await res.json();
-                const n    = data.unread || 0;
-                badge.textContent   = n > 9 ? '9+' : (n || '');
-                badge.style.display = n > 0 ? 'inline-flex' : 'none';
+                const json = await res.json();
+                const d    = json.data ?? json;           // Response wraps in {success,data}
+                const n    = (d.unread || 0) + (d.help || 0);
+                if (badge) {
+                    badge.textContent   = n > 9 ? '9+' : (n || '');
+                    badge.style.display = n > 0 ? 'inline-flex' : 'none';
+                }
+                if (helpBanner) {
+                    helpBanner.style.display = d.help > 0 ? 'flex' : 'none';
+                    const cnt = helpBanner.querySelector('#helpBannerCount');
+                    if (cnt) cnt.textContent = d.help;
+                }
             } catch { /* Offline */ }
         }
         checkUnread();

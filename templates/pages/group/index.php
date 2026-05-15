@@ -619,10 +619,16 @@ async function sendHelp() {
     const msg = document.getElementById('gi-help-msg').value.trim();
     btn.disabled = true; btn.textContent = 'Wird gesendet…';
     try {
+        const payload = {
+            token:   groupToken,
+            message: msg,
+            lat:     lastGpsPos?.coords.latitude  ?? null,
+            lng:     lastGpsPos?.coords.longitude ?? null,
+        };
         const res  = await fetch('/api/group/help', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ token: groupToken, message: msg }),
+            body:    JSON.stringify(payload),
         });
         const data = await res.json();
         if (data.success) {

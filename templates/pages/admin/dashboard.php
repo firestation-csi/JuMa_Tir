@@ -71,6 +71,26 @@ $overallPct   = $totalGroups > 0 && $totalStations > 0
     </div>
 </div>
 
+<!-- ── Schnellzugriff ────────────────────────────────── -->
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+    <a href="/admin/stations/routes" class="adm_btn adm_btn--ghost" style="gap:8px;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <path d="M2 13 C4 9 6 7 8 7 C10 7 12 9 14 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="2" cy="13" r="1.5" fill="currentColor"/>
+            <circle cx="8" cy="7" r="1.5" fill="currentColor"/>
+            <circle cx="14" cy="5" r="1.5" fill="currentColor"/>
+        </svg>
+        Stationen · Routen
+    </a>
+    <a href="/admin/groups/tracking" target="_blank" class="adm_btn adm_btn--ghost" style="gap:8px;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <path d="M6 2L2 4v9l4-2 4 2 4-2V2l-4 2-4-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            <path d="M6 2v9M10 4v9" stroke="currentColor" stroke-width="1.4"/>
+        </svg>
+        Gruppen · Live-Tracking
+    </a>
+</div>
+
 <!-- ── Wettbewerb-Status + Fortschritt ───────────────── -->
 <div class="dash_section-row">
     <div class="adm_card dash_comp-card">

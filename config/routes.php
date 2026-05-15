@@ -64,6 +64,7 @@ return [
         '/api/messages/read'             => ['App\Controller\JudgeController', 'markMessagesRead'],
         '/api/sync'                      => ['App\Controller\JudgeController', 'sync'],
         '/admin/messages/{stationId}/send'=> ['App\Controller\AdminMessageController', 'send'],
+        '/admin/messages/{id}/delete'    => ['App\Controller\AdminMessageController', 'deleteMessage'],
         '/admin/login'                   => ['App\Controller\AdminController', 'login'],
         '/admin/logout'                  => ['App\Controller\AdminController', 'logout'],
         '/admin/competition/select'      => ['App\Controller\AdminController', 'selectCompetition'],

@@ -140,6 +140,37 @@ class Message
         return (int)$this->db->lastInsertId();
     }
 
+    /** Nachricht löschen */
+    public function delete(int $id): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM messages WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+
+    /** Anzahl ungelesener Hilfeanfragen (sender = group, read_at IS NULL) */
+    public function countUnreadHelp(): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM messages WHERE sender = 'group' AND read_at IS NULL"
+        );
+        $stmt->execute();
+        return (int)$stmt->fetchColumn();
+    }
+
+    /** Alle ungelesenen Hilfeanfragen mit Stations-Info */
+    public function findUnreadHelp(): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT m.*, s.code AS station_code, s.name AS station_name
+             FROM messages m
+             JOIN stations s ON s.id = m.station_id
+             WHERE m.sender = 'group' AND m.read_at IS NULL
+             ORDER BY m.created_at DESC"
+        );
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     /** Nachricht von der Zentrale speichern */
     public function createFromZentrale(int $stationId, string $body): int
     {
