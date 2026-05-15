@@ -165,7 +165,7 @@ $extraScripts = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/c
             <span class="adm_eyebrow">Stationsranglisten</span>
         </div>
         <?php foreach ($stationScores as $si => $sg): ?>
-        <div class="res_accordion <?= $si === 0 ? 'res_accordion--open' : '' ?>">
+        <div class="res_accordion">
             <button class="res_accordion__head" data-acc="acc-<?= $sg['station_id'] ?>">
                 <span style="font-weight:700;">
                     Station <?= htmlspecialchars($sg['station_code']) ?> · <?= htmlspecialchars($sg['station_name']) ?>

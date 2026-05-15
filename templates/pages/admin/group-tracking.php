@@ -1,3 +1,4 @@
+<?php $center ??= null; $comp ??= null; ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -147,7 +148,8 @@
         try {
             const res  = await fetch('/api/admin/groups/locations', { credentials: 'same-origin' });
             if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
+            const json = await res.json();
+            const data = json.data ?? json;
             const locs = data.locations || [];
 
             const seen = new Set();
