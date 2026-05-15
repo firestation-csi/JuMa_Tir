@@ -534,11 +534,7 @@ ${textObj('TextSub',
             } else {
                 // Base64-Text (ggf. XML-gewrapped)
                 const text = await resp.text();
-                console.log('[Dymo Preview] Erste 120 Zeichen:', JSON.stringify(text.substring(0, 120)));
-                const xml    = new DOMParser().parseFromString(text, 'text/xml');
-                const xmlErr = xml.querySelector('parsererror');
-                const raw    = xmlErr ? text : (xml.querySelector('string')?.textContent ?? text);
-                const png    = raw.replace(/\s+/g, '');
+                const png  = ct.includes('json') ? JSON.parse(text) : text.replace(/\s+/g, '');
                 if (!png) throw new Error('Leere Vorschau-Antwort');
                 dymoPreviewImg.src = 'data:image/png;base64,' + png;
             }
