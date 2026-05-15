@@ -44,7 +44,7 @@ $oldGesch = $old['geschlecht'] ?? '';
         .reg_input { width: 100%; padding: 10px 12px; border: 1px solid var(--wt-border);
                      border-radius: var(--wt-r-sm); font-family: inherit; font-size: 16px;
                      background: var(--wt-bg); color: var(--wt-text); box-sizing: border-box;
-                     -webkit-appearance: none; }
+                     appearance: none; -webkit-appearance: none; }
         .reg_input:focus { outline: none; border-color: var(--wt-red); }
 
         .reg_radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -134,18 +134,6 @@ $oldGesch = $old['geschlecht'] ?? '';
                        value="<?= $oldName ?>" placeholder="z.B. Gruppe 1" required>
             </div>
 
-            <div class="reg_field">
-                <label class="reg_label">Geschlecht *</label>
-                <div class="reg_radio-group">
-                    <?php foreach (['männlich' => 'Männlich', 'weiblich' => 'Weiblich', 'gemischt' => 'Gemischt'] as $val => $lbl): ?>
-                    <label class="reg_radio">
-                        <input type="radio" name="geschlecht" value="<?= $val ?>"
-                               <?= $oldGesch === $val ? 'checked' : '' ?> required>
-                        <span class="reg_radio__btn"><?= $lbl ?></span>
-                    </label>
-                    <?php endforeach; ?>
-                </div>
-            </div>
         </div>
 
         <!-- Mitglieder -->

@@ -8,17 +8,14 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Feuerwehr;
-use App\Model\Group;
 
 class RegistrationController
 {
     private Feuerwehr $feuerwehrModel;
-    private Group     $groupModel;
 
     public function __construct(private Request $request)
     {
         $this->feuerwehrModel = new Feuerwehr();
-        $this->groupModel     = new Group();
     }
 
     /** GET /anmeldung/{hash} — Formular anzeigen */
@@ -42,13 +39,11 @@ class RegistrationController
 
         $feuerwehrId = (int)$this->request->post('feuerwehr_id', 0) ?: null;
         $name        = trim((string)$this->request->post('name', ''));
-        $geschlecht  = trim((string)$this->request->post('geschlecht', ''));
         $members     = $this->request->post('members', []);
 
         $errors = [];
-        if (empty($name))       $errors[] = 'Gruppenname ist erforderlich.';
-        if (empty($geschlecht)) $errors[] = 'Geschlecht ist erforderlich.';
-        if (!$feuerwehrId)      $errors[] = 'Bitte eine Feuerwehr auswählen.';
+        if (empty($name))  $errors[] = 'Gruppenname ist erforderlich.';
+        if (!$feuerwehrId) $errors[] = 'Bitte eine Feuerwehr auswählen.';
         if (empty($members))    $errors[] = 'Mindestens ein Mitglied ist erforderlich.';
 
         if (!empty($errors)) {
@@ -57,7 +52,7 @@ class RegistrationController
                 'feuerwehren' => $this->feuerwehrModel->findAll(),
                 'hash'        => $hash,
                 'error'       => implode(' ', $errors),
-                'old'         => $this->request->post(),
+                'old'         => $_POST,
             ]);
         }
 
