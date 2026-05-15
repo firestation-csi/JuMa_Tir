@@ -491,6 +491,7 @@ $extraScripts .= <<<JS
             const res  = await fetch(location.href, {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin',
+                cache: 'no-store',
             });
             if (!res.ok) return;
             const json = await res.json();
@@ -529,8 +530,7 @@ $extraScripts .= <<<JS
         }
     }
     setInterval(pollResults, 20_000);
-    const now = new Date();
-    if (tickerTime) tickerTime.textContent = 'aktualisiert ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    if (tickerTime) tickerTime.textContent = 'aktualisiert <?= date('H:i:s') ?>';
 
     // ── CSV Export ─────────────────────────────────────
     document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
