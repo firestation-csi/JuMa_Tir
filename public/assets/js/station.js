@@ -1295,6 +1295,13 @@ function attachHandlers() {
     const chatInput = document.getElementById('chatInput');
     if (chatInput) {
         chatInput.value = state.chatInput;
+        const vp = document.querySelector('meta[name=viewport]');
+        chatInput.addEventListener('focus', () => {
+            if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
+        });
+        chatInput.addEventListener('blur', () => {
+            if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0');
+        });
         chatInput.addEventListener('input', (e) => {
             state.chatInput = e.target.value;
             const btn = document.getElementById('btnChatSend');
