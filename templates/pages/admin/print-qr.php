@@ -203,6 +203,29 @@ $defaultSize = '89x36';
         #dymoSection { display: none; }
         #dymoSection.visible { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
+        /* ── Dymo-Vorschau ── */
+        .prt_dymo-preview {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 16px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .prt_dymo-preview.visible { display: flex; }
+        .prt_dymo-preview img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,.1);
+        }
+        .prt_dymo-preview span {
+            font-size: 11px;
+            color: #888;
+        }
+
         /* ── Print Media ── */
         @media print {
             body { background: white; padding: 0; margin: 0; }
@@ -285,6 +308,11 @@ $defaultSize = '89x36';
 </div>
 
 <div class="prt_dymo-status" id="dymoStatus"></div>
+
+<div class="prt_dymo-preview" id="dymoPreview">
+    <img id="dymoPreviewImg" src="" alt="Dymo-Vorschau">
+    <span>Dymo-Druckvorschau</span>
+</div>
 
 <script>
 (function () {
@@ -491,6 +519,24 @@ ${textObj('TextSub',
         if (!resp.ok) throw new Error(`PrintLabel HTTP ${resp.status}: ${await resp.text()}`);
     }
 
+    const dymoPreviewEl    = document.getElementById('dymoPreview');
+    const dymoPreviewImg   = document.getElementById('dymoPreviewImg');
+    const LABEL_XML        = <?= json_encode($dymoLabelXml) ?>;
+
+    async function updateDymoPreview(printerName) {
+        if (!LABEL_XML || !printerName) return;
+        try {
+            const body = new URLSearchParams({ printerName, labelXml: LABEL_XML, renderParamsXml: '', labelSetXml: '' });
+            const resp = await fetch(`${DYMO_API}/RenderLabel`, { method: 'POST', body });
+            if (!resp.ok) throw new Error(`RenderLabel HTTP ${resp.status}`);
+            const png = await resp.text();
+            dymoPreviewImg.src = 'data:image/png;base64,' + png.trim();
+            dymoPreviewEl.classList.add('visible');
+        } catch (e) {
+            console.warn('Dymo-Vorschau fehlgeschlagen:', e.message);
+        }
+    }
+
     (async () => {
         let printers = [];
         try {
@@ -518,16 +564,19 @@ ${textObj('TextSub',
         btnDymo.disabled = false;
         setDymoStatus('ok', `✓ Dymo WebService · ${printers.length} Drucker verfügbar`);
 
+        // Vorschau laden und bei Druckerwechsel aktualisieren
+        dymoSelect.addEventListener('change', () => updateDymoPreview(dymoSelect.value));
+        updateDymoPreview(dymoSelect.value);
+
         btnDymo.addEventListener('click', async () => {
             btnDymo.disabled = true;
             btnDymo.textContent = 'Druckt…';
 
-            const copies   = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
-            const printer  = dymoSelect.value;
-            const labelXml = <?= json_encode($dymoLabelXml) ?>;
+            const copies  = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
+            const printer = dymoSelect.value;
 
             try {
-                await dymoPrint(printer, labelXml, copies);
+                await dymoPrint(printer, LABEL_XML, copies);
                 btnDymo.disabled = false;
                 btnDymo.innerHTML =
                     '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M3 9l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gedruckt!';
