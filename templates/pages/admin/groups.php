@@ -4,6 +4,10 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Neue Gruppe
     </a>
+    <a href="/admin/groups/tracking" target="_blank" class="adm_btn adm_btn--ghost">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 2L2 4v9l4-2 4 2 4-2V2l-4 2-4-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6 2v9M10 4v9" stroke="currentColor" stroke-width="1.4"/></svg>
+        Live-Tracking
+    </a>
 </div>
 
 <?php if (empty($groups)): ?>

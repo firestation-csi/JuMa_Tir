@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Core\Auth;
+use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Competition;
@@ -25,6 +26,34 @@ class AdminGroupController
         if (!Auth::isAdmin()) {
             Response::redirect('/admin/login');
         }
+    }
+
+    /** Seite: Live-Tracking-Karte */
+    public function tracking(): void
+    {
+        Response::view('pages/admin/group-tracking', ['title' => 'Live-Tracking']);
+    }
+
+    /** API: Letzte bekannte Position je Gruppe */
+    public function liveLocations(): void
+    {
+        $db   = Database::getInstance();
+        $stmt = $db->prepare(
+            'SELECT gl.group_id,
+                    gl.lat, gl.lng, gl.accuracy,
+                    gl.recorded_at,
+                    g.name  AS group_name,
+                    g.num   AS group_num,
+                    g.kreis
+             FROM group_locations gl
+             INNER JOIN `groups` g ON g.id = gl.group_id
+             WHERE gl.id IN (
+                 SELECT MAX(id) FROM group_locations GROUP BY group_id
+             )
+             ORDER BY g.num'
+        );
+        $stmt->execute();
+        Response::json(['locations' => $stmt->fetchAll(), 'ts' => date('H:i:s')]);
     }
 
     /** Liste aller Gruppen */
