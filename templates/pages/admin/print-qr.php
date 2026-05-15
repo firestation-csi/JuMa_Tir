@@ -373,7 +373,7 @@ ${layout(x, y, w, h)}
   <DYMOLabel Version="4">
     <Description>JuMa QR Label</Description>
     <Orientation>Portrait</Orientation>
-    <LabelName>${escXml(s.name)}</LabelName>
+    <LabelName>1933084 Drbl 2-1/4 x 1-1/4 in</LabelName>
     <InitialLength>0</InitialLength>
     <BorderStyle>SolidLine</BorderStyle>
     <DYMORect>
