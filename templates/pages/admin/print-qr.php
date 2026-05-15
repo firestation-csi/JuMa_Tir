@@ -500,18 +500,29 @@ $defaultSize = '89x36';
                 <PrintQuality>Auto</PrintQuality>
             </LabelWriterPrintParams>`;
 
+            const resetBtn = () => {
+                btnDymo.disabled = false;
+                btnDymo.innerHTML =
+                    '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><rect x="1" y="5" width="16" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/></svg> Auf Dymo drucken';
+            };
+
             try {
-                const label = dymo.connect.framework.openLabelXml(labelXml);
-                await label.print(printer, printParamsXml, '');
+                // Offizielle DCF-API: dymo.label.framework.printLabel()
+                // dymo.connect.framework ist Alias für dymo.label.framework im DCF-JS
+                const fw = dymo.label?.framework ?? dymo.connect.framework;
+                if (typeof fw?.printLabel !== 'function') {
+                    throw new Error('printLabel() nicht gefunden – DCF-Version prüfen (erwartet: dymo.label.framework)');
+                }
+                await fw.printLabel(printer, printParamsXml, labelXml, '');
                 btnDymo.disabled = false;
                 btnDymo.innerHTML =
                     '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M3 9l5 5 7-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Gedruckt!';
                 setDymoStatus('ok', `✓ ${copies} Etikett${copies > 1 ? 'en' : ''} gedruckt auf «${printer}»`);
             } catch (err) {
-                btnDymo.disabled = false;
-                btnDymo.innerHTML =
-                    '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><rect x="1" y="5" width="16" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/></svg> Auf Dymo drucken';
-                setDymoStatus('error', `✗ Druckfehler: ${err.message ?? err}`);
+                resetBtn();
+                const msg = err?.message ?? err?.responseText ?? String(err);
+                setDymoStatus('error', `✗ Druckfehler: ${msg}`);
+                console.error('Dymo Druckfehler:', err);
             }
         });
     })();
