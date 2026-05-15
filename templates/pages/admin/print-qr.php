@@ -329,6 +329,7 @@ $defaultSize = '89x36';
 
         return '<' + '?xml version="1.0" encoding="utf-8"?>\n' +
 `<DYMOLabel Version="8">
+  <Description/>
   <PaperOrientation>Landscape</PaperOrientation>
   <Id>Address</Id>
   <IsOutlined>false</IsOutlined>
