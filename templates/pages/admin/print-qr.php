@@ -327,8 +327,8 @@ $defaultSize = '89x36';
         const txtW  = twipW - txtX - pad;
         const mid   = Math.round(twipH / 2);
 
-        return `<?xml version="1.0" encoding="utf-8"?>
-<DieCutLabel Version="8.0" Units="twips" MediaType="Default">
+        return '<' + '?xml version="1.0" encoding="utf-8"?>\n' +
+`<DieCutLabel Version="8.0" Units="twips" MediaType="Default">
   <PaperOrientation>Landscape</PaperOrientation>
   <Id>Address</Id>
   <IsOutlined>false</IsOutlined>
@@ -408,7 +408,7 @@ $defaultSize = '89x36';
     }
 
     // ── Dymo Connect REST-API (kein Framework-JS nötig) ──────
-    const DYMO_API = 'http://localhost:41951/DYMO/DLS/Labeling';
+    const DYMO_API = 'https://localhost:41951/DYMO/DLS/Printing';
 
     async function dymoGetPrinters() {
         const resp = await fetch(`${DYMO_API}/GetPrinters`);
