@@ -830,10 +830,18 @@ async function loadStationsOverview() {
         const data = await apiFetch('/api/stations/overview');
         state.stationsOverview       = data.stations || [];
         state.stationsOverviewLoading = false;
-        // Karte aktualisieren ohne Full-Re-Render
-        if (state.tab === 'live') updateLiveMarkers();
+        if (state.tab === 'live') {
+            if (lMap) {
+                // Karte läuft bereits — nur Marker aktualisieren, kein Re-Render
+                updateLiveMarkers();
+            } else {
+                // Erster Ladevorgang: Re-Render zeigt Map-div, attachHandlers ruft initLiveMap()
+                render();
+            }
+        }
     } catch {
         state.stationsOverviewLoading = false;
+        if (state.tab === 'live') render();
     }
 }
 
