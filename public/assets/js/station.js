@@ -43,11 +43,8 @@ function swStop() {
     swBase   += performance.now() - swStart;
     swMs      = swBase;
     swRunning = false;
-    if (sw.raf) {
-    cancelAnimationFrame(sw.raf);
-    sw.raf = null;
-}
     cancelAnimationFrame(swRaf);
+    swRaf = null;
 }
 function swReset() {
     swStop();
