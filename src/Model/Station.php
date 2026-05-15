@@ -114,4 +114,52 @@ class Station
         $stmt = $this->db->prepare('DELETE FROM stations WHERE id = ?');
         $stmt->execute([$id]);
     }
+
+    /** Alle aktiven Stationen mit aktuell eingecheckten Gruppen (kein Check-out) */
+    public function getStationsWithCurrentGroups(int $competitionId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT
+                s.id   AS station_id,
+                s.code AS station_code,
+                s.name AS station_name,
+                g.id   AS group_id,
+                g.num  AS group_num,
+                g.name AS group_name,
+                g.kreis,
+                l.checked_in
+             FROM stations s
+             LEFT JOIN group_station_log l
+                ON  l.station_id  = s.id
+                AND l.checked_out IS NULL
+             LEFT JOIN `groups` g ON g.id = l.group_id
+             WHERE s.competition_id = ? AND s.active = 1
+             ORDER BY s.code, l.checked_in'
+        );
+        $stmt->execute([$competitionId]);
+        $rows = $stmt->fetchAll();
+
+        $stations = [];
+        foreach ($rows as $row) {
+            $sid = (int)$row['station_id'];
+            if (!isset($stations[$sid])) {
+                $stations[$sid] = [
+                    'id'     => $sid,
+                    'code'   => $row['station_code'],
+                    'name'   => $row['station_name'],
+                    'groups' => [],
+                ];
+            }
+            if ($row['group_id'] !== null) {
+                $stations[$sid]['groups'][] = [
+                    'group_id'   => (int)$row['group_id'],
+                    'group_num'  => $row['group_num'],
+                    'group_name' => $row['group_name'],
+                    'kreis'      => $row['kreis'],
+                    'checked_in' => $row['checked_in'],
+                ];
+            }
+        }
+        return array_values($stations);
+    }
 }

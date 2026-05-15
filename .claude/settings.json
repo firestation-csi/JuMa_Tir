@@ -42,7 +42,8 @@
       "Bash(grep -o '.\\\\{0,400\\\\}_getAddressObjectText.\\\\{0,400\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
       "Bash(powershell -Command 'Get-ChildItem '\\\\''C:\\\\Program Files\\\\'\\\\'' -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '\\\\''*DYMO*'\\\\'' -or $_.Name -like '\\\\''*Dymo*'\\\\'' } | Select-Object FullName')",
       "Bash(grep -o '.\\\\{0,300\\\\}FormattedText.\\\\{0,300\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
-      "Bash(grep -o '.\\\\{0,100\\\\}LineTextSpan.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}TextSpan.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}FontInfo.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}FontName.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}IsBold.\\\\{0,100\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")"
+      "Bash(grep -o '.\\\\{0,100\\\\}LineTextSpan.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}TextSpan.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}FontInfo.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}FontName.\\\\{0,100\\\\}\\\\|.\\\\{0,100\\\\}IsBold.\\\\{0,100\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "PowerShell(Get-ChildItem -Path \"e:\\\\GIT\\\\JuMa_Tir\" -Recurse -Directory | Where-Object {$_.Name -in @\\('public', 'templates', 'src'\\)} | Select-Object -ExpandProperty FullName | Sort-Object)"
     ]
   }
 }

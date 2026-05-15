@@ -343,6 +343,21 @@ class JudgeController
         return (int)$judge['station_id'];
     }
 
+    /** API: Alle Stationen mit aktuell eingecheckten Gruppen */
+    public function stationsOverview(): void
+    {
+        if (!Auth::isJudge()) Response::error('Nicht angemeldet', 401);
+
+        $judge = $this->judgeModel->findById((int)Auth::getJudgeId());
+        if (!$judge) Response::error('Schiedsrichter nicht gefunden', 404);
+
+        $station = $this->stationModel->findById((int)$judge['station_id']);
+        if (!$station) Response::error('Station nicht gefunden', 404);
+
+        $stations = $this->stationModel->getStationsWithCurrentGroups((int)$station['competition_id']);
+        Response::json(['stations' => $stations]);
+    }
+
     /** API: Offline-Queue synchronisieren */
     public function sync(): void
     {

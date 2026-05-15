@@ -180,8 +180,10 @@ const state = {
     messages:        [],
     unreadCount:     D.unreadCount || 0,
     chatInput:       '',
-    allGroups:       null,
-    allGroupsLoading: false,
+    allGroups:              null,
+    allGroupsLoading:       false,
+    stationsOverview:       null,
+    stationsOverviewLoading: false,
 };
 
 function emptyScoring() {
@@ -321,6 +323,7 @@ function tabBarHtml() {
     return `<div class="wt_tabbar">
         ${t('aktiv',    svgFlame(),   'Aktiv')}
         ${t('verlauf',  svgList(),    'Verlauf')}
+        ${t('live',     svgGrid(),    'Live')}
         ${t('zentrale', svgChat(),    'Zentrale', state.unreadCount)}
         ${t('profil',   svgUser(),    'Profil')}
     </div>`;
@@ -817,6 +820,89 @@ function renderHistory() {
         ${tabBarHtml()}`;
 }
 
+async function loadStationsOverview() {
+    if (state.stationsOverviewLoading) return;
+    setState({ stationsOverviewLoading: true });
+    try {
+        const data = await apiFetch('/api/stations/overview');
+        setState({ stationsOverview: data.stations || [], stationsOverviewLoading: false });
+    } catch {
+        setState({ stationsOverview: state.stationsOverview || [], stationsOverviewLoading: false });
+    }
+}
+
+function renderStationsOverview() {
+    if (!state.stationsOverview && !state.stationsOverviewLoading) {
+        setTimeout(loadStationsOverview, 0);
+    }
+
+    const stations = state.stationsOverview || [];
+
+    const stationCardHtml = (s) => {
+        const isOwn   = s.id === D.stationId;
+        const groups  = s.groups || [];
+        const border  = isOwn ? 'border:2px solid var(--wt-accent,#3b82f6);' : '';
+        const groupRows = groups.length === 0
+            ? `<div style="padding:10px 14px;font-size:12.5px;color:var(--wt-text-subtle);font-style:italic;">Keine Gruppe anwesend</div>`
+            : groups.map(g => `
+                <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--wt-border);">
+                    <div class="wt_group-num" style="width:32px;height:32px;font-size:12px;background:var(--wt-ok-soft);color:var(--wt-ok);">#${esc(g.group_num)}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(g.group_name)}</div>
+                        ${g.kreis ? `<div style="font-size:11.5px;color:var(--wt-text-subtle);">${esc(g.kreis)}</div>` : ''}
+                    </div>
+                </div>`).join('');
+
+        return `
+        <div class="wt_card" style="overflow:hidden;${border}">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
+                <span class="wt_station-chip" style="flex-shrink:0;"><span class="wt_dot"></span>${esc(s.code)}</span>
+                <div style="flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.name)}</div>
+                <span style="flex-shrink:0;font-size:11.5px;font-weight:700;color:${groups.length>0?'var(--wt-ok)':'var(--wt-text-subtle)'};">
+                    ${groups.length > 0 ? groups.length + (groups.length===1?' Gruppe':' Gruppen') : '–'}
+                </span>
+            </div>
+            ${groupRows}
+        </div>`;
+    };
+
+    const refreshBtn = `
+        <button class="wt_btn wt_btn--ghost" id="btnRefreshOverview"
+                style="height:34px;padding:0 14px;font-size:12.5px;gap:6px;">
+            ${svgRefresh()} Aktualisieren
+        </button>`;
+
+    return `
+        ${topHeaderHtml()}
+        <div class="wt_scroll wt_fade-in">
+            <div class="wt_section" style="padding-top:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                        <div class="wt_eyebrow">Alle Stationen · Live</div>
+                        <h2 class="wt_h1" style="margin-top:4px;">${stations.length} Stationen.</h2>
+                    </div>
+                    ${refreshBtn}
+                </div>
+            </div>
+
+            ${state.stationsOverviewLoading ? `
+            <div class="wt_section">
+                <div class="wt_caption" style="text-align:center;padding:32px 0;">Lade Stationsübersicht…</div>
+            </div>` : ''}
+
+            ${!state.stationsOverviewLoading && stations.length === 0 ? `
+            <div class="wt_section">
+                <div class="wt_caption" style="text-align:center;padding:32px 0;">Keine Stationen gefunden.</div>
+            </div>` : ''}
+
+            ${stations.length > 0 ? `
+            <div class="wt_section" style="display:flex;flex-direction:column;gap:10px;">
+                ${stations.map(stationCardHtml).join('')}
+            </div>` : ''}
+        </div>
+        ${tabBarHtml()}`;
+}
+
 async function loadAllGroups() {
     if (state.allGroupsLoading) return;
     setState({ allGroupsLoading: true });
@@ -984,6 +1070,7 @@ function render() {
 
     let html;
     if (state.tab === 'verlauf')     html = renderHistory();
+    else if (state.tab === 'live')    html = renderStationsOverview();
     else if (state.tab === 'zentrale') html = renderChat();
     else if (state.tab === 'profil') html = renderProfile();
     else switch (state.route) {
@@ -1005,17 +1092,27 @@ function attachHandlers() {
     root.querySelectorAll('[data-tab]').forEach(btn =>
         btn.addEventListener('click', () => {
             const newTab = btn.dataset.tab;
-            // Beim Öffnen des Chat-Tabs: als gelesen markieren + Nachrichten laden
             if (newTab === 'zentrale') {
                 if (state.unreadCount > 0) {
                     apiFetch('/api/messages/read', { method: 'POST' }).catch(() => {});
                 }
                 loadMessages();
                 setState({ tab: newTab, route: 'dashboard', unreadCount: 0 });
+            } else if (newTab === 'live') {
+                // Immer frisch laden beim Tab-Wechsel
+                state.stationsOverview = null;
+                setState({ tab: newTab, route: 'dashboard' });
             } else {
                 setState({ tab: newTab, route: 'dashboard' });
             }
         }));
+
+    // Live-Tab: Aktualisieren-Button
+    const btnRefresh = document.getElementById('btnRefreshOverview');
+    if (btnRefresh) btnRefresh.addEventListener('click', () => {
+        state.stationsOverview = null;
+        loadStationsOverview();
+    });
 
     // Aktiv Tab: Score-Cards klickbar
     root.querySelectorAll('[data-score-idx]').forEach(btn =>
@@ -1427,7 +1524,9 @@ const svgFlame = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="no
 const svgList  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 6h14M4 11h14M4 16h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
 const svgUser  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const svgChat  = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 4h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H7l-4 3V5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
-const svgSend  = () => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M15 9L3 3l3 6-3 6 12-6z" fill="currentColor"/></svg>`;
+const svgSend    = () => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M15 9L3 3l3 6-3 6 12-6z" fill="currentColor"/></svg>`;
+const svgGrid    = () => `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="12" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="12" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="12" y="12" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>`;
+const svgRefresh = () => `<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M16 9A7 7 0 1 1 9 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 2l3 3-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 // ── Start ──────────────────────────────────────
 render();
@@ -1438,3 +1537,8 @@ window.dispatchEvent(new Event('wt:request-queue-count'));
 // Nachrichten-Polling alle 20 Sekunden
 loadMessages();
 setInterval(loadMessages, 20_000);
+
+// Stationsübersicht alle 30 Sekunden aktualisieren wenn Tab aktiv
+setInterval(() => {
+    if (state.tab === 'live') loadStationsOverview();
+}, 30_000);

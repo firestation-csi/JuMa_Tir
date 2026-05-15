@@ -39,6 +39,7 @@ return [
         '/admin/users'                                           => ['App\Controller\AdminUserController', 'index'],
         '/admin/users/new'                                       => ['App\Controller\AdminUserController', 'create'],
         '/admin/users/{id}/edit'                                 => ['App\Controller\AdminUserController', 'edit'],
+        '/api/stations/overview'                                 => ['App\Controller\JudgeController', 'stationsOverview'],
         '/api/station/groups'                                    => ['App\Controller\JudgeController', 'stationGroups'],
         '/api/messages'                                          => ['App\Controller\JudgeController', 'getMessages'],
         '/api/station/{id}'                                      => ['App\Controller\StationController', 'show'],
