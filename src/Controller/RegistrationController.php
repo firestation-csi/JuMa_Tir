@@ -73,7 +73,6 @@ class RegistrationController
         $stmt->execute([
             (int)$competition['id'],
             $name,
-            $geschlecht,
             $qrToken,
             $kbmArea,
             $feuerwehrId,
