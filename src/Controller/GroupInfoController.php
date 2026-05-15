@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Model\Competition;
@@ -194,6 +195,27 @@ class GroupInfoController
         );
         $stmt->execute([':g' => (int)$group['id'], ':lat' => $lat, ':lng' => $lng, ':acc' => $acc]);
         Response::json(null);
+    }
+
+    /** POST /api/group/announcements — Aktive Ansagen für diesen Wettbewerb */
+    public function announcements(): void
+    {
+        $data  = $this->request->json();
+        $token = trim((string)($data['token'] ?? ''));
+        if (!$token) Response::error('Kein Token');
+
+        $group = (new Group())->findByToken($token);
+        if (!$group) Response::error('Gruppe nicht gefunden', 404);
+
+        $stmt = Database::getInstance()->prepare(
+            'SELECT id, body, created_at
+             FROM group_announcements
+             WHERE competition_id = ?
+             ORDER BY created_at DESC
+             LIMIT 20'
+        );
+        $stmt->execute([(int)$group['competition_id']]);
+        Response::json(['announcements' => $stmt->fetchAll()]);
     }
 
     /** POST /api/group/help — Hilfeanfrage an Admin-Messageboard */

@@ -43,6 +43,15 @@
 .gi_tracking-btn { transition: background .2s; }
 .gi_tracking-btn--active { background: var(--wt-ok) !important; color: #fff !important; }
 
+/* Ansagen-Panel */
+.gi_announce-panel { background: var(--wt-warn-soft); border-left: 3px solid var(--wt-warn); border-radius: 0 var(--wt-r-sm) var(--wt-r-sm) 0; }
+.gi_announce-item  { padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,.06); font-size: 13px; color: var(--wt-text); }
+.gi_announce-item:last-child { border-bottom: 0; }
+.gi_announce-ts    { font-size: 11px; color: var(--wt-text-subtle); margin-top: 2px; font-family: monospace; }
+
+/* QR-Modal */
+.gi_qr-btn { padding: 0 10px; height: 32px; border-radius: var(--wt-r-sm); }
+
 /* Toast-Benachrichtigung */
 .gi_toast {
     position: fixed;
@@ -68,7 +77,7 @@
 
 <!-- Sticky Header -->
 <header class="gi_header">
-    <span class="gi_header__logo">JuMa</span>
+    <span class="gi_header__logo">KFV Tirschenreuth</span>
     <span class="gi_header__title" id="gi-header-title">Gruppeninfo</span>
     <button class="wt_btn wt_btn--ghost wt_btn--sm" id="gi-reset-btn"
             style="display:none;flex-shrink:0;" onclick="resetScanner()">↩ Neu</button>
@@ -95,6 +104,10 @@
                 <div id="gi-lw-badge" class="wt_badge" style="display:none;"></div>
                 <span class="wt_caption" id="gi-comp-name" style="color:var(--wt-text-muted);"></span>
                 <div style="margin-left:auto;display:flex;gap:8px;">
+                    <button class="wt_btn wt_btn--ghost wt_btn--sm gi_qr-btn"
+                            id="gi-qr-show-btn" onclick="showQrModal()" title="QR-Code anzeigen">
+                        <svg width="16" height="16" viewBox="0 0 22 22" fill="none"><rect x="2" y="2" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="2" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="2" y="13" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.6"/><rect x="4.5" y="4.5" width="2" height="2" fill="currentColor"/><rect x="15.5" y="4.5" width="2" height="2" fill="currentColor"/><rect x="4.5" y="15.5" width="2" height="2" fill="currentColor"/></svg>
+                    </button>
                     <button class="wt_btn wt_btn--ghost wt_btn--sm gi_tracking-btn"
                             id="gi-gps-btn" onclick="toggleGps()">📍 GPS</button>
                     <button class="wt_btn wt_btn--ghost wt_btn--sm gi_tracking-btn"
@@ -141,6 +154,15 @@
             </div>
         </div>
 
+        <!-- Ansagen vom Wertungsbüro -->
+        <div class="wt_card gi_announce-panel" id="gi-announce-card" style="display:none;padding:0;overflow:hidden;">
+            <div style="padding:10px 14px 8px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:16px;">📢</span>
+                <span class="wt_eyebrow" style="color:var(--wt-warn);">Meldungen vom Wertungsbüro</span>
+            </div>
+            <div id="gi-announce-list"></div>
+        </div>
+
         <!-- Stationen -->
         <div class="wt_card">
             <div style="padding:12px 16px 0;" class="wt_eyebrow">Stationen</div>
@@ -181,6 +203,7 @@
 
 let scanner          = null;
 let groupToken       = null;
+let rawQrValue       = null;
 let mapInstance      = null;
 let gpsWatchId       = null;
 let gpsMarker        = null;
@@ -188,8 +211,31 @@ let trackingTimer    = null;
 let lastGpsPos       = null;
 let trackingOn       = false;
 let pollTimer        = null;
-let lastCheckedOut   = null;  // checked_out der letzten Station beim letzten Poll
-let lastStationId    = null;  // station_id der letzten Station beim letzten Poll
+let announceTimer     = null;
+let seenAnnounceIds   = new Set();
+let firstAnnouncePoll = true;
+let lastCheckedOut   = null;
+let lastStationId    = null;
+
+// ── Wake Lock ─────────────────────────────────────────
+let wakeLock = null;
+
+async function acquireWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch {}
+}
+
+function releaseWakeLock() {
+    wakeLock?.release().catch(() => {});
+    wakeLock = null;
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && groupToken) acquireWakeLock();
+});
 
 // ── Formatierung ──────────────────────────────────────
 const fmtDist = m => !m ? '–' : m >= 1000 ? (m/1000).toFixed(1)+' km' : m+' m';
@@ -212,6 +258,7 @@ async function onScanSuccess(raw) {
     try { scanner.clear(); }     catch {}
     scanner = null;
 
+    rawQrValue = raw;
     let token = raw;
     try { const u = new URL(raw); token = u.searchParams.get('token') || raw; } catch {}
     loadGroupInfo(token.trim());
@@ -251,6 +298,11 @@ function resetScanner() {
     stopGps();
     stopTracking();
     stopPolling();
+    stopAnnouncePolling();
+    releaseWakeLock();
+    seenAnnounceIds   = new Set();
+    firstAnnouncePoll = true;
+    rawQrValue        = null;
     document.getElementById('gi-result').style.display      = 'none';
     document.getElementById('gi-scanner-card').style.display = 'block';
     document.getElementById('gi-scan-error').style.display   = 'none';
@@ -306,6 +358,8 @@ function renderResult(data) {
     lastCheckedOut = data.last_station?.checked_out ?? null;
     lastStationId  = data.last_station?.id          ?? null;
     startPolling();
+    startAnnouncePolling();
+    acquireWakeLock();
 }
 
 function updateDistDisplay(covered, remaining, total) {
@@ -582,6 +636,88 @@ async function sendHelp() {
         btn.disabled = false; btn.textContent = '🆘 Hilfe anfordern';
         alert('Verbindungsfehler');
     }
+}
+
+// ── QR-Code Modal ─────────────────────────────────────
+function showQrModal() {
+    if (!groupToken) return;
+    const qrData = encodeURIComponent(rawQrValue || groupToken);
+    const d = document.createElement('dialog');
+    d.style.cssText = 'border:0;border-radius:20px;padding:0;background:var(--wt-surface);color:var(--wt-text);width:300px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,.22);';
+    d.innerHTML = `
+        <div style="padding:16px 16px 0;text-align:center;">
+            <div style="font-weight:800;font-size:15px;margin-bottom:14px;">QR-Code der Gruppe</div>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${qrData}"
+                 width="220" height="220" style="display:block;margin:0 auto;border-radius:10px;"
+                 alt="QR-Code">
+            <div style="font-size:11px;color:var(--wt-text-subtle);margin-top:10px;font-family:monospace;
+                        word-break:break-all;padding:0 8px;">${groupToken}</div>
+        </div>
+        <div style="padding:14px 16px;">
+            <button style="width:100%;height:44px;border:1px solid var(--wt-border);
+                           background:var(--wt-surface-alt);border-radius:12px;
+                           font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;
+                           color:var(--wt-text);"
+                    onclick="this.closest('dialog').close()">Schließen</button>
+        </div>`;
+    document.body.appendChild(d);
+    d.showModal();
+    d.addEventListener('close', () => d.remove());
+}
+
+// ── Ansagen vom Wertungsbüro ──────────────────────────
+function startAnnouncePolling() {
+    stopAnnouncePolling();
+    pollAnnouncements();
+    announceTimer = setInterval(pollAnnouncements, 30_000);
+}
+
+function stopAnnouncePolling() {
+    if (announceTimer) { clearInterval(announceTimer); announceTimer = null; }
+}
+
+async function pollAnnouncements() {
+    if (!groupToken) return;
+    try {
+        const res  = await fetch('/api/group/announcements', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ token: groupToken }),
+        });
+        const json = await res.json();
+        if (!json.success) return;
+        const items = (json.data?.announcements ?? []);
+
+        const card = document.getElementById('gi-announce-card');
+        const list = document.getElementById('gi-announce-list');
+        if (!card || !list) return;
+
+        if (items.length === 0) { card.style.display = 'none'; return; }
+
+        card.style.display = 'block';
+        list.innerHTML = items.map(a => {
+            const ts = a.created_at
+                ? new Date(a.created_at.replace(' ', 'T'))
+                    .toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+                : '';
+            return `<div class="gi_announce-item">
+                <div>${a.body}</div>
+                <div class="gi_announce-ts">${ts}</div>
+            </div>`;
+        }).join('');
+
+        // Beim ersten Poll alle Ansagen still als gesehen markieren
+        // Danach: Toast für wirklich neue Einträge
+        let hasNew = false;
+        items.forEach(a => {
+            if (!seenAnnounceIds.has(a.id)) {
+                seenAnnounceIds.add(a.id);
+                if (!firstAnnouncePoll) hasNew = true;
+            }
+        });
+        firstAnnouncePoll = false;
+        if (hasNew) showToast('📢 Neue Meldung vom Wertungsbüro');
+    } catch {}
 }
 
 // ── Polling: Station-Status überwachen ───────────────
