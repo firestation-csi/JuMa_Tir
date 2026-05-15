@@ -21,7 +21,8 @@
       "Bash(gh api *)",
       "Bash(python -c \"import sys,json; [print\\(x['path']\\) for x in json.load\\(sys.stdin\\)['tree'] if 'JavaScript' in x['path']]\")",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:developers.dymo.com)"
+      "WebFetch(domain:developers.dymo.com)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/dymosoftware/dymo-connect-framework/master/dymo.connect.framework.js\" -o \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")"
     ]
   }
 }

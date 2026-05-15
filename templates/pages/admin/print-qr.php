@@ -407,59 +407,41 @@ $defaultSize = '89x36';
 </DieCutLabel>`;
     }
 
-    /** Dymo Connect Framework dynamisch laden (aus laufender Dymo Connect App) */
-    function loadDymoFramework() {
-        return new Promise((resolve, reject) => {
-            // DCF JS wird von der lokal laufenden Dymo Connect App bereitgestellt
-            const urls = [
-                'https://localhost:41951/DYMO/DLS/Labeling/js/dymo.connect.framework.js',
-                'http://localhost:41951/DYMO/DLS/Labeling/js/dymo.connect.framework.js',
-                'https://localhost:41952/DYMO/DLS/Labeling/js/dymo.connect.framework.js',
-            ];
-            let idx = 0;
-            function tryNext() {
-                if (idx >= urls.length) { reject(new Error('DCF nicht erreichbar')); return; }
-                const s = document.createElement('script');
-                s.src = urls[idx++];
-                s.onload  = resolve;
-                s.onerror = tryNext;
-                document.head.appendChild(s);
-            }
-            tryNext();
-        });
-    }
-
     (async () => {
+        // Framework-JS liegt lokal im Projekt — kein localhost-Laden nötig
         try {
-            await loadDymoFramework();
-        } catch {
-            setDymoStatus('error',
-                '⚠ Dymo Connect WebService nicht erreichbar. ' +
-                'Läuft der Dienst bereits? Dann muss das Zertifikat einmalig im Browser akzeptiert werden: ' +
-                '<a href="https://localhost:41951" target="_blank" style="color:inherit;font-weight:600;">https://localhost:41951 öffnen</a>' +
-                ' → Erweitert → Trotzdem fortfahren → diesen Tab neu laden. ' +
-                'Läuft der Dienst nicht: ' +
-                '<a href="https://www.dymo.com/de-DE/dymo-connect-for-desktop.html" target="_blank" style="color:inherit;font-weight:600;">Software herunterladen</a>' +
-                ' → starten → neu laden.');
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = '/assets/js/dymo.connect.framework.js';
+                s.onload  = resolve;
+                s.onerror = () => reject(new Error('Datei nicht geladen'));
+                document.head.appendChild(s);
+            });
+        } catch (e) {
+            setDymoStatus('error', `⚠ Dymo Framework konnte nicht geladen werden: ${e.message}`);
             return;
         }
 
-        // Framework initialisieren (DCF API)
-        try {
-            await dymo.connect.framework.init();
-        } catch {
-            // init() ist bei manchen DCF-Versionen nicht erforderlich — ignorieren
+        // Namespace: die Datei exponiert dymo.label.framework
+        const fw = dymo?.label?.framework;
+        if (!fw) {
+            setDymoStatus('error', '⚠ dymo.label.framework nicht verfügbar — Framework-Datei prüfen.');
+            return;
         }
 
-        // Drucker auflisten
+        // Framework initialisieren
+        try { await fw.init(); } catch { /* bei manchen Versionen nicht nötig */ }
+
+        // Drucker auflisten — Dymo Connect WebService muss auf localhost:41951 laufen
         let printers = [];
         try {
-            const list = dymo.connect.framework.getPrinters();
-            // DCF liefert Array von Printer-Objekten: { name, modelName, isConnected, isLocal }
+            const list = fw.getPrinters();
             printers = (Array.isArray(list) ? list : [])
                 .filter(p => p.isConnected !== false);
         } catch (e) {
-            setDymoStatus('error', `⚠ Drucker konnten nicht geladen werden: ${e.message}`);
+            setDymoStatus('error',
+                `⚠ Drucker konnten nicht geladen werden: ${e.message} — ` +
+                'Dymo Connect WebService muss laufen.');
             return;
         }
 
@@ -507,11 +489,8 @@ $defaultSize = '89x36';
             };
 
             try {
-                // Offizielle DCF-API: dymo.label.framework.printLabel()
-                // dymo.connect.framework ist Alias für dymo.label.framework im DCF-JS
-                const fw = dymo.label?.framework ?? dymo.connect.framework;
-                if (typeof fw?.printLabel !== 'function') {
-                    throw new Error('printLabel() nicht gefunden – DCF-Version prüfen (erwartet: dymo.label.framework)');
+                if (typeof fw.printLabel !== 'function') {
+                    throw new Error('fw.printLabel() nicht verfügbar');
                 }
                 await fw.printLabel(printer, printParamsXml, labelXml, '');
                 btnDymo.disabled = false;
