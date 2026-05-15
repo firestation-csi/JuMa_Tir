@@ -369,9 +369,13 @@ $defaultSize = '89x36';
             await loadDymoFramework();
         } catch {
             setDymoStatus('error',
-                '⚠ Dymo Connect nicht gefunden. ' +
+                '⚠ Dymo Connect WebService nicht erreichbar. ' +
+                'Läuft der Dienst bereits? Dann muss das Zertifikat einmalig im Browser akzeptiert werden: ' +
+                '<a href="https://localhost:41951" target="_blank" style="color:inherit;font-weight:600;">https://localhost:41951 öffnen</a>' +
+                ' → Erweitert → Trotzdem fortfahren → diesen Tab neu laden. ' +
+                'Läuft der Dienst nicht: ' +
                 '<a href="https://www.dymo.com/de-DE/dymo-connect-for-desktop.html" target="_blank" style="color:inherit;font-weight:600;">Software herunterladen</a>' +
-                ' → starten → Seite neu laden.');
+                ' → starten → neu laden.');
             return;
         }
 
