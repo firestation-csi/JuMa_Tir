@@ -32,7 +32,9 @@
       "Bash(grep -o '.\\\\{0,100\\\\}application.x-www.\\\\{0,200\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
       "Bash(grep -o '\"printerName=\\\\|\"PrinterName=\\\\|printerName=%\\\\|printerName=\\\\\\\\\\\\|PrintLabel.*printerName\\\\|sendPost.*printerName' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
       "Bash(grep -o '.\\\\{0,30\\\\}syncFindWebService.\\\\{0,30\\\\}\\\\|.\\\\{0,30\\\\}callService.\\\\{0,30\\\\}\\\\|.\\\\{0,30\\\\}sendPost.\\\\{0,30\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
-      "Bash(grep -o '.\\\\{0,500\\\\}PrintLabel.\\\\{0,500\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")"
+      "Bash(grep -o '.\\\\{0,500\\\\}PrintLabel.\\\\{0,500\\\\}' \"e:/GIT/JuMa_Tir/public/assets/js/dymo.connect.framework.js\")",
+      "Bash(grep -E '\"[A-Z][a-z]{2,}\"')",
+      "Bash(grep -v '\"[A-Z]{2,}\\\\|Aborting\\\\|Active\\\\|Address\\\\|Android\\\\|Animation\\\\|Apple\\\\|Arial\\\\|Assertion\\\\|Barcode\\\\|Below\\\\|Chrome\\\\|Circular\\\\|Coast\\\\|Continuous\\\\|Counter\\\\|Custom\\\\|Already\\\\|Above\\\\|Canvas\\\\|Caption\\\\|Center\\\\|Canceled\\\\|Chain\\\\|Copies')"
     ]
   }
 }
