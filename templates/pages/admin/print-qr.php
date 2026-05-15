@@ -333,7 +333,7 @@ $defaultSize = '89x36';
   <Orientation>Landscape</Orientation>
   <LabelName>Address</LabelName>
   <InitialLength>0</InitialLength>
-  <BorderStyle>None</BorderStyle>
+  <BorderStyle>Solid</BorderStyle>
   <PaperName>${paperName}</PaperName>
   <DrawCommands/>
   <ObjectInfo>
