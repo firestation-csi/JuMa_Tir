@@ -10,10 +10,12 @@
     <title><?= htmlspecialchars($title ?? 'Schiedsrichter') ?></title>
     <link rel="stylesheet" href="/assets/css/main.css">
     <link rel="stylesheet" href="/assets/css/judge.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="manifest" href="/manifest.json">
 </head>
 <body class="wt_body wt_body--judge">
     <?= $content ?? '' ?>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/assets/js/app.js" type="module"></script>
     <script src="/assets/js/offline.js" type="module"></script>
 </body>

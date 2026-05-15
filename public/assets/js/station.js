@@ -820,14 +820,20 @@ function renderHistory() {
         ${tabBarHtml()}`;
 }
 
+// ── Live-Karte (Leaflet) ──────────────────────
+let lMap = null;
+
 async function loadStationsOverview() {
     if (state.stationsOverviewLoading) return;
     setState({ stationsOverviewLoading: true });
     try {
         const data = await apiFetch('/api/stations/overview');
-        setState({ stationsOverview: data.stations || [], stationsOverviewLoading: false });
+        state.stationsOverview       = data.stations || [];
+        state.stationsOverviewLoading = false;
+        // Karte aktualisieren ohne Full-Re-Render
+        if (state.tab === 'live') updateLiveMarkers();
     } catch {
-        setState({ stationsOverview: state.stationsOverview || [], stationsOverviewLoading: false });
+        state.stationsOverviewLoading = false;
     }
 }
 
@@ -836,71 +842,138 @@ function renderStationsOverview() {
         setTimeout(loadStationsOverview, 0);
     }
 
-    const stations = state.stationsOverview || [];
+    const withCoords = (state.stationsOverview || []).filter(s => s.lat !== null && s.lng !== null);
+    const dataReady  = state.stationsOverview !== null && !state.stationsOverviewLoading;
 
-    const stationCardHtml = (s) => {
-        const isOwn   = s.id === D.stationId;
-        const groups  = s.groups || [];
-        const border  = isOwn ? 'border:2px solid var(--wt-accent,#3b82f6);' : '';
-        const groupRows = groups.length === 0
-            ? `<div style="padding:10px 14px;font-size:12.5px;color:var(--wt-text-subtle);font-style:italic;">Keine Gruppe anwesend</div>`
-            : groups.map(g => `
-                <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--wt-border);">
-                    <div class="wt_group-num" style="width:32px;height:32px;font-size:12px;background:var(--wt-ok-soft);color:var(--wt-ok);">#${esc(g.group_num)}</div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(g.group_name)}</div>
-                        ${g.kreis ? `<div style="font-size:11.5px;color:var(--wt-text-subtle);">${esc(g.kreis)}</div>` : ''}
-                    </div>
-                </div>`).join('');
-
-        return `
-        <div class="wt_card" style="overflow:hidden;${border}">
-            <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
-                <span class="wt_station-chip" style="flex-shrink:0;"><span class="wt_dot"></span>${esc(s.code)}</span>
-                <div style="flex:1;min-width:0;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.name)}</div>
-                <span style="flex-shrink:0;font-size:11.5px;font-weight:700;color:${groups.length>0?'var(--wt-ok)':'var(--wt-text-subtle)'};">
-                    ${groups.length > 0 ? groups.length + (groups.length===1?' Gruppe':' Gruppen') : '–'}
-                </span>
-            </div>
-            ${groupRows}
+    let inner;
+    if (state.stationsOverviewLoading) {
+        inner = `<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--wt-text-subtle);">
+            <div class="wt_sync-spinner"></div>
+            <span class="wt_caption">Lade Stationen…</span>
         </div>`;
-    };
+    } else if (dataReady && withCoords.length === 0) {
+        inner = `<div style="flex:1;display:flex;align-items:center;justify-content:center;">
+            <span class="wt_caption">Für keine Station sind Koordinaten hinterlegt.</span>
+        </div>`;
+    } else {
+        inner = `<div id="wt-live-map" style="flex:1;position:relative;z-index:0;"></div>`;
+    }
 
-    const refreshBtn = `
-        <button class="wt_btn wt_btn--ghost" id="btnRefreshOverview"
-                style="height:34px;padding:0 14px;font-size:12.5px;gap:6px;">
-            ${svgRefresh()} Aktualisieren
-        </button>`;
+    const refreshBtn = dataReady ? `
+        <div style="position:absolute;bottom:calc(56px + env(safe-area-inset-bottom));right:12px;z-index:500;">
+            <button id="btnRefreshOverview" style="
+                height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--wt-border);
+                background:var(--wt-surface);color:var(--wt-text);font-family:inherit;
+                font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;
+                box-shadow:0 2px 8px rgba(0,0,0,.12);">
+                ${svgRefresh()} Aktualisieren
+            </button>
+        </div>` : '';
 
     return `
         ${topHeaderHtml()}
-        <div class="wt_scroll wt_fade-in">
-            <div class="wt_section" style="padding-top:16px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <div>
-                        <div class="wt_eyebrow">Alle Stationen · Live</div>
-                        <h2 class="wt_h1" style="margin-top:4px;">${stations.length} Stationen.</h2>
-                    </div>
-                    ${refreshBtn}
-                </div>
-            </div>
-
-            ${state.stationsOverviewLoading ? `
-            <div class="wt_section">
-                <div class="wt_caption" style="text-align:center;padding:32px 0;">Lade Stationsübersicht…</div>
-            </div>` : ''}
-
-            ${!state.stationsOverviewLoading && stations.length === 0 ? `
-            <div class="wt_section">
-                <div class="wt_caption" style="text-align:center;padding:32px 0;">Keine Stationen gefunden.</div>
-            </div>` : ''}
-
-            ${stations.length > 0 ? `
-            <div class="wt_section" style="display:flex;flex-direction:column;gap:10px;">
-                ${stations.map(stationCardHtml).join('')}
-            </div>` : ''}
-        </div>
+        ${inner}
+        ${refreshBtn}
         ${tabBarHtml()}`;
+}
+
+function initLiveMap() {
+    const container = document.getElementById('wt-live-map');
+    if (!container || typeof L === 'undefined') return;
+
+    // Alte Instanz sauber entfernen
+    if (lMap) {
+        try { lMap.remove(); } catch { /* ignorieren */ }
+        lMap = null;
+    }
+
+    lMap = L.map(container, { zoomControl: true, attributionControl: true });
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+    }).addTo(lMap);
+
+    updateLiveMarkers();
+}
+
+function updateLiveMarkers() {
+    if (!lMap) return;
+
+    // Alle vorhandenen Marker entfernen
+    lMap.eachLayer(layer => {
+        if (layer instanceof L.Marker) lMap.removeLayer(layer);
+    });
+
+    const stations = state.stationsOverview || [];
+    const withCoords = stations.filter(s => s.lat !== null && s.lng !== null);
+
+    if (withCoords.length === 0) return;
+
+    const bounds = [];
+
+    withCoords.forEach(s => {
+        const isOwn     = s.id === D.stationId;
+        const groups    = s.groups || [];
+        const hasGroups = groups.length > 0;
+
+        // Farben: eigene Station blau, mit Gruppe grün, leer grau
+        const bg = isOwn ? '#3b82f6' : hasGroups ? '#22c55e' : '#94a3b8';
+        const border = isOwn ? '#1d4ed8' : hasGroups ? '#15803d' : '#64748b';
+
+        const badgeHtml = hasGroups
+            ? `<div style="
+                position:absolute;top:-5px;right:-5px;
+                background:#ef4444;color:#fff;border-radius:50%;
+                width:16px;height:16px;font-size:9px;font-weight:800;
+                display:flex;align-items:center;justify-content:center;
+                border:1.5px solid #fff;line-height:1;">${groups.length}</div>`
+            : '';
+
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="position:relative;">
+                <div style="
+                    background:${bg};color:#fff;border-radius:50%;
+                    width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+                    font-family:monospace;font-size:11px;font-weight:800;letter-spacing:-0.02em;
+                    box-shadow:0 2px 10px rgba(0,0,0,.28);border:2.5px solid ${border};
+                    white-space:nowrap;">${esc(s.code)}</div>
+                ${badgeHtml}
+            </div>`,
+            iconSize: [38, 38],
+            iconAnchor: [19, 19],
+            popupAnchor: [0, -22],
+        });
+
+        const groupRows = groups.length === 0
+            ? `<div style="padding:6px 0;color:#888;font-size:12px;font-style:italic;">Keine Gruppe anwesend</div>`
+            : groups.map(g => `
+                <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #eee;">
+                    <span style="font-size:11px;font-weight:700;color:#666;">#${esc(g.group_num)}</span>
+                    <span style="font-size:12.5px;font-weight:600;">${esc(g.group_name)}</span>
+                    ${g.kreis ? `<span style="font-size:11px;color:#999;">${esc(g.kreis)}</span>` : ''}
+                </div>`).join('');
+
+        const popupContent = `
+            <div style="min-width:170px;max-width:220px;font-family:system-ui,sans-serif;">
+                <div style="font-weight:800;font-size:13px;margin-bottom:2px;color:#111;">
+                    ${esc(s.code)} · ${esc(s.name)}
+                </div>
+                ${isOwn ? `<div style="font-size:10.5px;font-weight:600;color:#3b82f6;margin-bottom:6px;">Deine Station</div>` : '<div style="margin-bottom:6px;"></div>'}
+                ${groupRows}
+            </div>`;
+
+        L.marker([s.lat, s.lng], { icon })
+         .bindPopup(popupContent, { maxWidth: 240 })
+         .addTo(lMap);
+
+        bounds.push([s.lat, s.lng]);
+    });
+
+    if (bounds.length > 0) {
+        lMap.fitBounds(bounds, { padding: [48, 48], maxZoom: 16 });
+    }
 }
 
 async function loadAllGroups() {
@@ -1107,7 +1180,8 @@ function attachHandlers() {
             }
         }));
 
-    // Live-Tab: Aktualisieren-Button
+    // Live-Tab: Karte initialisieren + Aktualisieren-Button
+    if (state.tab === 'live') initLiveMap();
     const btnRefresh = document.getElementById('btnRefreshOverview');
     if (btnRefresh) btnRefresh.addEventListener('click', () => {
         state.stationsOverview = null;

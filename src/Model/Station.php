@@ -123,6 +123,8 @@ class Station
                 s.id   AS station_id,
                 s.code AS station_code,
                 s.name AS station_name,
+                s.lat,
+                s.lng,
                 g.id   AS group_id,
                 g.num  AS group_num,
                 g.name AS group_name,
@@ -147,6 +149,8 @@ class Station
                     'id'     => $sid,
                     'code'   => $row['station_code'],
                     'name'   => $row['station_name'],
+                    'lat'    => $row['lat'] !== null ? (float)$row['lat'] : null,
+                    'lng'    => $row['lng'] !== null ? (float)$row['lng'] : null,
                     'groups' => [],
                 ];
             }
