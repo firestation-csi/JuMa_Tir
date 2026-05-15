@@ -135,50 +135,6 @@ $defaultSize = '89x36';
         }
         .prt_settings select { min-width: 200px; }
 
-        /* ── Label-Vorschau ── */
-        .prt_preview-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-        }
-        .prt_preview-label {
-            background: #fff;
-            box-shadow: 0 4px 20px rgba(0,0,0,.15), 0 0 0 1px rgba(0,0,0,.08);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 6px 10px;
-            transition: width .2s, height .2s;
-            overflow: hidden;
-        }
-        .prt_qr img {
-            display: block;
-            image-rendering: pixelated;
-        }
-        .prt_text { flex: 1; min-width: 0; }
-        .prt_text__main {
-            font-weight: 800;
-            line-height: 1.1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .prt_text__sub {
-            color: #666;
-            margin-top: 2px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .prt_text__token {
-            font-family: 'Courier New', monospace;
-            color: #999;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
         /* ── Dymo Status ── */
         .prt_dymo-status {
             width: 100%;
@@ -225,25 +181,18 @@ $defaultSize = '89x36';
         /* ── Print Media ── */
         @media print {
             body { background: white; padding: 0; margin: 0; }
-            .prt_toolbar,
-            .prt_settings,
-            .prt_dymo-status,
-            #dymoSection,
-            .prt_preview-caption { display: none !important; }
-            .prt_preview-wrap {
+            .prt_toolbar, .prt_settings, .prt_dymo-status,
+            #dymoSection, .prt_dymo-preview span { display: none !important; }
+            .prt_dymo-preview {
+                display: flex !important;
                 position: fixed;
                 top: 0; left: 0;
                 width: 100%; height: 100%;
-                display: flex;
                 align-items: center;
                 justify-content: center;
-                margin: 0;
-                padding: 0;
+                margin: 0; padding: 0;
             }
-            .prt_preview-label {
-                box-shadow: none;
-                border: none;
-            }
+            .prt_dymo-preview img { box-shadow: none; border: none; max-height: 100%; }
         }
     </style>
 </head>
@@ -268,15 +217,6 @@ $defaultSize = '89x36';
 
 <!-- ── Einstellungen ────────────────────────────────────── -->
 <div class="prt_settings">
-    <label>Etikettengröße</label>
-    <select id="sizeSelect">
-        <?php foreach ($labelSizes as $key => $size): ?>
-        <option value="<?= $key ?>" <?= $key === $defaultSize ? 'selected' : '' ?>>
-            <?= htmlspecialchars($size['name']) ?>
-        </option>
-        <?php endforeach; ?>
-    </select>
-
     <label>Kopien</label>
     <input type="number" id="copies" value="1" min="1" max="50" style="width:56px;">
 
@@ -284,23 +224,6 @@ $defaultSize = '89x36';
         <label>Drucker</label>
         <select id="dymoSelect" style="min-width:180px;"></select>
     </div>
-</div>
-
-<!-- ── Label-Vorschau ───────────────────────────────────── -->
-<div class="prt_preview-wrap">
-    <div class="prt_preview-label" id="labelPreview">
-        <div class="prt_qr" id="qrWrap">
-            <img src="<?= htmlspecialchars($qrDataUrl) ?>" id="qrImg" alt="QR-Code">
-        </div>
-        <div class="prt_text" id="labelText">
-            <div class="prt_text__main" id="labelMain"><?= htmlspecialchars($label) ?></div>
-            <?php if ($sublabel): ?>
-            <div class="prt_text__sub" id="labelSub"><?= htmlspecialchars($sublabel) ?></div>
-            <?php endif; ?>
-            <div class="prt_text__token" id="labelToken"><?= htmlspecialchars(substr($qrContent, 0, 40)) ?><?= strlen($qrContent) > 40 ? '…' : '' ?></div>
-        </div>
-    </div>
-    <div class="prt_preview-caption" id="previewCaption" style="font-size:12px;color:#888;"></div>
 </div>
 
 <div class="prt_dymo-status" id="dymoStatus"></div>
@@ -312,49 +235,6 @@ $defaultSize = '89x36';
 
 <script>
 (function () {
-    // ── Größen-Daten aus PHP ──────────────────────────────
-    const sizes = <?= json_encode($labelSizes) ?>;
-    const SCALE = 3.78; // mm → px bei 96dpi (ungefähre Vorschau)
-
-    const label    = document.getElementById('labelPreview');
-    const qrImg    = document.getElementById('qrImg');
-    const caption  = document.getElementById('previewCaption');
-    const mainEl   = document.getElementById('labelMain');
-    const subEl    = document.getElementById('labelSub');
-    const tokenEl  = document.getElementById('labelToken');
-    const sizeSelect = document.getElementById('sizeSelect');
-
-    function applySize(key) {
-        const s = sizes[key];
-        if (!s) return;
-        const w = Math.round(s.w * SCALE);
-        const h = Math.round(s.h * SCALE);
-        label.style.width  = w + 'px';
-        label.style.height = h + 'px';
-        label.style.padding = Math.round(h * 0.07) + 'px ' + Math.round(h * 0.12) + 'px';
-
-        const qrSize = Math.round(h * 0.82);
-        qrImg.style.width  = qrSize + 'px';
-        qrImg.style.height = qrSize + 'px';
-
-        const fs = Math.round(h * 0.22);
-        mainEl.style.fontSize  = fs + 'px';
-        if (subEl)   subEl.style.fontSize   = Math.round(fs * 0.7) + 'px';
-        if (tokenEl) tokenEl.style.fontSize = Math.round(fs * 0.45) + 'px';
-
-        caption.textContent = s.w + ' × ' + s.h + ' mm · ' + s.name.split('(')[1]?.replace(')','').trim();
-
-        // CSS @page-Größe für Browser-Druck dynamisch setzen
-        let style = document.getElementById('printPageStyle');
-        if (!style) { style = document.createElement('style'); style.id = 'printPageStyle'; document.head.appendChild(style); }
-        style.textContent = `@media print { @page { size: ${s.w}mm ${s.h}mm; margin: 1.5mm; } .prt_preview-label { width: ${s.w - 3}mm; height: ${s.h - 3}mm; } }`;
-    }
-
-    sizeSelect.addEventListener('change', () => applySize(sizeSelect.value));
-    applySize(sizeSelect.value);
-
-    // ── Dymo Connect Framework ────────────────────────────
-    // https://github.com/dymosoftware/dymo-connect-framework
     const dymoStatus  = document.getElementById('dymoStatus');
     const dymoSection = document.getElementById('dymoSection');
     const dymoSelect  = document.getElementById('dymoSelect');
@@ -365,131 +245,6 @@ $defaultSize = '89x36';
         dymoStatus.innerHTML = msg;
     }
 
-    function escXml(str) {
-        return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    /** Label-XML — exakt nach Dymo_QRCode_KFV.dymo-Vorlage */
-    function buildLabelXml(qrContent, mainText, subText, sizeKey) {
-        const SIZES = {
-            '57x32': { w: 2.24, h: 1.26, name: '1933084 Drbl 2-1/4 x 1-1/4 in' },
-        };
-        const s = SIZES[sizeKey] ?? SIZES['89x36'];
-        const f = n => n.toFixed(6);
-
-        // Layout: QR links (49% Breite), Text rechts
-        const qrX  = 0.059, qrY = s.h * 0.18;
-        const qrW  = s.w * 0.49,  qrH = s.h * 0.74;
-        const txtX = s.w * 0.50,  txtY1 = s.h * 0.06;
-        const txtW = s.w * 0.47;
-        const txtH = (s.h * 0.88) / 2;
-
-        const brushes = (bgA, bgR, bgG, bgB) =>
-`          <Brushes>
-            <BackgroundBrush><SolidColorBrush><Color A="${bgA}" R="${bgR}" G="${bgG}" B="${bgB}"></Color></SolidColorBrush></BackgroundBrush>
-            <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
-            <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
-            <FillBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FillBrush>
-          </Brushes>`;
-
-        const base =
-`          <Rotation>Rotation0</Rotation>
-          <OutlineThickness>1</OutlineThickness>
-          <IsOutlined>False</IsOutlined>
-          <BorderStyle>SolidLine</BorderStyle>
-          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>`;
-
-        const layout = (x, y, w, h) =>
-`          <ObjectLayout>
-            <DYMOPoint><X>${f(x)}</X><Y>${f(y)}</Y></DYMOPoint>
-            <Size><Width>${f(w)}</Width><Height>${f(h)}</Height></Size>
-          </ObjectLayout>`;
-
-        const lineSpan = (text, fontName, fontSize, bold) =>
-`            <LineTextSpan>
-              <TextSpan>
-                <Text>${escXml(text)}</Text>
-                <FontInfo>
-                  <FontName>${fontName}</FontName>
-                  <FontSize>${fontSize}</FontSize>
-                  <IsBold>${bold}</IsBold>
-                  <IsItalic>False</IsItalic>
-                  <IsUnderline>False</IsUnderline>
-                  <FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush>
-                </FontInfo>
-              </TextSpan>
-            </LineTextSpan>`;
-
-        const textObj = (name, lines, x, y, w, h) =>
-`        <TextObject>
-          <Name>${name}</Name>
-${brushes('0','0','0','0')}
-${base}
-          <HorizontalAlignment>Left</HorizontalAlignment>
-          <VerticalAlignment>Middle</VerticalAlignment>
-          <FitMode>None</FitMode>
-          <IsVertical>False</IsVertical>
-          <FormattedText>
-            <FitMode>None</FitMode>
-            <HorizontalAlignment>Left</HorizontalAlignment>
-            <VerticalAlignment>Middle</VerticalAlignment>
-            <IsVertical>False</IsVertical>
-${lines}
-          </FormattedText>
-${layout(x, y, w, h)}
-        </TextObject>`;
-
-        return '<' + '?xml version="1.0" encoding="utf-8"?>\n' +
-`<DesktopLabel Version="1">
-  <DYMOLabel Version="4">
-    <Description>JuMa QR Label</Description>
-    <Orientation>Portrait</Orientation>
-    <LabelName>${escXml(s.name)}</LabelName>
-    <InitialLength>0</InitialLength>
-    <BorderStyle>SolidLine</BorderStyle>
-    <DYMORect>
-      <DYMOPoint><X>0.039999966</X><Y>0.060000002</Y></DYMOPoint>
-      <Size><Width>${f(s.w - 0.08)}</Width><Height>${f(s.h - 0.10)}</Height></Size>
-    </DYMORect>
-    <BorderColor><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderColor>
-    <BorderThickness>1</BorderThickness>
-    <Show_Border>False</Show_Border>
-    <HasFixedLength>False</HasFixedLength>
-    <FixedLengthValue>0</FixedLengthValue>
-    <DynamicLayoutManager>
-      <RotationBehavior>ClearObjects</RotationBehavior>
-      <LabelObjects>
-        <QRCodeObject>
-          <Name>QRCodeObject0</Name>
-${brushes('1','1','1','1')}
-${base}
-          <BarcodeFormat>QRCode</BarcodeFormat>
-          <Data><DataString>${escXml(qrContent)}</DataString></Data>
-          <HorizontalAlignment>Center</HorizontalAlignment>
-          <VerticalAlignment>Middle</VerticalAlignment>
-          <Size>AutoFit</Size>
-          <EQRCodeType>QRCodeText</EQRCodeType>
-          <TextDataHolder><Value>${escXml(qrContent)}</Value></TextDataHolder>
-${layout(qrX, qrY, qrW, qrH)}
-        </QRCodeObject>
-${textObj('TextMain',
-    lineSpan(mainText, 'Segoe UI', 10, 'True'),
-    txtX, txtY1, txtW, txtH)}
-${textObj('TextSub',
-    lineSpan(subText || ' ', 'Segoe UI', 8, 'False'),
-    txtX, txtY1 + txtH, txtW, txtH)}
-      </LabelObjects>
-    </DynamicLayoutManager>
-  </DYMOLabel>
-  <LabelApplication>Blank</LabelApplication>
-  <DataTable>
-    <Columns></Columns>
-    <Rows></Rows>
-  </DataTable>
-</DesktopLabel>`;
-    }
-
-    // ── Dymo Connect REST-API (kein Framework-JS nötig) ──────
     const DYMO_API = 'https://localhost:41951/DYMO/DLS/Printing';
 
     async function dymoGetPrinters() {
@@ -598,19 +353,7 @@ ${textObj('TextSub',
         });
     })();
 
-    // ── Kopien: Browser-Print ─────────────────────────────
-    document.getElementById('btnBrowserPrint').addEventListener('click', () => {
-        const n = parseInt(document.getElementById('copies').value) || 1;
-        if (n <= 1) { window.print(); return; }
-        // Mehrere Kopien: Label n-mal duplizieren
-        const orig = document.querySelector('.prt_preview-label').outerHTML;
-        const wrap = document.querySelector('.prt_preview-wrap');
-        wrap.innerHTML = orig;
-        for (let i = 1; i < n; i++) wrap.insertAdjacentHTML('beforeend', orig);
-        window.print();
-        // Nach dem Druck wieder auf 1 zurücksetzen
-        setTimeout(() => { wrap.innerHTML = orig; applySize(sizeSelect.value); }, 500);
-    });
+    document.getElementById('btnBrowserPrint').addEventListener('click', () => window.print());
 })();
 </script>
 </body>
