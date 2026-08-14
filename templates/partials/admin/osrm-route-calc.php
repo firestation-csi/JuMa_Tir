@@ -78,40 +78,30 @@ $hasCoords = !empty($coordMap);
         setStatus('loading', '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="animation:spin 1s linear infinite;flex-shrink:0;"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4" stroke-dasharray="20 15"/></svg> OSM-Route wird berechnet…');
 
         try {
-            // OSRM public API — foot profile, lon,lat Reihenfolge!
-            const url = `https://router.project-osrm.org/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`;
-            const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-
-            if (data.code !== 'Ok' || !data.routes?.[0]) {
-                setStatus('warn', '⚠ OSRM: Keine Route gefunden – bitte manuell eintragen.');
-                return;
-            }
-
-            const route   = data.routes[0];
-            const distM   = Math.round(route.distance);
-            const timeSek = Math.round(route.duration);
-            const timeMin = Math.max(1, Math.round(timeSek / 60));
+            const { distanceM, durationMin } = await wtCalcRoute(
+                [[from.lng, from.lat], [to.lng, to.lat]]
+            );
 
             // Nur befüllen wenn noch leer oder vom letzten Auto-Fill
-            distInput.value = distM;
-            timeInput.value = timeMin;
-            distInput.dataset.osrm = distM;
-            timeInput.dataset.osrm = timeMin;
+            distInput.value = distanceM;
+            timeInput.value = durationMin;
+            distInput.dataset.osrm = distanceM;
+            timeInput.dataset.osrm = durationMin;
 
-            const distStr = distM >= 1000
-                ? (distM / 1000).toFixed(1) + ' km'
-                : distM + ' m';
+            const distStr = distanceM >= 1000
+                ? (distanceM / 1000).toFixed(1) + ' km'
+                : distanceM + ' m';
             setStatus('ok',
-                `✓ OSM-Route: <strong>${distStr}</strong> · ca. <strong>${timeMin} min</strong> zu Fuß ` +
+                `✓ OSM-Route: <strong>${distStr}</strong> · ca. <strong>${durationMin} min</strong> zu Fuß ` +
                 `<span style="opacity:.6;font-size:11px;">(${from.code} → ${to.code})</span>`
             );
         } catch (err) {
             if (err.name === 'TimeoutError') {
-                setStatus('error', '✗ OSRM-Timeout – bitte manuell eintragen.');
+                setStatus('error', '✗ Routing-Timeout – bitte manuell eintragen.');
+            } else if (err.message === 'Keine Route gefunden') {
+                setStatus('warn', '⚠ Keine Route gefunden – bitte manuell eintragen.');
             } else {
-                setStatus('error', '✗ OSRM nicht erreichbar – bitte manuell eintragen.');
+                setStatus('error', '✗ Routing-Dienst nicht erreichbar – bitte manuell eintragen.');
             }
         }
     }

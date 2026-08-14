@@ -508,6 +508,7 @@ let waypointMarkers = {}; // route_id → [L.Marker, ...]
 let routePolylines  = {}; // route_id → L.Polyline
 let stationMarkers  = []; // L.Marker[]
 let osrmResults     = {}; // route_id → {distance_m, est_time_min}
+let recalcTokens    = {}; // route_id → Zähler der letzten angestoßenen Neuberechnung
 
 async function openParcoursMap(lwId) {
     const p = PARCOURS[lwId];
@@ -541,6 +542,7 @@ async function openParcoursMap(lwId) {
     routePolylines  = {};
     stationMarkers  = [];
     osrmResults     = {};
+    recalcTokens    = {};
 
     p.segments.forEach(s => {
         waypointData[s.route_id] = (s.waypoints || []).map(wp => [...wp]);
@@ -556,14 +558,32 @@ async function openParcoursMap(lwId) {
     // Karte auf Parcours-Ausdehnung einpassen
     fitMap(p);
 
-    // Klick auf Karte = neuen Wegpunkt hinzufügen (zum nächsten Segment)
+    // Klick auf Karte = neuen Wegpunkt hinzufügen (zum nächstgelegenen Segment)
     mapInstance.on('click', e => {
-        const segs = p.segments.filter(s => s.from_lat && s.to_lat);
-        if (!segs.length) return;
-        // Nächstes Segment (vereinfacht: letztes mit Koordinaten)
-        const seg = segs[segs.length - 1];
+        const seg = findNearestSegment(p, e.latlng);
+        if (!seg) return;
         addWaypoint(p, seg.route_id, [e.latlng.lat, e.latlng.lng]);
     });
+}
+
+// Findet das Segment, dessen Streckenverlauf (Start → Wegpunkte → Ziel) dem Klickpunkt am nächsten liegt
+function findNearestSegment(p, latlng) {
+    const segs = p.segments.filter(s => s.from_lat && s.to_lat);
+    if (!segs.length) return null;
+    const clickPx = mapInstance.latLngToLayerPoint(latlng);
+    let best = null, bestDist = Infinity;
+    segs.forEach(s => {
+        const pts = [
+            [s.from_lat, s.from_lng],
+            ...(waypointData[s.route_id] || []),
+            [s.to_lat, s.to_lng],
+        ].map(pt => mapInstance.latLngToLayerPoint(pt));
+        for (let i = 0; i < pts.length - 1; i++) {
+            const d = L.LineUtil.pointToSegmentDistance(clickPx, pts[i], pts[i + 1]);
+            if (d < bestDist) { bestDist = d; best = s; }
+        }
+    });
+    return best;
 }
 
 function fitMap(p) {
@@ -683,7 +703,7 @@ function addWaypoint(p, routeId, latlng) {
 }
 
 async function recalcAllRoutes(p) {
-    setStatus('Berechne Routen via OSRM…');
+    setStatus('Berechne Routen…');
     Object.values(routePolylines).forEach(pl => pl.remove());
     routePolylines = {};
 
@@ -702,22 +722,22 @@ async function recalcAllRoutes(p) {
 async function recalcSegment(p, seg) {
     if (!seg.from_lat || !seg.to_lat) return null;
 
+    // Token-Guard: bei mehreren schnell aufeinanderfolgenden Wegpunkt-Klicks können
+    // die Valhalla-Antworten in anderer Reihenfolge eintreffen, als die Anfragen
+    // gestartet wurden. Eine veraltete Antwort darf die neuere nicht überschreiben.
+    const myToken = (recalcTokens[seg.route_id] = (recalcTokens[seg.route_id] || 0) + 1);
+
     const wps  = waypointData[seg.route_id] || [];
     const coords = [
         [seg.from_lng, seg.from_lat],
         ...wps.map(wp => [wp[1], wp[0]]),
         [seg.to_lng, seg.to_lat],
     ];
-    const coordStr = coords.map(c => c[0] + ',' + c[1]).join(';');
-    const url = `https://router.project-osrm.org/route/v1/foot/${coordStr}?overview=full&geometries=geojson`;
 
     try {
-        const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        const data = await res.json();
-        if (data.code !== 'Ok' || !data.routes?.[0]) return null;
+        const { distanceM, durationMin, latlngs } = await wtCalcRoute(coords, { geometry: true });
 
-        const geom   = data.routes[0].geometry.coordinates; // [[lng,lat], ...]
-        const latlngs = geom.map(c => [c[1], c[0]]);
+        if (recalcTokens[seg.route_id] !== myToken) return null; // veraltete Antwort verwerfen
 
         if (routePolylines[seg.route_id]) routePolylines[seg.route_id].remove();
 
@@ -728,20 +748,14 @@ async function recalcSegment(p, seg) {
         }).addTo(mapInstance);
 
         // Popup auf Linienmitte mit Segment-Info
-        const dist    = Math.round(data.routes[0].distance);
-        // OSRM-Demo läuft oft mit Kfz-Profil → Gehzeit aus Distanz berechnen (4,5 km/h = 75 m/min)
-        const osrmMin = data.routes[0].duration / 60;
-        const walkMin = dist / 75; // 4,5 km/h
-        // Sanity-Check: wenn OSRM-Zeit > 50 % schneller als Gehtempo → Kfz-Profil aktiv → eigene Berechnung
-        const time = (osrmMin < walkMin * 0.5) ? Math.max(1, Math.ceil(walkMin)) : Math.max(1, Math.ceil(osrmMin));
         routePolylines[seg.route_id].bindPopup(
-            `<strong>${seg.from_code} → ${seg.to_code}</strong><br>${dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m'} · ca. ${time} min`
+            `<strong>${seg.from_code} → ${seg.to_code}</strong><br>${distanceM >= 1000 ? (distanceM/1000).toFixed(1) + ' km' : distanceM + ' m'} · ca. ${durationMin} min`
         );
 
         // Ergebnisse merken für späteres Speichern
-        osrmResults[seg.route_id] = { distance_m: dist, est_time_min: time };
+        osrmResults[seg.route_id] = { distance_m: distanceM, est_time_min: durationMin };
 
-        return dist;
+        return distanceM;
     } catch { return null; }
 }
 

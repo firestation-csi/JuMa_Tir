@@ -55,6 +55,8 @@
         </a>
     </div>
 
+    <script src="/assets/js/routing.js"></script>
+
     <main class="adm_main">
         <h1 class="adm_page-title"><?= htmlspecialchars($title ?? '') ?></h1>
         <?= $content ?? '' ?>

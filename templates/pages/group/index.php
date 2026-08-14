@@ -378,11 +378,9 @@ async function calcOsrmSeg(seg) {
         ...(seg.waypoints || []).map(wp => [wp[1], wp[0]]),
         [seg.to_lng, seg.to_lat],
     ];
-    const url = `https://router.project-osrm.org/route/v1/foot/${coords.map(c=>c.join(',')).join(';')}?overview=false`;
     try {
-        const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
-        const j = await r.json();
-        if (j.code === 'Ok' && j.routes?.[0]) return Math.round(j.routes[0].distance);
+        const { distanceM } = await wtCalcRoute(coords, { timeoutMs: 7000 });
+        return distanceM;
     } catch {}
     return null;
 }
@@ -486,28 +484,20 @@ async function drawRoute(data, color) {
         ...wps.map(wp => [wp[1], wp[0]]),
         [ns.lng, ns.lat],
     ];
-    const url = `https://router.project-osrm.org/route/v1/foot/${coords.map(c=>c.join(',')).join(';')}?overview=full&geometries=geojson`;
     try {
-        const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        const json = await res.json();
-        if (json.code === 'Ok' && json.routes?.[0]) {
-            const latlngs = json.routes[0].geometry.coordinates.map(c => [c[1],c[0]]);
-            L.polyline(latlngs, { color, weight:5, opacity:.85, dashArray:'8,4' }).addTo(mapInstance);
-            const dist    = Math.round(json.routes[0].distance);
-            const osrmMin = json.routes[0].duration / 60;
-            const time    = Math.max(1, Math.ceil(osrmMin < dist/75*0.5 ? dist/75 : osrmMin));
-            document.getElementById('gi-nav-info').innerHTML =
-                `<b style="color:var(--wt-red);">→ ${ns.name}</b> &nbsp;·&nbsp; ${fmtDist(dist)} &nbsp;·&nbsp; ca. ${time} min zu Fuß`;
-            const arrival = new Date(Date.now() + time * 60000);
-            const arrEl   = document.getElementById('gi-arrival-info');
-            arrEl.style.display = 'block';
-            arrEl.textContent   = '⏱ Erwartete Ankunft: ' + arrival.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) + ' Uhr';
-            if (ns.notes) {
-                document.getElementById('gi-route-notes').style.display = 'block';
-                document.getElementById('gi-route-notes').textContent   = '📋 ' + ns.notes;
-            }
-            return;
+        const { distanceM, durationMin, latlngs } = await wtCalcRoute(coords, { geometry: true });
+        L.polyline(latlngs, { color, weight:5, opacity:.85, dashArray:'8,4' }).addTo(mapInstance);
+        document.getElementById('gi-nav-info').innerHTML =
+            `<b style="color:var(--wt-red);">→ ${ns.name}</b> &nbsp;·&nbsp; ${fmtDist(distanceM)} &nbsp;·&nbsp; ca. ${durationMin} min zu Fuß`;
+        const arrival = new Date(Date.now() + durationMin * 60000);
+        const arrEl   = document.getElementById('gi-arrival-info');
+        arrEl.style.display = 'block';
+        arrEl.textContent   = '⏱ Erwartete Ankunft: ' + arrival.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) + ' Uhr';
+        if (ns.notes) {
+            document.getElementById('gi-route-notes').style.display = 'block';
+            document.getElementById('gi-route-notes').textContent   = '📋 ' + ns.notes;
         }
+        return;
     } catch {}
     // Fallback Luftlinie
     L.polyline([[ns.from_lat,ns.from_lng],...wps,[ns.lat,ns.lng]], { color, weight:4, opacity:.7, dashArray:'6,4' }).addTo(mapInstance);
