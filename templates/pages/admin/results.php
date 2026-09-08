@@ -538,7 +538,7 @@ $extraScripts .= <<<JS
         const table = document.getElementById('rankingTable');
         if (!table) return;
         const rows  = [...table.querySelectorAll('tr')].map(tr =>
-            [...tr.querySelectorAll('th,td')].map(td => '"' + td.innerText.replace(/"/g,'""') + '"').join(';')
+            [...tr.querySelectorAll('th,td')].map(td => '"' + td.innerText.replace(/^#\d+\s*/, '').replace(/"/g,'""') + '"').join(';')
         );
         const blob  = new Blob(['﻿' + rows.join('\\r\\n')], { type: 'text/csv;charset=utf-8' });
         const a     = document.createElement('a');
