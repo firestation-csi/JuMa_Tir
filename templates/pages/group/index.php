@@ -216,6 +216,7 @@ let seenAnnounceIds   = new Set();
 let firstAnnouncePoll = true;
 let lastCheckedOut   = null;
 let lastStationId    = null;
+let pollSeq          = 0;
 
 // ── Wake Lock ─────────────────────────────────────────
 let wakeLock = null;
@@ -742,6 +743,8 @@ function stopPolling() {
 
 async function pollStatus() {
     if (!groupToken) return;
+    // Sequenznummer merken, um veraltete (verspätete/überholte) Antworten zu verwerfen
+    const seq = ++pollSeq;
     try {
         const res  = await fetch('/api/group/info', {
             method:  'POST',
@@ -749,6 +752,7 @@ async function pollStatus() {
             body:    JSON.stringify({ token: groupToken }),
         });
         const json = await res.json();
+        if (seq !== pollSeq) return; // inzwischen ist eine neuere Anfrage unterwegs/beantwortet — diese Antwort ignorieren
         if (!json.success) return;
         const data = json.data;
 
