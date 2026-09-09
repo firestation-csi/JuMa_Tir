@@ -10,6 +10,10 @@ $activeComp = $activeComp ?? null;
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 2L2 4v9l4-2 4 2 4-2V2l-4 2-4-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6 2v9M10 4v9" stroke="currentColor" stroke-width="1.4"/></svg>
         Live-Tracking
     </a>
+    <a href="/admin/stations/travel-analysis" class="adm_btn adm_btn--ghost">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 4.5v4l2.8 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/></svg>
+        Reisezeiten-Analyse
+    </a>
 </div>
 
 <?php if (empty($groups)): ?>

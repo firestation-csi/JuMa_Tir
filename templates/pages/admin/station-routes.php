@@ -4,7 +4,6 @@ $competitions     = $competitions     ?? [];
 $stations         = $stations         ?? [];
 $laufwege         = $laufwege         ?? [];
 $routes           = $routes           ?? [];
-$analysis         = $analysis         ?? [];
 $stationDurations = $stationDurations ?? [];
 $csrf             = $csrf             ?? '';
 $error            = $_GET['error']    ?? null;
@@ -18,54 +17,11 @@ $extraScripts = '
 
 ob_start();
 
-$fmtDur = function (?int $sek): string {
-    if ($sek === null || $sek <= 0) return '–';
-    if ($sek < 60) return $sek . 's';
-    return sprintf('%d:%02d min', intdiv($sek, 60), $sek % 60);
-};
-$statusIcon  = [
-    'ok'          => '✓',
-    'warn'        => '⚠',
-    'lost'        => '✗',
-    'pending'     => '→',
-    'scoring'     => '…',
-    'not_started' => '○',
-    'no_data'     => '–',
-];
-$statusColor = [
-    'ok'          => 'var(--wt-ok)',
-    'warn'        => 'var(--wt-warn)',
-    'lost'        => 'var(--wt-red)',
-    'pending'     => '#2980B9',
-    'scoring'     => 'var(--wt-text-muted)',
-    'not_started' => 'var(--wt-text-subtle)',
-    'no_data'     => 'var(--wt-text-subtle)',
-];
-$statusLabel = [
-    'ok'          => 'Planmäßig',
-    'warn'        => 'Verzögert',
-    'lost'        => 'Verlaufen?',
-    'pending'     => 'Unterwegs (bewertet, noch nicht angekommen)',
-    'scoring'     => 'An Station, noch nicht bewertet',
-    'not_started' => 'Noch nicht an Startstation',
-    'no_data'     => 'Keine Daten',
-];
-$scIcon  = fn(string $s) => $statusIcon[$s]  ?? '–';
-$scColor = fn(string $s) => $statusColor[$s] ?? 'var(--wt-text-subtle)';
-$scLabel = fn(string $s) => $statusLabel[$s] ?? $s;
-
 // Abschnitte nach Laufweg gruppieren
 $routesByLaufweg = [];   // laufweg_id (or 0=unzugeordnet) → [routes]
 foreach ($routes as $r) {
     $lid = $r['laufweg_id'] ? (int)$r['laufweg_id'] : 0;
     $routesByLaufweg[$lid][] = $r;
-}
-
-// Analyse nach Laufweg gruppieren
-$analysisByLaufweg = [];
-foreach ($analysis as $seg) {
-    $lid = $seg['laufweg_id'] ? (int)$seg['laufweg_id'] : 0;
-    $analysisByLaufweg[$lid][] = $seg;
 }
 
 // Bekannte Farben für Laufweg-Picker
@@ -77,6 +33,7 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Stationen
     </a>
+    <a href="/admin/stations/travel-analysis" class="adm_btn adm_btn--ghost">Reisezeiten-Analyse</a>
 </div>
 
 <?php if (!empty($competitions)): ?>
@@ -93,9 +50,7 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
 <div class="adm_empty"><div class="adm_empty__icon">🗺</div><p>Kein Wettbewerb ausgewählt.</p></div>
 <?php else: ?>
 
-<div class="rte_layout">
-  <!-- ═══ LINKE SPALTE ═══════════════════════════════════ -->
-  <div class="rte_main">
+<div class="rte_main">
 
     <!-- ── Laufwege verwalten ─────────────────────────── -->
     <div class="adm_card">
@@ -155,7 +110,6 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
     <!-- ── Abschnitte nach Laufweg gruppiert ─────────── -->
     <?php
     // Alle Laufwege anzeigen (bekannte + unzugeordnet)
-    $lwMap = array_column($laufwege, null, 'id');
     $displayGroups = [];
     foreach ($laufwege as $lw) {
         $lid = (int)$lw['id'];
@@ -310,102 +264,6 @@ $presetColors = ['#C0392B','#2980B9','#27AE60','#E67E22','#8E44AD','#16A085','#2
     </div>
 
   </div><!-- /rte_main -->
-
-  <!-- ═══ ANALYSE ══════════════════════════════════════ -->
-  <div class="rte_analysis">
-    <div class="adm_card" style="padding:0;overflow:hidden;">
-        <div style="padding:14px 18px 12px;border-bottom:1px solid var(--wt-border);">
-            <div style="font-weight:700;font-size:14px;">Reisezeiten-Analyse</div>
-            <div style="font-size:11px;color:var(--wt-text-subtle);margin-top:2px;">Ist- vs. Schätzzeit je Gruppe</div>
-        </div>
-        <div style="padding:8px 14px;border-bottom:1px solid var(--wt-border);display:flex;gap:10px;flex-wrap:wrap;">
-            <?php foreach ([
-                'ok'          => 'Planmäßig',
-                'warn'        => 'Verzögert',
-                'lost'        => 'Verlaufen?',
-                'pending'     => 'Unterwegs',
-                'scoring'     => 'Bewertet',
-                'not_started' => 'Ausstehend',
-            ] as $s => $lbl): ?>
-            <span style="display:flex;align-items:center;gap:3px;font-size:11px;">
-                <b style="color:<?= $scColor($s) ?>;"><?= $scIcon($s) ?></b>
-                <span style="color:var(--wt-text-muted);"><?= $lbl ?></span>
-            </span>
-            <?php endforeach; ?>
-        </div>
-
-        <!-- Erklärung wann Daten erscheinen -->
-        <div style="padding:8px 14px;border-bottom:1px solid var(--wt-border);background:var(--wt-surface-alt);font-size:11px;color:var(--wt-text-muted);line-height:1.5;">
-            <strong>Reisezeit</strong> = Bewertung gespeichert (Abgang) → QR-Scan nächste Station (Ankunft)
-        </div>
-
-        <?php if (empty($analysis)): ?>
-        <div style="padding:28px;text-align:center;color:var(--wt-text-subtle);font-size:13px;">
-            Noch keine Routen oder Protokolldaten.
-        </div>
-        <?php else: ?>
-
-        <?php
-        // Analyse nach Laufweg gruppiert anzeigen
-        $analysisByLw = [];
-        foreach ($analysis as $seg) {
-            $lid = $seg['laufweg_id'] ? (int)$seg['laufweg_id'] : 0;
-            $analysisByLw[$lid][] = $seg;
-        }
-        foreach (array_keys($analysisByLw) as $lid):
-            $lwInfo   = $lid > 0 ? ($lwMap[$lid] ?? null) : null;
-            $lwSegs   = $analysisByLw[$lid];
-            $lwColor  = $lwInfo ? $lwInfo['color'] : '#aaa';
-            $lwName   = $lwInfo ? $lwInfo['name'] : 'Nicht zugeordnet';
-        ?>
-        <div style="border-bottom:1px solid var(--wt-border);">
-            <div style="padding:8px 14px;background:<?= htmlspecialchars($lwColor) ?>11;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;">
-                <span style="width:9px;height:9px;border-radius:50%;background:<?= htmlspecialchars($lwColor) ?>;flex-shrink:0;"></span>
-                <?= htmlspecialchars($lwName) ?>
-            </div>
-            <?php foreach ($lwSegs as $seg):
-                $hasData = array_filter($seg['groups'], fn($g) => ($g['actual_sek'] ?? 0) > 0);
-            ?>
-            <div class="rte_seg">
-                <div class="rte_seg__head">
-                    <span class="rte_seg__route">
-                        <?= htmlspecialchars($seg['from_code']) ?>
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <?= htmlspecialchars($seg['to_code']) ?>
-                    </span>
-                    <span style="font-size:10px;color:var(--wt-text-muted);">
-                        <?= $seg['est_time_min'] ? '~' . $seg['est_time_min'] . ' min' : '' ?>
-                    </span>
-                </div>
-                <?php foreach ($seg['groups'] as $g):
-                    $sc = $g['status'];
-                    $hasTime = $g['actual_sek'] !== null && $g['actual_sek'] >= 0;
-                ?>
-                <div class="rte_seg__row">
-                    <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">#<?= htmlspecialchars($g['group_num']) ?> <?= htmlspecialchars($g['group_name']) ?></span>
-
-                    <?php if ($hasTime): ?>
-                        <span class="adm_mono" style="font-size:12px;font-weight:700;color:<?= $scColor($sc) ?>;flex-shrink:0;"><?= $fmtDur($g['actual_sek']) ?></span>
-                    <?php elseif ($sc === 'pending'): ?>
-                        <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">Abgegangen <?= $g['departed'] ? date('H:i', strtotime($g['departed'])) : '' ?></span>
-                    <?php elseif ($sc === 'scoring'): ?>
-                        <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">An Stn. <?= htmlspecialchars($seg['from_code'] ?? '') ?></span>
-                    <?php else: ?>
-                        <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">–</span>
-                    <?php endif; ?>
-
-                    <span style="font-size:12px;color:<?= $scColor($sc) ?>;width:16px;text-align:center;flex-shrink:0;" title="<?= htmlspecialchars($scLabel($sc)) ?>"><?= $scIcon($sc) ?></span>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
-  </div>
-
-</div><!-- /rte_layout -->
 
 <!-- ── Karten-Modal ─────────────────────────────────── -->
 <style>
