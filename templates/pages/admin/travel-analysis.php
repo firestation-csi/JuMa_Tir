@@ -117,11 +117,11 @@ foreach ($analysis as $seg) {
         <div class="rte_seg">
             <div class="rte_seg__head">
                 <span class="rte_seg__route">
-                    <?= htmlspecialchars($seg['from_code']) ?>
+                    <?= htmlspecialchars($seg['from_name']) ?>
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <?= htmlspecialchars($seg['to_code']) ?>
+                    <?= htmlspecialchars($seg['to_name']) ?>
                 </span>
-                <span style="font-size:10px;color:var(--wt-text-muted);">
+                <span style="font-size:10px;color:var(--wt-text-muted);white-space:nowrap;flex-shrink:0;">
                     <?= $seg['est_time_min'] ? '~' . $seg['est_time_min'] . ' min' : '' ?>
                 </span>
             </div>
@@ -137,7 +137,7 @@ foreach ($analysis as $seg) {
                 <?php elseif ($sc === 'pending'): ?>
                     <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">Abgegangen <?= $g['departed'] ? date('H:i', strtotime($g['departed'])) : '' ?></span>
                 <?php elseif ($sc === 'scoring'): ?>
-                    <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">An Stn. <?= htmlspecialchars($seg['from_code'] ?? '') ?></span>
+                    <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">An Stn. <?= htmlspecialchars($seg['from_name'] ?? '') ?></span>
                 <?php else: ?>
                     <span style="font-size:11px;color:<?= $scColor($sc) ?>;flex-shrink:0;">–</span>
                 <?php endif; ?>

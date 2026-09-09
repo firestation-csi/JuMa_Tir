@@ -781,6 +781,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     padding: 10px 16px 6px;
     background: var(--wt-surface-alt);
     border-bottom: 1px solid var(--wt-border);
@@ -788,11 +789,12 @@
 .rte_seg__route {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    min-width: 0;
     font-size: 13px;
-    font-weight: 800;
-    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
 }
+.rte_seg__route svg { flex-shrink: 0; }
 .rte_seg__row {
     display: flex;
     align-items: center;
