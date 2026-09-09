@@ -35,6 +35,7 @@
 /* Scroll-Bereich */
 .wt_scroll {
     flex: 1;
+    min-height: 0;   /* Flex-Kinder schrumpfen sonst nicht unter ihre Inhaltshöhe -> kein Scroll möglich */
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -589,9 +590,18 @@
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Desktop */
+/* Tablet: breitere Lesespalte statt Handy-Schmalspur */
+@media (min-width: 768px) {
+    .wt_scroll { max-width: 640px; margin: 0 auto; }
+    .wt_tabbar { left: calc(50% - 320px + 12px); right: calc(50% - 320px + 12px); }
+    .wt_top-header { max-width: 640px; left: 50%; transform: translateX(-50%); }
+    .wt_chat-input-bar { left: calc(50% - 320px + 12px); right: calc(50% - 320px + 12px); }
+}
+
+/* Desktop/Laptop: nochmals mehr Platz für die Inhaltsspalte */
 @media (min-width: 1024px) {
-    .wt_scroll { max-width: 480px; margin: 0 auto; }
-    .wt_tabbar { left: calc(50% - 240px + 12px); right: calc(50% - 240px + 12px); }
-    .wt_top-header { max-width: 480px; left: 50%; transform: translateX(-50%); }
+    .wt_scroll { max-width: 780px; }
+    .wt_tabbar { left: calc(50% - 390px + 12px); right: calc(50% - 390px + 12px); }
+    .wt_top-header { max-width: 780px; }
+    .wt_chat-input-bar { left: calc(50% - 390px + 12px); right: calc(50% - 390px + 12px); }
 }
