@@ -27,6 +27,7 @@ return [
         '/admin/stations'                                    => ['App\Controller\AdminStationController', 'index'],
         '/admin/stations/routes'                             => ['App\Controller\AdminStationRouteController', 'index'],
         '/admin/stations/routes/{id}/edit'                   => ['App\Controller\AdminStationRouteController', 'edit'],
+        '/admin/stations/travel-analysis'                    => ['App\Controller\AdminStationRouteController', 'travelAnalysis'],
         '/admin/stations/new'                                => ['App\Controller\AdminStationController', 'create'],
         '/admin/stations/{id}/edit'                          => ['App\Controller\AdminStationController', 'edit'],
         '/admin/stations/{stationId}/tasks'                  => ['App\Controller\AdminStationTaskController', 'index'],

@@ -710,14 +710,7 @@
 }
 
 /* ---- Routen ---- */
-.rte_layout {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 20px;
-    align-items: flex-start;
-}
-.rte_main     { display: flex; flex-direction: column; gap: 20px; }
-.rte_analysis { position: sticky; top: 76px; }
+.rte_main { display: flex; flex-direction: column; gap: 20px; }
 
 /* Routenkette */
 .rte_chain {
@@ -809,11 +802,6 @@
     font-size: 12px;
 }
 .rte_seg__row:last-child { border-bottom: none; }
-
-@media (max-width: 900px) {
-    .rte_layout { grid-template-columns: 1fr; }
-    .rte_analysis { position: static; }
-}
 
 /* ---- Wettbewerb-Selector ---- */
 .comp_selector {

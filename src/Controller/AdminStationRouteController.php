@@ -46,9 +46,23 @@ class AdminStationRouteController
             'stations'         => $compId ? $this->stationModel->findByCompetition($compId) : [],
             'laufwege'         => $compId ? $this->laufwegModel->findByCompetition($compId) : [],
             'routes'           => $compId ? $this->routeModel->findByCompetition($compId) : [],
-            'analysis'         => $compId ? $this->routeModel->getTravelAnalysis($compId) : [],
             'stationDurations' => $compId ? $this->scoreModel->getStationDurations($compId) : [],
             'csrf'             => Auth::getCsrfToken(),
+        ]);
+    }
+
+    /** Seite: Reisezeiten-Analyse (ausgegliedert aus der Routen-Übersicht) */
+    public function travelAnalysis(): void
+    {
+        $competition = $this->getCompetition();
+        $compId      = $competition ? (int)$competition['id'] : 0;
+
+        Response::view('pages/admin/travel-analysis', [
+            'title'        => 'Reisezeiten-Analyse',
+            'competition'  => $competition,
+            'competitions' => $this->competitionModel->findAll(),
+            'laufwege'     => $compId ? $this->laufwegModel->findByCompetition($compId) : [],
+            'analysis'     => $compId ? $this->routeModel->getTravelAnalysis($compId) : [],
         ]);
     }
 
