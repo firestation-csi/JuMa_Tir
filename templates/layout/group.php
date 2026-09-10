@@ -7,12 +7,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#D4263A">
     <title><?= htmlspecialchars($title ?? 'Gruppeninfo') ?></title>
-    <link rel="stylesheet" href="/assets/css/main.css">
-    <link rel="stylesheet" href="/assets/css/judge.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(asset('assets/css/main.css')) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(asset('assets/css/judge.css')) ?>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 </head>
 <body class="wt_body wt_body--judge">
-    <script src="/assets/js/routing.js"></script>
+    <script src="<?= htmlspecialchars(asset('assets/js/routing.js')) ?>"></script>
     <?= $content ?? '' ?>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>

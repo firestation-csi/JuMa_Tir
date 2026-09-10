@@ -417,6 +417,27 @@ ul, ol { list-style: none; }
     animation: wtFadeIn 200ms ease-out;
 }
 
+/* ---- Update-Hinweis (neue App-Version verfügbar) ---- */
+.wt_update-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--wt-space-sm) var(--wt-space-md);
+    padding: 10px var(--wt-space-md);
+    background: var(--wt-text);
+    color: var(--wt-bg);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: center;
+    animation: wtFadeIn 200ms ease-out;
+}
+
 /* ---- Gruppen-Karte ---- */
 .wt_group-num {
     display: inline-flex;

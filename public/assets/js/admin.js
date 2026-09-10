@@ -1,6 +1,6 @@
 // Wertungsbüro JavaScript
-
-import { showMessage, base64UrlToBuffer, bufferToBase64Url, apiFetch } from './app.js';
+// showMessage/base64UrlToBuffer/bufferToBase64Url/apiFetch kommen als globale
+// Funktionen aus app.js (siehe dort)
 
 // ---- Hash/Token per Klick in Zwischenablage ----
 document.querySelectorAll('.adm_hash').forEach(el => {

@@ -36,7 +36,10 @@ RewriteRule ^ index.php [L,QSA]
 <IfModule mod_expires.c>
     ExpiresActive On
 
-    # CSS und JS: 1 Woche (bei Änderungen Dateinamen versionieren)
+    # CSS und JS: 1 Woche. Unbedenklich, da alle CSS/JS-URLs über asset() in
+    # config/config.php mit ?v=<Änderungszeit> versioniert werden – bei einem Deploy
+    # ändert sich die URL automatisch, der alte (noch 1 Woche gecachte) Inhalt wird
+    # dadurch nie erneut ausgeliefert.
     ExpiresByType text/css              "access plus 1 week"
     ExpiresByType application/javascript "access plus 1 week"
 
