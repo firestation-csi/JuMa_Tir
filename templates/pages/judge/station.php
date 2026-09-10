@@ -18,7 +18,7 @@ $appData = json_encode([
         <span style="font-size:13px;font-weight:600;">Lade…</span>
     </div>
 </div>
-<script src="/assets/js/station.js" type="module"></script>
+<script src="<?= htmlspecialchars(asset('assets/js/station.js')) ?>" type="module"></script>
 <?php
 $content = ob_get_clean();
 require dirname(__DIR__, 2) . '/layout/judge.php';

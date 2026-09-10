@@ -1,7 +1,6 @@
 // QR-Code-Scan und -Anzeige – nutzt html5-qrcode CDN
 // Wird dynamisch über CDN geladen um Bundle-Größe zu sparen
-
-import { apiFetch, showMessage } from './app.js';
+// apiFetch/showMessage kommen als globale Funktionen aus app.js (siehe dort)
 
 const QR_LIB_URL = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
 

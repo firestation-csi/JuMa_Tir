@@ -1,6 +1,5 @@
 // Offline-Sync-Logik – IndexedDB + Verbindungsüberwachung
-
-import { apiFetch, showMessage } from './app.js';
+// apiFetch/showMessage kommen als globale Funktionen aus app.js (siehe dort)
 
 const DB_NAME    = 'juma-tir-offline';
 const DB_VERSION = 1;

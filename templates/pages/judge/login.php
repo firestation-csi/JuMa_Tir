@@ -114,7 +114,7 @@ ob_start();
     </div>
 </div>
 
-<script src="/assets/js/qr.js" type="module"></script>
+<script src="<?= htmlspecialchars(asset('assets/js/qr.js')) ?>" type="module"></script>
 <?php
 $content = ob_get_clean();
 require dirname(__DIR__, 2) . '/layout/judge.php';

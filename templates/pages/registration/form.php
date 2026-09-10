@@ -20,7 +20,7 @@ $oldGesch = $old['geschlecht'] ?? '';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gruppenanmeldung · <?= htmlspecialchars($competition['name'] ?? '') ?></title>
-    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(asset('assets/css/main.css')) ?>">
     <style>
         body { background: var(--wt-bg); color: var(--wt-text); font-family: system-ui, sans-serif;
                min-height: 100dvh; }

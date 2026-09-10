@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="mobile-web-app-capable" content="yes">
     <title><?= htmlspecialchars($title ?? 'Wertungsbüro') ?> – KFV-Tirschenreuth</title>
-    <link rel="stylesheet" href="/assets/css/main.css">
-    <link rel="stylesheet" href="/assets/css/admin.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(asset('assets/css/main.css')) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(asset('assets/css/admin.css')) ?>">
     <?= $extraHead ?? '' ?>
 </head>
 <body class="wt_body wt_body--admin">
@@ -55,7 +55,7 @@
         </a>
     </div>
 
-    <script src="/assets/js/routing.js"></script>
+    <script src="<?= htmlspecialchars(asset('assets/js/routing.js')) ?>"></script>
 
     <main class="adm_main">
         <h1 class="adm_page-title"><?= htmlspecialchars($title ?? '') ?></h1>
@@ -63,8 +63,8 @@
     </main>
 
     <?= $extraScripts ?? '' ?>
-    <script src="/assets/js/app.js" type="module"></script>
-    <script src="/assets/js/admin.js" type="module"></script>
+    <script src="<?= htmlspecialchars(asset('assets/js/app.js')) ?>" type="module"></script>
+    <script src="<?= htmlspecialchars(asset('assets/js/admin.js')) ?>" type="module"></script>
     <script>
     // Hamburger-Menü
     (function () {

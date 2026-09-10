@@ -44,7 +44,7 @@ $statsJson = json_encode([
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Präsentation · <?= htmlspecialchars($competition['name'] ?? '') ?></title>
-    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(asset('assets/css/main.css')) ?>">
     <style>
         /* Erzwinge Dark-Mode für Beamer-Ansicht */
         :root {
