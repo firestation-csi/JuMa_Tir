@@ -81,6 +81,25 @@ class Group
         return $group;
     }
 
+    /** Gruppe inkl. Wettbewerbs- und Feuerwehr-Bezeichnung (für Auswertung/Report) */
+    public function findByIdWithDetails(int $id): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT g.*,
+                    c.name    AS competition_name,
+                    c.date    AS competition_date,
+                    f.name    AS feuerwehr_name,
+                    f.bereich AS feuerwehr_bereich
+             FROM `groups` g
+             LEFT JOIN competitions c ON c.id = g.competition_id
+             LEFT JOIN feuerwehren f  ON f.id = g.feuerwehr_id
+             WHERE g.id = ?'
+        );
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function getMembers(int $groupId): array
     {
         $stmt = $this->db->prepare(

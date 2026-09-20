@@ -36,6 +36,8 @@ return [
         '/admin/groups'                                          => ['App\Controller\AdminGroupController', 'index'],
         '/admin/groups/new'                                      => ['App\Controller\AdminGroupController', 'create'],
         '/admin/groups/tracking'                                 => ['App\Controller\AdminGroupController', 'tracking'],
+        '/admin/groups/report'                                   => ['App\Controller\AdminGroupController', 'reportAll'],
+        '/admin/groups/{id}/report'                              => ['App\Controller\AdminGroupController', 'report'],
         '/admin/groups/{id}/edit'                                => ['App\Controller\AdminGroupController', 'edit'],
         '/admin/groups/{groupId}/members'                        => ['App\Controller\AdminGroupMemberController', 'index'],
         '/admin/groups/{groupId}/members/new'                    => ['App\Controller\AdminGroupMemberController', 'create'],

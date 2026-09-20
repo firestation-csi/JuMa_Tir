@@ -496,6 +496,8 @@
     .adm_nav, .adm_toolbar, .adm_btn, .adm_form-actions { display: none !important; }
     .adm_qr-grid { grid-template-columns: repeat(3, 1fr); }
     .adm_qr-card { break-inside: avoid; }
+    .grp_report-page { break-after: page; break-inside: avoid; }
+    .grp_report-page:last-child { break-after: auto; }
 }
 
 /* ---- Nav-Badge (Nachrichten) ---- */
@@ -929,6 +931,31 @@
     .res_layout { grid-template-columns: 1fr; }
     .res_sidebar { position: static; }
 }
+
+/* ---- Gruppen-Auswertung (Report) ---- */
+.grp_report__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--wt-border);
+}
+.grp_report__title { font-size: 18px; font-weight: 700; }
+.grp_report__sub   { font-size: 13px; color: var(--wt-text-muted); margin-top: 2px; }
+.grp_report__comp  { font-size: 12px; color: var(--wt-text-subtle); text-align: right; }
+.grp_report__summary {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.grp_report__stat { display: flex; flex-direction: column; gap: 2px; }
+.grp_report__stat-label { font-size: 11px; color: var(--wt-text-subtle); text-transform: uppercase; letter-spacing: .03em; }
+.grp_report__stat-value { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; }
+.grp_report-page + .grp_report-page { margin-top: 20px; }
 
 /* ---- Dashboard ---- */
 .dash_stat-grid {
