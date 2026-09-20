@@ -1,4 +1,5 @@
-import { apiFetch, base64UrlToBuffer, bufferToBase64Url, showMessage } from './app.js';
+// apiFetch/base64UrlToBuffer/bufferToBase64Url/showMessage kommen als globale
+// Funktionen aus app.js (siehe dort)
 
 function getUsername() {
     const input = document.getElementById('username');

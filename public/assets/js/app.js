@@ -2,7 +2,19 @@
 
 // Service Worker registrieren
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    // Merken, ob beim Laden bereits ein SW aktiv war – nur dann ist ein späterer
+    // controllerchange ein echtes Update (nicht die Erstübernahme nach der Installation).
+    const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+        // Safari prüft von selbst eher selten/inkonsistent auf ein neues sw.js –
+        // deshalb aktiv nachfragen, sobald der Tab sichtbar wird bzw. periodisch.
+        const checkForUpdate = () => registration.update().catch(() => {});
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') checkForUpdate();
+        });
+        setInterval(checkForUpdate, 5 * 60 * 1000);
+    }).catch((err) => {
         console.error('Service Worker Registrierung fehlgeschlagen:', err);
     });
 
@@ -12,6 +24,26 @@ if ('serviceWorker' in navigator) {
             window.dispatchEvent(new CustomEvent('wt:sync-trigger'));
         }
     });
+
+    // Neue Version aktiv geworden → Hinweis zum Neuladen anzeigen (nicht erzwingen,
+    // damit z.B. nicht gespeicherte Offline-Bewertungen nicht verloren gehen)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadControllerAtLoad) {
+            showUpdateBanner();
+        }
+    });
+}
+
+/** Banner "Neue Version verfügbar" mit manuellem Neuladen-Button anzeigen */
+function showUpdateBanner() {
+    if (document.querySelector('.wt_update-banner')) return;
+
+    const el = document.createElement('div');
+    el.className = 'wt_update-banner';
+    el.innerHTML = '<span>Neue Version verfügbar.</span>' +
+        '<button type="button" class="wt_btn wt_btn--primary wt_btn--sm">Jetzt aktualisieren</button>';
+    el.querySelector('button').addEventListener('click', () => window.location.reload());
+    document.body.appendChild(el);
 }
 
 // Einfacher API-Client
@@ -78,3 +110,13 @@ export function bufferToBase64Url(buffer) {
     }
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+
+// Zusätzlich global bereitstellen: app.js wird bereits über <script type="module">
+// in jedem Layout eingebunden. Andere Module greifen deshalb direkt auf diese
+// globalen Funktionen zu, statt app.js per import erneut zu laden – ein relativer
+// import würde wegen der Cache-Busting-Query (?v=...) eine zweite, unversionierte
+// Kopie von app.js nachladen und doppelt ausführen.
+window.apiFetch = apiFetch;
+window.showMessage = showMessage;
+window.base64UrlToBuffer = base64UrlToBuffer;
+window.bufferToBase64Url = bufferToBase64Url;

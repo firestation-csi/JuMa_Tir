@@ -1,17 +1,15 @@
 // Service Worker – Schiedsrichter-App
 // Strategie: Network-First für Seiten & API, Cache-First nur für echte Assets
+//
+// CSS/JS werden von PHP aus mit ?v=<Änderungszeit> versioniert (siehe asset() in
+// config/config.php). Dadurch fordert der Browser bei jedem Deploy automatisch eine
+// neue URL an – ein manuelles Hochzählen von CACHE_NAME für CSS/JS-Änderungen ist
+// nicht mehr nötig. CACHE_NAME nur erhöhen, wenn sich dieses sw.js selbst grundlegend
+// ändert (z.B. neue Fetch-Strategie).
+const CACHE_NAME = 'juma-v23';
 
-// VERSION ERHÖHEN bei jedem Deploy (CSS/JS-Änderungen werden sonst nicht übernommen)
-const CACHE_NAME = 'juma-v22';
-
-// Nur echte statische Assets voraufladen — KEINE PHP-Seiten
+// Nur echte, unversionierte statische Assets voraufladen — KEINE PHP-Seiten
 const STATIC_ASSETS = [
-    '/assets/css/main.css',
-    '/assets/css/judge.css',
-    '/assets/js/app.js',
-    '/assets/js/qr.js',
-    '/assets/js/offline.js',
-    '/assets/js/station.js',
     '/manifest.json',
 ];
 
@@ -69,6 +67,9 @@ async function cacheFirst(request) {
         const response = await fetch(request);
         if (response.ok) {
             const cache = await caches.open(CACHE_NAME);
+            // Ältere Versionen (?v=...) desselben Datei-Pfads entfernen, damit der
+            // Cache nicht unbegrenzt mit veralteten CSS/JS-Ständen wächst.
+            await evictStalePathVersions(cache, request);
             cache.put(request, response.clone());
         }
         return response;
@@ -78,6 +79,17 @@ async function cacheFirst(request) {
             headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
     }
+}
+
+/** Entfernt andere gecachte Einträge mit gleichem Pfad, aber abweichender ?v=-Query */
+async function evictStalePathVersions(cache, request) {
+    const pathname = new URL(request.url).pathname;
+    const keys = await cache.keys();
+    await Promise.all(
+        keys
+            .filter((k) => k.url !== request.url && new URL(k.url).pathname === pathname)
+            .map((k) => cache.delete(k))
+    );
 }
 
 /** Network-First: Network → Cache → Offline-Fallback */

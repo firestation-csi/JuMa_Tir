@@ -37,3 +37,19 @@ if (APP_DEBUG) {
 ini_set('session.cookie_httponly', '1');
 ini_set('session.use_strict_mode', '1');
 ini_set('session.cookie_samesite', 'Lax');
+
+// Webroot-Pfad für Asset-Versionierung
+define('PUBLIC_PATH', dirname(__DIR__) . '/public');
+
+/**
+ * Liefert die URL zu einem Asset in /public mit Cache-Busting-Query (?v=Änderungszeit).
+ * Verhindert veraltetes CSS/JS aus dem Browser-Cache (v.a. Safari) nach einem Deploy,
+ * da sich die URL bei jeder Dateiänderung automatisch ändert.
+ */
+function asset(string $path): string
+{
+    $path = '/' . ltrim($path, '/');
+    $file = PUBLIC_PATH . $path;
+    $version = is_file($file) ? filemtime($file) : time();
+    return $path . '?v=' . $version;
+}

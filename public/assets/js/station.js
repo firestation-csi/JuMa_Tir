@@ -2,7 +2,7 @@
 // State-Machine: dashboard → checkin → scoring → confirm
 // Tabs: aktiv | verlauf | profil
 
-import { apiFetch, showMessage } from './app.js';
+// apiFetch/showMessage kommen als globale Funktionen aus app.js (siehe dort)
 import { startScanner, stopScanner } from './qr.js';
 
 // ── Daten aus PHP ─────────────────────────────
