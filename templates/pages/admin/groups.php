@@ -14,6 +14,10 @@ $activeComp = $activeComp ?? null;
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 4.5v4l2.8 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/></svg>
         Reisezeiten-Analyse
     </a>
+    <a href="/admin/groups/report" target="_blank" class="adm_btn adm_btn--ghost">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 2h6l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 2v3h3M5.5 9h5M5.5 11.5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Alle Gruppen als PDF
+    </a>
 </div>
 
 <?php if (empty($groups)): ?>
@@ -96,6 +100,8 @@ $activeComp = $activeComp ?? null;
                             <?php endif; ?>
                             <a href="/admin/groups/<?= (int)$g['id'] ?>/members"
                                class="adm_btn adm_btn--sm adm_btn--ghost">Mitglieder</a>
+                            <a href="/admin/groups/<?= (int)$g['id'] ?>/report" target="_blank"
+                               class="adm_btn adm_btn--sm adm_btn--ghost">Auswertung</a>
                             <a href="/admin/print/qr/group/<?= (int)$g['id'] ?>"
                                class="adm_btn adm_btn--sm adm_btn--ghost"
                                onclick="window.open(this.href,'_blank','width=680,height=540,resizable=yes'); return false;"

@@ -11,18 +11,24 @@ use App\Core\Response;
 use App\Model\Competition;
 use App\Model\Feuerwehr;
 use App\Model\Group;
+use App\Model\Score;
+use App\Model\Station;
 
 class AdminGroupController
 {
     private Group       $groupModel;
     private Competition $competitionModel;
     private Feuerwehr   $feuerwehrModel;
+    private Score       $scoreModel;
+    private Station     $stationModel;
 
     public function __construct(private Request $request)
     {
         $this->groupModel       = new Group();
         $this->competitionModel = new Competition();
         $this->feuerwehrModel   = new Feuerwehr();
+        $this->scoreModel       = new Score();
+        $this->stationModel     = new Station();
         if (!Auth::isAdmin()) {
             Response::redirect('/admin/login');
         }
@@ -108,6 +114,72 @@ class AdminGroupController
             'activeComp'  => $activeComp,
             'csrf'        => Auth::getCsrfToken(),
         ]);
+    }
+
+    /** Auswertung einer einzelnen Gruppe: alle Stationen + Eindrücke */
+    public function report(string $id): void
+    {
+        $group = $this->groupModel->findByIdWithDetails((int)$id);
+        if (!$group) Response::notFound('Gruppe nicht gefunden');
+
+        Response::view('pages/admin/group-report', [
+            'title'  => 'Auswertung – ' . $group['name'],
+            'report' => $this->buildGroupReport($group),
+        ]);
+    }
+
+    /** Gesamt-Auswertung aller Gruppen des aktiven Wettbewerbs (für Sammel-PDF) */
+    public function reportAll(): void
+    {
+        $activeComp = $this->competitionModel->findActive();
+        $groups     = $activeComp
+            ? array_filter($this->groupModel->findByCompetition((int)$activeComp['id']), fn($g) => (bool)$g['active'])
+            : [];
+
+        $reports = [];
+        foreach ($groups as $g) {
+            $group = $this->groupModel->findByIdWithDetails((int)$g['id']);
+            if ($group) $reports[] = $this->buildGroupReport($group);
+        }
+
+        Response::view('pages/admin/group-report-all', [
+            'title'      => 'Gesamtauswertung Gruppen',
+            'activeComp' => $activeComp,
+            'reports'    => $reports,
+        ]);
+    }
+
+    /** Baut Report-Daten (Gruppe + Stationen-Bewertungen + Summen) für Auswertungs-Views */
+    private function buildGroupReport(array $group): array
+    {
+        $scores = $this->scoreModel->findByGroup((int)$group['id']);
+
+        $totalStations = 0;
+        if ($group['competition_id']) {
+            $stations      = $this->stationModel->findByCompetition((int)$group['competition_id']);
+            $totalStations = count(array_filter($stations, fn($s) => (bool)$s['active']));
+        }
+
+        $impPoints = ['sehr_gut' => 0, 'gut' => 1, 'befriedigend' => 2];
+        $totalFp   = 0;
+        $impSum    = 0;
+        $impCount  = 0;
+        foreach ($scores as $s) {
+            $totalFp += (int)$s['total_fp'];
+            if (isset($impPoints[$s['impression']])) {
+                $impSum += $impPoints[$s['impression']];
+                $impCount++;
+            }
+        }
+
+        return [
+            'group'              => $group,
+            'scores'             => $scores,
+            'total_fp'           => $totalFp,
+            'avg_impression'     => $impCount > 0 ? round($impSum / $impCount, 2) : null,
+            'stations_completed' => count($scores),
+            'stations_total'     => $totalStations,
+        ];
     }
 
     /** Selbst-angemeldete Gruppe aktivieren */

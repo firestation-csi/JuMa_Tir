@@ -51,6 +51,22 @@ class Score
         return $row ?: null;
     }
 
+    /** Alle Bewertungen einer Gruppe über alle Stationen (für Gruppen-Auswertung/PDF) */
+    public function findByGroup(int $groupId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT s.*, st.code AS station_code, st.name AS station_name, st.task AS station_task,
+                    j.name AS judge_name
+             FROM scores s
+             JOIN stations st ON st.id = s.station_id
+             LEFT JOIN judges j ON j.id = s.judge_id
+             WHERE s.group_id = :group_id
+             ORDER BY CAST(st.code AS UNSIGNED), st.code ASC'
+        );
+        $stmt->execute([':group_id' => $groupId]);
+        return $stmt->fetchAll();
+    }
+
     public function findByStation(int $stationId): array
     {
         $stmt = $this->db->prepare(
